@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S0 — Project foundation (`READY_FOR_REVIEW`) |
+| Current stage | S0 — Project foundation (`APPROVED`, awaiting merge into `develop`) |
 | Current branch | `feature/project-foundation` (from `develop` at `a8f777c`) |
 | Last completed stage | Planning (docs committed to `main` as the initial commit) |
-| Next authorized stage | — (S1 only after S0 is approved and merged into `develop` by the developer) |
-| Pending human action | S0 manual Simulator checks (review log) and an independent Codex review; share the findings |
+| Next authorized stage | **S1 — Analytics core and diagnostics** (authorized by the developer on 2026-11-13; starts in a new conversation after S0 is merged into `develop`) |
+| Pending human action | Merge `feature/project-foundation` into `develop` (`--no-ff`), then start a new conversation for S1 |
 | Open review findings | — |
 | Blockers | — |
 
@@ -21,7 +21,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 
 | ID | Stage | Branch | Status | Head commit | Review |
 |---|---|---|---|---|---|
-| S0 | Project foundation | `feature/project-foundation` | READY_FOR_REVIEW | `c8b88bf` + review-answers docs commit | Awaiting Codex review |
+| S0 | Project foundation | `feature/project-foundation` | APPROVED | `c8b88bf` + docs commits | Approved: Codex + developer (2026-11-13) |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | PLANNED | — | — |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | PLANNED | — | — |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
@@ -322,3 +322,9 @@ Decisions marked "Agent" are open to the developer's override during plan review
   6. The home screen shows the new icon (teal-to-navy gradient, 2×2 grid, top-right tile amber).
   7. Run on an iOS 26 iPad simulator: both tabs show their placeholders, switching works, and rotating to each orientation keeps the layout intact.
 - **Open questions:** none left from the first gate.
+
+#### S0 review result (2026-11-13)
+
+- Independent Codex review, run manually by the developer: **approved**. No findings were shared with the agent.
+- Developer's final approval: **approved**. The developer also authorized S1.
+- Status → `APPROVED`. The S1 conversation records `COMPLETED` once it confirms that `feature/project-foundation` is merged into `develop`.
