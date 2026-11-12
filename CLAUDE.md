@@ -58,7 +58,7 @@ xcodebuild -project MerchantCatalog.xcodeproj -scheme MerchantCatalog \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.0' test
 ```
 
-`iPhone 17` because this machine has several simulators named `iPhone 17 Pro`. Commands are verified in stage S0.
+`iPhone 17` because this machine has several simulators named `iPhone 17 Pro`. Both commands verified on 2026-11-13 in S0.
 
 ## Docs map
 

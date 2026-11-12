@@ -52,11 +52,11 @@
 
 **Interfaces:** Produces the `MerchantCatalog` scheme, app target `MerchantCatalog`, test target `MerchantCatalogTests` (`TEST_HOST` = app, `@testable import MerchantCatalog`).
 
-- [ ] **Step 1:** Write `.gitignore` (xcuserdata, DerivedData, build, `*.xcresult`, `.DS_Store`, `.swiftpm`, `.build`).
-- [ ] **Step 2:** Write the project, scheme, app entry point and asset catalog.
-- [ ] **Step 3:** Run `xcodebuild … build` → `** BUILD SUCCEEDED **`, 0 warnings.
-- [ ] **Step 4:** Run `xcodebuild -showBuildSettings -target MerchantCatalog` and `-target MerchantCatalogTests` → `SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`, `PRODUCT_BUNDLE_IDENTIFIER = com.example.MerchantCatalog`.
-- [ ] **Step 5:** Commit `chore: add Xcode project skeleton`.
+- [x] **Step 1:** Write `.gitignore` (xcuserdata, DerivedData, build, `*.xcresult`, `.DS_Store`, `.swiftpm`, `.build`).
+- [x] **Step 2:** Write the project, scheme, app entry point and asset catalog.
+- [x] **Step 3:** Run `xcodebuild … build` → `** BUILD SUCCEEDED **`, 0 warnings.
+- [x] **Step 4:** Run `xcodebuild -showBuildSettings -target MerchantCatalog` and `-target MerchantCatalogTests` → `SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`, `PRODUCT_BUNDLE_IDENTIFIER = com.example.MerchantCatalog`.
+- [x] **Step 5:** Commit `chore: add Xcode project skeleton`.
 
 ### Task 2: ServiceContainer
 
@@ -74,16 +74,16 @@
 @MainActor final class ServiceContainer: ServiceContainerType { init() }
 ```
 
-- [ ] **Step 1: Write the failing tests** (`@MainActor struct ServiceContainerTests`, fixture `protocol GreeterType { func greet() -> String }`, `final class Greeter: GreeterType`):
+- [x] **Step 1: Write the failing tests** (`@MainActor struct ServiceContainerTests`, fixture `protocol GreeterType { func greet() -> String }`, `final class Greeter: GreeterType`):
   - `registerThenResolveReturnsTheSameInstance`: register `greeter as any GreeterType`; `resolve() as (any GreeterType)?` is `===` the instance; `forceResolve()` greets `"hi"`.
   - `resolveMissingReturnsNil`: empty container → `(any GreeterType)?` is `nil`.
   - `registeringTheSameTypeTwiceOverwrites`: register `Counter(value: 1)` then `Counter(value: 2)` → resolves `2`.
   - `resolvesOnlyUnderTheRegisteredType`: register as `any GreeterType` → `resolve() as Greeter?` is `nil`.
   - `sameNamedTypesInDifferentScopesDoNotCollide`: `ScopeA.Config(value: 1)`, `ScopeB.Config(value: 2)` both resolve to their own value.
-- [ ] **Step 2:** Run `xcodebuild … test` → compile error `cannot find 'ServiceContainer' in scope`.
-- [ ] **Step 3:** Implement with `private var services: [ObjectIdentifier: Any]`.
-- [ ] **Step 4:** Run tests → 5 passed.
-- [ ] **Step 5:** Commit `feat: add ServiceContainer`.
+- [x] **Step 2:** Run `xcodebuild … test` → compile error `cannot find 'ServiceContainer' in scope`.
+- [x] **Step 3:** Implement with `private var services: [ObjectIdentifier: Any]`.
+- [x] **Step 4:** Run tests → 5 passed.
+- [x] **Step 5:** Commit `feat: add ServiceContainer`.
 
 ### Task 3: AppContext
 
@@ -96,11 +96,11 @@
 - Consumes: `ServiceContainerType`, `ServiceContainer` (Task 2).
 - Produces: `@MainActor final class AppContext { let container: any ServiceContainerType; static func configure() -> AppContext }`. `configure()` registers every service under its protocol type (none in S0; S1 starts adding).
 
-- [ ] **Step 1: Write the failing test** `configureBuildsAnIndependentContainer`: register a fixture value in `AppContext.configure().container`; a second `configure()`'s container resolves `nil` for that type.
-- [ ] **Step 2:** Run tests → compile error `cannot find 'AppContext' in scope`.
-- [ ] **Step 3:** Implement `AppContext`; doc comment on the Configurator `resolveDependencies(from:)` rule (decision above).
-- [ ] **Step 4:** Run tests → all passed.
-- [ ] **Step 5:** Commit `feat: add AppContext composition root`.
+- [x] **Step 1: Write the failing test** `configureBuildsAnIndependentContainer`: register a fixture value in `AppContext.configure().container`; a second `configure()`'s container resolves `nil` for that type.
+- [x] **Step 2:** Run tests → compile error `cannot find 'AppContext' in scope`.
+- [x] **Step 3:** Implement `AppContext`; doc comment on the Configurator `resolveDependencies(from:)` rule (decision above).
+- [x] **Step 4:** Run tests → all passed.
+- [x] **Step 5:** Commit `feat: add AppContext composition root`.
 
 ### Task 4: Log categories, Route and Router
 
@@ -125,17 +125,17 @@ enum Route: Hashable { case productDetail(productID: Int) }
 ```
 Router logs push/pop/popToRoot to `Log.navigation` at `.debug` (route `.public`; ids only).
 
-- [ ] **Step 1: Write the failing tests** (`@MainActor struct RouterTests`):
+- [x] **Step 1: Write the failing tests** (`@MainActor struct RouterTests`):
   - `startsEmpty`: `Router().path == []`.
   - `pushAppendsRoute`: push 1, push 2 → `[.productDetail(productID: 1), .productDetail(productID: 2)]`.
   - `popRemovesLastRoute`: path `[1, 2]` → pop → `[1]`.
   - `popOnEmptyPathIsNoOp`: pop on `[]` → `[]`.
   - `popToRootClearsPath`: path `[1, 2, 3]` → `[]`.
   - `popToRootOnEmptyPathIsNoOp`.
-- [ ] **Step 2:** Run tests → compile error `cannot find 'Router' in scope`.
-- [ ] **Step 3:** Implement `Log`, `Route`, `Router`.
-- [ ] **Step 4:** Run tests → all passed.
-- [ ] **Step 5:** Commit `feat: add Router, Route and Log categories`.
+- [x] **Step 2:** Run tests → compile error `cannot find 'Router' in scope`.
+- [x] **Step 3:** Implement `Log`, `Route`, `Router`.
+- [x] **Step 4:** Run tests → all passed.
+- [x] **Step 5:** Commit `feat: add Router, Route and Log categories`.
 
 ### Task 5: AppTabView and the navigation rule
 
@@ -149,17 +149,17 @@ Router logs push/pop/popToRoot to `Log.navigation` at `.debug` (route `.public`;
 - Consumes: `Router`, `Route` (Task 4).
 - Produces: `AppTabView` — iOS 26 `TabView(selection:)` with `Tab("Catalog", systemImage: "square.grid.2x2", value: .catalog)` and `Tab("Saved", systemImage: "bookmark", value: .saved)`; `@State` `selection`, `catalogRouter`, `savedRouter`; each tab is `NavigationStack(path: $router.path)` with a `ContentUnavailableView` placeholder root and `.navigationDestination(for: Route.self)`. Placeholder copy: Catalog — "Products will appear here."; Saved — "Saved products will appear here." Detail placeholder: `Text("Product \(id)")`.
 
-- [ ] **Step 1: Write the failing test** `onlyAppTabViewOwnsNavigation`: locate the repo root by walking up from `#filePath` to the folder containing `MerchantCatalog.xcodeproj`; scan every `.swift` file under `MerchantCatalog/`; offenders = any `NavigationLink`/`NavigationView`, and `NavigationStack`/`navigationDestination` outside `MerchantCatalog/App/AppTabView.swift`. `#expect(offenders == [])`, `#expect(!scannedFiles.isEmpty)`, and `#expect(appTabViewSource.contains("NavigationStack"))` (positive control).
-- [ ] **Step 2:** Run tests → fails: AppTabView.swift not found (positive control).
-- [ ] **Step 3:** Implement `AppTab`, `AppTabView`; wire into `MerchantCatalogApp`.
-- [ ] **Step 4:** Run full suite → all passed; build → 0 warnings.
-- [ ] **Step 5:** Commit `feat: add AppTabView with Catalog and Saved tabs`.
+- [x] **Step 1: Write the failing test** `onlyAppTabViewOwnsNavigation`: locate the repo root by walking up from `#filePath` to the folder containing `MerchantCatalog.xcodeproj`; scan every `.swift` file under `MerchantCatalog/`; offenders = any `NavigationLink`/`NavigationView`, and `NavigationStack`/`navigationDestination` outside `MerchantCatalog/App/AppTabView.swift`. `#expect(offenders == [])`, `#expect(!scannedFiles.isEmpty)`, and `#expect(appTabViewSource.contains("NavigationStack"))` (positive control).
+- [x] **Step 2:** Run tests → fails: AppTabView.swift not found (positive control).
+- [x] **Step 3:** Implement `AppTab`, `AppTabView`; wire into `MerchantCatalogApp`.
+- [x] **Step 4:** Run full suite → all passed; build → 0 warnings.
+- [x] **Step 5:** Commit `feat: add AppTabView with Catalog and Saved tabs`.
 
 ### Task 6: Docs and review gate
 
 **Files:** Modify `docs/Architecture.md` (§ 2 note on folders, § 6 `configure()`/Configurator rule, § 7 S0 `Route`), `README.md` (run/test line), `CLAUDE.md` (commands verified), `docs/ImplementationPlan.md` (status, decisions, review log), `docs/AILog.md` (developer choice on registration guard, if AI output was changed).
 
-- [ ] **Step 1:** Clean build (`xcodebuild clean build`) → 0 warnings; full `xcodebuild test` → counts recorded.
-- [ ] **Step 2:** Update docs to match reality.
-- [ ] **Step 3:** Review log entry: branch, head commit, files, test counts, warnings 0, manual Simulator checks (launch; both tabs show placeholders; switching tabs works), limitations, open questions.
-- [ ] **Step 4:** Set S0 `READY_FOR_REVIEW`; commit `docs: record S0 review gate`.
+- [x] **Step 1:** Clean build (`xcodebuild clean build`) → 0 warnings; full `xcodebuild test` → counts recorded.
+- [x] **Step 2:** Update docs to match reality.
+- [x] **Step 3:** Review log entry: branch, head commit, files, test counts, warnings 0, manual Simulator checks (launch; both tabs show placeholders; switching tabs works), limitations, open questions.
+- [x] **Step 4:** Set S0 `READY_FOR_REVIEW`; commit `docs: record S0 review gate`.

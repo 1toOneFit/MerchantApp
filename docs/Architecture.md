@@ -68,6 +68,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
     Theme/         Spacing, Typography (system styles only)
     Components/    ProductImageView (visibility-gated AsyncImage), StateViews (Loading/Empty/Error),
                    ErrorBanner, SaveButton
+  Assets.xcassets                       # AppIcon (empty until an icon is added), AccentColor
 MerchantCatalogTests/
   Fakes/           FakeAPIClient, StubURLProtocol, FakeProductRepository, TestClock,
                    InMemorySavedRepository, SpyAnalytics, SpyAnalyticsProvider, …
@@ -75,6 +76,8 @@ MerchantCatalogTests/
 ```
 
 `Shared/` holds domain and data used by more than one feature (products, saved items). A feature folder holds only what that feature uses. Test doubles live in the test target only. DEBUG-only runtime tooling lives in `Features/Diagnostics`.
+
+**What exists (S0):** the tree above is the target layout. S0 created `App/` (`MerchantCatalogApp`, `AppContext`, `AppTab`, `AppTabView`), `Core/DI`, `Core/Navigation`, `Core/Logging` and `Assets.xcassets`, plus tests in `MerchantCatalogTests/App` and `MerchantCatalogTests/Core/{DI,Navigation}`. Every other folder is created together with its first file: git doesn't track empty folders, and a placeholder file inside a file-system-synchronized folder would be copied into the app bundle.
 
 ## 3. Layer rules
 
@@ -101,6 +104,7 @@ Rules: services are registered in the container **as their protocol type**; view
 ## 5. Concurrency model
 
 - **Swift 6 language mode with complete strict-concurrency checking.** Zero warnings is a review requirement. Before each stage, confirm the project's Swift version, deployment target and concurrency settings.
+- **Build settings** (verified 2026-11-13 in S0 with `xcodebuild -showBuildSettings`): `SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0` on both targets. `SWIFT_DEFAULT_ACTOR_ISOLATION` and `SWIFT_APPROACHABLE_CONCURRENCY` are deliberately not set, although Xcode 26 templates usually enable them: code is nonisolated by default, and `@MainActor` is written explicitly on the UI-facing types listed below.
 - **Structured first.** Work starts from SwiftUI's `.task`/`.refreshable` or from async view-model intents, so cancellation follows the view lifecycle automatically. Unstructured `Task { }` is used only where a synchronous UI callback must start async work (e.g. a button tap or text change); the view model keeps the handle and cancels it on supersession or teardown.
 - **Explicit isolation.** `@MainActor` on UI-facing types only: view models, routers, `SavedProductsStore`, `ServiceContainer`, `ExposureTracker`. Domain models and DTOs are `Sendable` value types. `URLSessionAPIClient` and repositories are `Sendable` (immutable configuration). File writes go through an **actor**. No `@unchecked Sendable` or `nonisolated(unsafe)` without a justifying comment.
 - **Cancellation propagates.** `URLSession`'s async API cancels the network task when the Swift task is cancelled. `CancellationError` / `URLError.cancelled` means "no state change", never an error UI.
@@ -121,9 +125,10 @@ protocol ServiceContainerType: AnyObject {
 }
 ```
 
-- `AppContext.configure()` runs once at launch and registers, by protocol: `APIClientType`, `ProductRepository`, `SavedProductsRepository`, `AnalyticsTracking`, `ExperimentService`, plus `SavedProductsStore`, `SessionTracker`, `InstallationIDProvider`.
+- `AppContext.configure()` runs once at launch and registers, by protocol: `APIClientType`, `ProductRepository`, `SavedProductsRepository`, `AnalyticsTracking`, `ExperimentService`, plus `SavedProductsStore`, `SessionTracker`, `InstallationIDProvider`. Each call returns a new `AppContext` with a new container; the app keeps the one built at launch. There is no global singleton, and every test gets an isolated container.
+- `ServiceContainer` keys services by `ObjectIdentifier(T.self)`, the exact registered type. `String(describing:)` keys collide for same-named types in different scopes; an S0 test showed this.
 - Each scene has a **Configurator** (`CatalogConfigurator.make(router:)`) that resolves services and builds the view model with **init injection**. View models never touch the container, so unit tests construct them directly with fakes.
-- A test asserts that every service a Configurator resolves is registered by `AppContext`. A missing registration fails a test instead of crashing in `forceResolve`.
+- **Registration guard** (developer's choice, 2026-11-13): each Configurator resolves its services in `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`, which returns `nil` if anything is missing, and its `make(...)` uses the same function. `AppContextRegistrationTests` calls every Configurator's `resolveDependencies(from:)` against `AppContext.configure().container`, so a missing registration fails a test instead of crashing in `forceResolve`. S0 has no Configurator; the first real case arrives in S2.
 
 ## 7. Navigation
 
@@ -141,6 +146,7 @@ final class Router {
 }
 ```
 
+- **S0 state:** `Route` has one placeholder case, `productDetail(productID: Int)`, with a text placeholder destination: an uninhabited enum couldn't be pushed or tested. S4 introduces `ProductDetailRoute` and `showProductDetail(_:)`. The S0 `Router` API is `path`, `push(_:)`, `pop()` and `popToRoot()`; both pops do nothing at the root.
 - One `Router` per tab, owned by `AppTabView`. `AppTabView` hosts the two `NavigationStack(path:)` and the single `navigationDestination(for: Route.self)` switch that calls Configurators.
 - **Navigation rule** (enforced by `NavigationRuleTests`, a source scan): `NavigationStack` and `navigationDestination` appear only in `App/AppTabView.swift`; `NavigationLink` and `NavigationView` appear nowhere. Feature views request navigation through view-model intents that call the router.
 - Tab switching (e.g. the Saved empty state's "Browse catalog") goes through an `@Observable` tab selection owned by `AppTabView`.
@@ -203,5 +209,5 @@ Rules: search terms and product titles are interpolated with `privacy: .private`
 - **Xcode 26.0 instead of the current Xcode release (27.2).** The developer's machine can't be updated within the assignment window (Xcode 27.2 needs a macOS update). Risk: a reviewer on Xcode 27.x opens a project last built with 26.0. That is normally forward-compatible, but unverified. Mitigation: no deprecated APIs, no Xcode-version-specific build settings, re-verify after updating.
 - **No caching.** The catalog needs a network connection, and thumbnails re-download on reappearance (~10 KB each). This was accepted to keep the scope focused.
 - **`AsyncImage`:** no request de-duplication and no downsampling control; cancellation is expected rather than proven.
-- **`ServiceContainer` resolves at runtime,** so a missing registration is a crash rather than a compile error. The registration test mitigates this.
+- **`ServiceContainer` resolves at runtime,** so a missing registration is a crash rather than a compile error. The registration test mitigates this. The `forceResolve` trap itself is not unit-tested: Swift Testing exit tests aren't supported on iOS.
 - **Full master-spec scope** exceeds the brief's suggested effort. It was chosen deliberately to demonstrate product instrumentation and experimentation.

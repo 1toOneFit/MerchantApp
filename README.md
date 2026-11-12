@@ -2,7 +2,7 @@
 
 A SwiftUI product catalog for merchants who run their business from a phone. It's built on the public [DummyJSON Products API](https://dummyjson.com/docs/products) and supports the journey **Discover → Evaluate → Save → Revisit**.
 
-> **Status: plan approved; implementation starts with stage S0.** No app code yet. Progress and stage status live in [docs/ImplementationPlan.md](docs/ImplementationPlan.md). This README is finalized in stage S7.
+> **Status: in development.** The project foundation (stage S0) is in place: an app shell with Catalog and Saved placeholder tabs. Features arrive in later stages. Progress and stage status live in [docs/ImplementationPlan.md](docs/ImplementationPlan.md). This README is finalized in stage S7.
 
 Prices, stock, shipping and return terms are demo data from a mock API.
 
@@ -17,7 +17,8 @@ Prices, stock, shipping and return terms are demo data from a mock API.
 ## Requirements and running
 
 - **Xcode 26.0**, iOS 26 Simulator. No accounts, keys or packages.
-- Open `MerchantCatalog.xcodeproj`, select the `MerchantCatalog` scheme and an iPhone simulator, then Run. Tests: ⌘U. *(Available from stage S0.)*
+- Open `MerchantCatalog.xcodeproj`, select the `MerchantCatalog` scheme and an iPhone simulator, then Run. Tests: ⌘U, or from Terminal:
+  `xcodebuild -project MerchantCatalog.xcodeproj -scheme MerchantCatalog -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.0' test`
 
 **Trade-off:** the current Xcode release is 27.2. This project is built with 26.0 because updating needs a macOS update that didn't fit the assignment window. It should open in newer Xcode, but that hasn't been verified yet.
 

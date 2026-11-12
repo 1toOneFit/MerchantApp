@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S0 — Project foundation (`IN_PROGRESS`) |
+| Current stage | S0 — Project foundation (`READY_FOR_REVIEW`) |
 | Current branch | `feature/project-foundation` (from `develop` at `a8f777c`) |
 | Last completed stage | Planning (docs committed to `main` as the initial commit) |
-| Next authorized stage | S0 (authorized by the developer on 2026-11-13) |
-| Pending human action | — |
+| Next authorized stage | — (S1 only after S0 is approved and merged into `develop` by the developer) |
+| Pending human action | S0 manual Simulator checks (review log) and an independent Codex review; share the findings |
 | Open review findings | — |
 | Blockers | — |
 
@@ -21,7 +21,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 
 | ID | Stage | Branch | Status | Head commit | Review |
 |---|---|---|---|---|---|
-| S0 | Project foundation | `feature/project-foundation` | IN_PROGRESS | — | — |
+| S0 | Project foundation | `feature/project-foundation` | READY_FOR_REVIEW | `0bb389d` + review-gate docs commit | Awaiting Codex review |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | PLANNED | — | — |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | PLANNED | — | — |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
@@ -265,9 +265,45 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-23 | `AsyncImage` (no custom image loader), shown only while the cell is visible: load on appear, torn down on disappear | Developer | Replaces the custom `ImageLoader`; the former image-loading stage was folded into S2. |
 | D-24 | Protocol-first infrastructure: `APIClientType`, `AnalyticsTracking` + `AnalyticsProvider`, repository and experiment protocols; only `AppContext` names concrete types | Developer | Swap or add implementations (e.g. another analytics vendor) without changing protocols or callers. |
 | D-25 | The agent verifies with build + tests only and never runs the app in the Simulator; the developer does manual Simulator checks | Developer | Token cost. |
+| D-26 | `ServiceContainer` keys by `ObjectIdentifier(T.self)` instead of a type-name string | Agent (S0) | `String(describing:)` keys collide for same-named types in different scopes; `sameNamedTypesInDifferentScopesDoNotCollide` failed against a string-keyed version. |
+| D-27 | Registration guard: Configurators expose `resolveDependencies(from:) -> Dependencies?`, used by `make(...)` and by `AppContextRegistrationTests` | Developer (S0) | Chosen over a hand-maintained `requiredServices` list. |
+| D-28 | `AppContext.configure()` returns a new context and container per call; no global singleton | Agent (S0) | No global mutable state; isolated containers in tests. |
+| D-29 | S0 `Route` has a placeholder case `productDetail(productID: Int)` | Agent (S0) | An uninhabited enum can't be pushed or tested. S4 replaces the payload with `ProductDetailRoute`. |
+| D-30 | iPhone only (`TARGETED_DEVICE_FAMILY = 1`) | Agent (S0) | The product targets merchants on a phone; iPad layouts are excluded (ProductSpecification § 8). Open question in the S0 review log. |
+| D-31 | `SWIFT_DEFAULT_ACTOR_ISOLATION` and `SWIFT_APPROACHABLE_CONCURRENCY` not set | Agent (S0) | Keeps isolation explicit, as Architecture § 5 describes: nonisolated by default, `@MainActor` written on UI-facing types. |
 
 Decisions marked "Agent" are open to the developer's override during plan review.
 
 ## Review log
 
 *(One entry per stage at each review gate: branch, head commit, changed files, tests, build warnings, manual checks for the developer and their results, limitations, open questions, findings and their resolution.)*
+
+### S0 — Project foundation · READY_FOR_REVIEW (2026-11-13)
+
+- **Branch:** `feature/project-foundation` (from `develop` at `a8f777c`). **Head:** the `docs: record S0 review gate` commit on top of `0bb389d`.
+- **Commits:** `ba5bb76` task plan · `54bd657` Xcode project skeleton · `9c3551b` ServiceContainer · `0a838c2` AppContext · `58ca818` Router, Route, Log · `0bb389d` AppTabView + navigation rule · review-gate docs.
+- **Changed files:**
+  - Project: `MerchantCatalog.xcodeproj` (objectVersion 77, file-system-synchronized folders, shared `MerchantCatalog` scheme, test target not parallelized), `.gitignore`.
+  - App: `App/{MerchantCatalogApp, AppContext, AppTab, AppTabView}.swift`, `Core/DI/{ServiceContainerType, ServiceContainer}.swift`, `Core/Navigation/{Route, Router}.swift`, `Core/Logging/Log.swift`, `Assets.xcassets`.
+  - Tests: `App/{AppContextRegistrationTests, NavigationRuleTests}.swift`, `Core/DI/ServiceContainerTests.swift`, `Core/Navigation/RouterTests.swift`.
+  - Docs: `docs/plans/S0-project-foundation.md`, Architecture § 2/5/6/7/12, README (status, run/test), CLAUDE.md (commands verified), AILog, this file.
+- **Build settings** (`xcodebuild -showBuildSettings`, both targets): `SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`, bundle ids `com.example.MerchantCatalog` / `com.example.MerchantCatalogTests`. No packages.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator) succeeded. Result bundle: **0 warnings**, 0 errors, 0 analyzer warnings. The raw log has one `appintentsmetadataprocessor` line, "warning: Metadata extraction skipped. No AppIntents.framework dependency found.", which is a tool message and is not counted as a build issue.
+- **Tests:** `xcodebuild … test`: **13 passed, 0 failed, 0 skipped** in 4 suites: `ServiceContainerTests` 5, `RouterTests` 6, `AppContextRegistrationTests` 1, `NavigationRuleTests` 1. Each suite was seen failing for the expected reason first (compiling stubs; a string-keyed container; a shared-singleton `AppContext`; no `AppTabView`).
+- **Manual Simulator checks for the developer** (the agent did not run the app):
+  1. Open `MerchantCatalog.xcodeproj` in Xcode 26.0: it opens without errors or an "Update to recommended settings" prompt, the `MerchantCatalog` scheme is available, and `MerchantCatalog/` and `MerchantCatalogTests/` show as folders. The project file was written by hand and has only been used through `xcodebuild`.
+  2. Run on an iOS 26 iPhone simulator: the Catalog tab shows the "Catalog" title and the "Products will appear here." placeholder.
+  3. Switch to Saved ("Saved products will appear here."), then back to Catalog: switching works and the tab bar stays visible.
+  4. ⌘U in Xcode: 13 tests pass.
+  5. Optional: in Console.app, filter on subsystem `com.example.MerchantCatalog`. "App launched" appears (`lifecycle`); with debug messages enabled, tab switches log "tab saved" / "tab catalog" (`navigation`).
+- **Known limitations:**
+  - `AppContextRegistrationTests` only checks container isolation; per-Configurator checks start in S2.
+  - `forceResolve`'s trap is untested (exit tests aren't supported on iOS).
+  - `NavigationRuleTests` is a plain token scan: it also matches comments (two doc comments were reworded to "navigation stack"), and it doesn't cover `NavigationSplitView`.
+  - `Route` and its destination are placeholders until S4. `MerchantCatalogApp` holds the `AppContext` but nothing resolves from it until S2.
+  - `AppIcon` is empty, so the app shows the default icon. Only the Debug configuration was built.
+- **Open questions:**
+  1. iPhone only (D-30): keep, or also allow iPad with the phone layout?
+  2. App icon: add one (S7?) or keep the default?
+  3. The planning AILog row calls the container "string-keyed"; S0 keys by `ObjectIdentifier` (D-26). OK?
+- **Findings and resolution:** awaiting the developer's Codex review.

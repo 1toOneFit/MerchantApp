@@ -7,7 +7,7 @@ A running, factual record of how AI tools were used and where the developer acce
 | Tool | Used for |
 |---|---|
 | ChatGPT | Drafting the initial master specification with the developer ([MasterSpecification.md](MasterSpecification.md)) |
-| Claude Code (with superpowers skills: brainstorming, writing-plans, test-driven-development) | Requirement analysis, API verification, planning docs, implementation, tests |
+| Claude Code (with superpowers skills: brainstorming, writing-plans, test-driven-development, verification-before-completion; Swift skills: swift-concurrency, swift-testing, swiftui-patterns, swift-architecture) | Requirement analysis, API verification, planning docs, implementation, tests |
 | Codex | Independent code review of each stage, run manually by the developer |
 
 ## Log
@@ -27,3 +27,4 @@ A running, factual record of how AI tools were used and where the developer acce
 | 2026-11-13 | Planning | Claude's plan used native `URLCache` revalidation for API responses plus a memory-only decoded-image cache (the image CDN sends `no-store`). | **Changed** — no caching of any kind (`urlCache = nil`, no custom cache managers). | The headers give no useful HTTP caching, and a custom cache is too much for this assignment. |
 | 2026-11-13 | Planning | Claude's plan used a custom `ImageLoader` actor (de-duplication, consumer counting, memory cache) instead of `AsyncImage`. | **Changed** — `AsyncImage`, shown only while the cell is visible so loading starts on appear and stops on disappear. The image-loading stage was folded into catalog browsing. | Simpler; keeps the cancellation requirement without custom machinery. |
 | 2026-11-13 | Planning | — (developer-initiated) | Added rules: protocol-first network/analytics layers with swappable providers, `develop`-based branch flow, Swift concurrency guidelines in CLAUDE.md, and no Simulator runs by the agent (build + tests only). | Reusability, review flow, and token cost. |
+| 2026-11-13 | S0 | S0 registers no services yet, so Claude offered two designs for the registration test: a hand-maintained `AppContext.requiredServices` list, or Configurators exposing `resolveDependencies(from:)` that both `make(...)` and the test use. It recommended the second. | Accepted — Configurator check. | No separate list that can drift from the code that resolves services. |
