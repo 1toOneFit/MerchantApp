@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S0 — Project foundation (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/project-foundation` (from `develop` at `a8f777c`) |
-| Last completed stage | Planning (docs committed to `main` as the initial commit) |
-| Next authorized stage | **S1 — Analytics core and diagnostics** (authorized by the developer on 2026-11-13; starts in a new conversation after S0 is merged into `develop`) |
-| Pending human action | Merge `feature/project-foundation` into `develop` (`--no-ff`), then start a new conversation for S1 |
+| Current stage | S1 — Analytics core and diagnostics (`IN_PROGRESS`) |
+| Current branch | `feature/analytics-core` (from `develop` at `ee150e0`) |
+| Last completed stage | S0 — Project foundation (merged into `develop` at `ee150e0`, 2026-11-13) |
+| Next authorized stage | — (S2 needs the developer's authorization after S1 is approved and merged) |
+| Pending human action | — |
 | Open review findings | — |
 | Blockers | — |
 
@@ -21,8 +21,8 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 
 | ID | Stage | Branch | Status | Head commit | Review |
 |---|---|---|---|---|---|
-| S0 | Project foundation | `feature/project-foundation` | APPROVED | `c8b88bf` + docs commits | Approved: Codex + developer (2026-11-13) |
-| S1 | Analytics core & diagnostics | `feature/analytics-core` | PLANNED | — | — |
+| S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
+| S1 | Analytics core & diagnostics | `feature/analytics-core` | IN_PROGRESS | — | — |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | PLANNED | — | — |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
@@ -328,3 +328,8 @@ Decisions marked "Agent" are open to the developer's override during plan review
 - Independent Codex review, run manually by the developer: **approved**. No findings were shared with the agent.
 - Developer's final approval: **approved**. The developer also authorized S1.
 - Status → `APPROVED`. The S1 conversation records `COMPLETED` once it confirms that `feature/project-foundation` is merged into `develop`.
+
+#### S0 merge (recorded by the S1 conversation, 2026-11-13)
+
+- `git branch --merged develop` lists `feature/project-foundation`; `develop` and the branch both point at `ee150e0`. Status → `COMPLETED`.
+- The merge was a fast-forward, so `develop` has no merge commit for S0. The git-flow section above suggests `--no-ff`; the developer decides whether that matters for later stages.
