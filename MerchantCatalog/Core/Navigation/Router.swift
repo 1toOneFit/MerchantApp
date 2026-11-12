@@ -1,11 +1,11 @@
 import Observation
 
 /// Owns one tab's navigation path. `AppTabView` creates one router per tab and binds `path` to that
-/// tab's `NavigationStack`. Features navigate through view-model intents that call the router.
+/// tab's navigation stack. Features navigate through view-model intents that call the router.
 @MainActor
 @Observable
 final class Router {
-    /// Bound to `NavigationStack(path:)`, which also writes it when the user goes back.
+    /// Bound to the tab's navigation stack, which also writes it when the user goes back.
     var path: [Route]
 
     init(path: [Route] = []) {

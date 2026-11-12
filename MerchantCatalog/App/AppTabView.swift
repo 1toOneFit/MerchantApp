@@ -1,0 +1,61 @@
+import SwiftUI
+
+/// The app's root: two tabs, each with its own `NavigationStack` and `Router`, so the tab bar stays
+/// visible on push and each tab keeps its own back stack.
+///
+/// Navigation rule (enforced by `NavigationRuleTests`): this is the only file that uses
+/// `NavigationStack` or `navigationDestination`. Destinations are built here; from S2 on, tab roots
+/// and destinations come from scene Configurators.
+struct AppTabView: View {
+    @State private var selection: AppTab = .catalog
+    @State private var catalogRouter = Router()
+    @State private var savedRouter = Router()
+
+    var body: some View {
+        TabView(selection: $selection) {
+            Tab("Catalog", systemImage: "square.grid.2x2", value: AppTab.catalog) {
+                NavigationStack(path: $catalogRouter.path) {
+                    ContentUnavailableView(
+                        "Catalog",
+                        systemImage: "square.grid.2x2",
+                        description: Text("Products will appear here.")
+                    )
+                    .navigationTitle("Catalog")
+                    .navigationDestination(for: Route.self) { route in
+                        destination(for: route)
+                    }
+                }
+            }
+
+            Tab("Saved", systemImage: "bookmark", value: AppTab.saved) {
+                NavigationStack(path: $savedRouter.path) {
+                    ContentUnavailableView(
+                        "Saved",
+                        systemImage: "bookmark",
+                        description: Text("Saved products will appear here.")
+                    )
+                    .navigationTitle("Saved")
+                    .navigationDestination(for: Route.self) { route in
+                        destination(for: route)
+                    }
+                }
+            }
+        }
+        .onChange(of: selection) { _, tab in
+            Log.navigation.debug("tab \(String(describing: tab), privacy: .public)")
+        }
+    }
+
+    /// S0 placeholder; S4 builds the product details screen through its Configurator.
+    @ViewBuilder
+    private func destination(for route: Route) -> some View {
+        switch route {
+        case .productDetail(let productID):
+            Text("Product \(productID)")
+        }
+    }
+}
+
+#Preview {
+    AppTabView()
+}

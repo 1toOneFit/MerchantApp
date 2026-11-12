@@ -1,4 +1,4 @@
-/// A destination pushed onto a tab's `NavigationStack`.
+/// A destination pushed onto a tab's navigation stack.
 ///
 /// S4 replaces the payload with `ProductDetailRoute` (id, preloaded product, saved snapshot, source).
 enum Route: Hashable {
