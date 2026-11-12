@@ -6,7 +6,7 @@
 
 | Concern | Choice | Alternative considered |
 |---|---|---|
-| UI | SwiftUI, iOS 26.0 minimum, Xcode 26.0 | UIKit: no benefit for this scope |
+| UI | SwiftUI, iOS 26.0 minimum, Xcode 26.0; universal app (iPhone + iPad) with the phone layout on iPad | UIKit: no benefit for this scope |
 | Pattern | Clean Architecture + MVVM, feature folders with `Domain` / `Data` / `Presentation` | TCA: used by many teams, but not the developer's working knowledge. MVVM with explicit intents is explainable end to end |
 | State | `@MainActor @Observable` view models exposing a state value + intent methods | `ObservableObject`/Combine (previous projects): Observation is simpler and tracks only the properties a view reads |
 | Concurrency | Swift 6 language mode, strict concurrency, structured async/await | Combine pipelines: more ceremony, weaker cancellation story |
@@ -68,7 +68,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
     Theme/         Spacing, Typography (system styles only)
     Components/    ProductImageView (visibility-gated AsyncImage), StateViews (Loading/Empty/Error),
                    ErrorBanner, SaveButton
-  Assets.xcassets                       # AppIcon (empty until an icon is added), AccentColor
+  Assets.xcassets                       # AppIcon (drawn by scripts/make-app-icon.swift), AccentColor
 MerchantCatalogTests/
   Fakes/           FakeAPIClient, StubURLProtocol, FakeProductRepository, TestClock,
                    InMemorySavedRepository, SpyAnalytics, SpyAnalyticsProvider, …
@@ -77,7 +77,7 @@ MerchantCatalogTests/
 
 `Shared/` holds domain and data used by more than one feature (products, saved items). A feature folder holds only what that feature uses. Test doubles live in the test target only. DEBUG-only runtime tooling lives in `Features/Diagnostics`.
 
-**What exists (S0):** the tree above is the target layout. S0 created `App/` (`MerchantCatalogApp`, `AppContext`, `AppTab`, `AppTabView`), `Core/DI`, `Core/Navigation`, `Core/Logging` and `Assets.xcassets`, plus tests in `MerchantCatalogTests/App` and `MerchantCatalogTests/Core/{DI,Navigation}`. Every other folder is created together with its first file: git doesn't track empty folders, and a placeholder file inside a file-system-synchronized folder would be copied into the app bundle.
+**What exists (S0):** the tree above is the target layout. S0 created `App/` (`MerchantCatalogApp`, `AppContext`, `AppTab`, `AppTabView`), `Core/DI`, `Core/Navigation`, `Core/Logging` and `Assets.xcassets`, the repo-level `scripts/make-app-icon.swift` (not part of the app target), plus tests in `MerchantCatalogTests/App` and `MerchantCatalogTests/Core/{DI,Navigation}`. Every other folder is created together with its first file: git doesn't track empty folders, and a placeholder file inside a file-system-synchronized folder would be copied into the app bundle.
 
 ## 3. Layer rules
 

@@ -21,7 +21,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 
 | ID | Stage | Branch | Status | Head commit | Review |
 |---|---|---|---|---|---|
-| S0 | Project foundation | `feature/project-foundation` | READY_FOR_REVIEW | `0bb389d` + review-gate docs commit | Awaiting Codex review |
+| S0 | Project foundation | `feature/project-foundation` | READY_FOR_REVIEW | `c8b88bf` + review-answers docs commit | Awaiting Codex review |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | PLANNED | — | — |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | PLANNED | — | — |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
@@ -265,12 +265,13 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-23 | `AsyncImage` (no custom image loader), shown only while the cell is visible: load on appear, torn down on disappear | Developer | Replaces the custom `ImageLoader`; the former image-loading stage was folded into S2. |
 | D-24 | Protocol-first infrastructure: `APIClientType`, `AnalyticsTracking` + `AnalyticsProvider`, repository and experiment protocols; only `AppContext` names concrete types | Developer | Swap or add implementations (e.g. another analytics vendor) without changing protocols or callers. |
 | D-25 | The agent verifies with build + tests only and never runs the app in the Simulator; the developer does manual Simulator checks | Developer | Token cost. |
-| D-26 | `ServiceContainer` keys by `ObjectIdentifier(T.self)` instead of a type-name string | Agent (S0) | `String(describing:)` keys collide for same-named types in different scopes; `sameNamedTypesInDifferentScopesDoNotCollide` failed against a string-keyed version. |
+| D-26 | `ServiceContainer` keys by `ObjectIdentifier(T.self)` instead of a type-name string | Agent (S0); accepted by the developer | `String(describing:)` keys collide for same-named types in different scopes; `sameNamedTypesInDifferentScopesDoNotCollide` failed against a string-keyed version. |
 | D-27 | Registration guard: Configurators expose `resolveDependencies(from:) -> Dependencies?`, used by `make(...)` and by `AppContextRegistrationTests` | Developer (S0) | Chosen over a hand-maintained `requiredServices` list. |
 | D-28 | `AppContext.configure()` returns a new context and container per call; no global singleton | Agent (S0) | No global mutable state; isolated containers in tests. |
 | D-29 | S0 `Route` has a placeholder case `productDetail(productID: Int)` | Agent (S0) | An uninhabited enum can't be pushed or tested. S4 replaces the payload with `ProductDetailRoute`. |
-| D-30 | iPhone only (`TARGETED_DEVICE_FAMILY = 1`) | Agent (S0) | The product targets merchants on a phone; iPad layouts are excluded (ProductSpecification § 8). Open question in the S0 review log. |
+| D-30 | Universal app (`TARGETED_DEVICE_FAMILY = 1,2`): the phone layout runs on iPad, which supports all four orientations | Developer (S0 review) | The agent proposed iPhone only; the developer chose universal. iPad-specific layouts stay excluded (ProductSpecification § 8). Apple doesn't require iPad support (iPhone-only apps run on iPad in compatibility mode); this is a product choice. |
 | D-31 | `SWIFT_DEFAULT_ACTOR_ISOLATION` and `SWIFT_APPROACHABLE_CONCURRENCY` not set | Agent (S0) | Keeps isolation explicit, as Architecture § 5 describes: nonisolated by default, `@MainActor` written on UI-facing types. |
+| D-32 | Neutral app icon drawn by `scripts/make-app-icon.swift` (Core Graphics, no dependencies; opaque 1024 px) | Developer (S0 review) | Chosen over reusing the icon of the developer's previous app, which would put another product's brand on this one. |
 
 Decisions marked "Agent" are open to the developer's override during plan review.
 
@@ -307,3 +308,17 @@ Decisions marked "Agent" are open to the developer's override during plan review
   2. App icon: add one (S7?) or keep the default?
   3. The planning AILog row calls the container "string-keyed"; S0 keys by `ObjectIdentifier` (D-26). OK?
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S0 follow-up — developer answers to the open questions (2026-11-13)
+
+- **Answers:** (1) make the app universal (D-30); (2) add a neutral generated icon now (D-32); (3) keep the `ObjectIdentifier` key (D-26 accepted).
+- **Changes:** `c8b88bf` sets `TARGETED_DEVICE_FAMILY = 1,2`, adds the iPad orientations (all four), adds `AppIcon.png` and `scripts/make-app-icon.swift`. A docs commit follows (decisions, AILog, Architecture, task plan).
+- **Re-verification:**
+  - `xcodebuild … clean build`: succeeded; result bundle **0 warnings**, 0 errors, 0 analyzer warnings (same `appintentsmetadataprocessor` tool line as before).
+  - The built `Info.plist` has `UIDeviceFamily` = [1, 2] and iPad icon entries (`CFBundleIcons~ipad`).
+  - `sips`: the icon is 1024 × 1024, RGB, `hasAlpha: no`.
+  - `xcodebuild … test`: **13 passed, 0 failed, 0 skipped**.
+- **Added manual checks for the developer:**
+  6. The home screen shows the new icon (teal-to-navy gradient, 2×2 grid, top-right tile amber).
+  7. Run on an iOS 26 iPad simulator: both tabs show their placeholders, switching works, and rotating to each orientation keeps the layout intact.
+- **Open questions:** none left from the first gate.

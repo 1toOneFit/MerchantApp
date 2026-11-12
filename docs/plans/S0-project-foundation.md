@@ -15,7 +15,7 @@
 - Neutral naming only: `MerchantCatalog`; bundle id `com.example.MerchantCatalog`, tests `com.example.MerchantCatalogTests`.
 - `IPHONEOS_DEPLOYMENT_TARGET = 26.0`, `SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete` on both targets.
 - `SWIFT_DEFAULT_ACTOR_ISOLATION` and `SWIFT_APPROACHABLE_CONCURRENCY` are **not** set: isolation stays explicit (`@MainActor` on UI-facing types only, Architecture § 5).
-- `TARGETED_DEVICE_FAMILY = 1` (iPhone; iPad layouts are a deliberate exclusion in ProductSpecification § 8).
+- `TARGETED_DEVICE_FAMILY = 1` (iPhone; iPad layouts are a deliberate exclusion in ProductSpecification § 8). **Changed at review (2026-11-13):** universal, `1,2` (D-30).
 - No third-party dependencies, no caching, no `NavigationLink`/`NavigationView`.
 - Verify with `xcodebuild build` (0 warnings) and `xcodebuild test` on `platform=iOS Simulator,name=iPhone 17,OS=26.0` only. Never launch or drive the app in the Simulator.
 
