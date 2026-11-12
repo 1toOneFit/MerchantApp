@@ -6,12 +6,12 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 
 | Field | Value |
 |---|---|
-| Phase | **PLANNING COMPLETE — plan approved by the developer on 2026-11-13** |
-| Current stage | — |
-| Current branch | `develop` (created from the initial planning commit on `main`) |
+| Phase | **IMPLEMENTATION** |
+| Current stage | S0 — Project foundation (`IN_PROGRESS`) |
+| Current branch | `feature/project-foundation` (from `develop` at `a8f777c`) |
 | Last completed stage | Planning (docs committed to `main` as the initial commit) |
-| Next authorized stage | **S0 — Project foundation** (`feature/project-foundation` from `develop`), to start in a new conversation |
-| Pending human action | Start a new Claude Code conversation for S0 |
+| Next authorized stage | S0 (authorized by the developer on 2026-11-13) |
+| Pending human action | — |
 | Open review findings | — |
 | Blockers | — |
 
@@ -21,7 +21,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 
 | ID | Stage | Branch | Status | Head commit | Review |
 |---|---|---|---|---|---|
-| S0 | Project foundation | `feature/project-foundation` | PLANNED | — | — |
+| S0 | Project foundation | `feature/project-foundation` | IN_PROGRESS | — | — |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | PLANNED | — | — |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | PLANNED | — | — |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
