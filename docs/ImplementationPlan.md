@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S1 — Analytics core and diagnostics (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/analytics-core` (from `develop` at `ee150e0`) |
-| Last completed stage | S0 — Project foundation (merged into `develop` at `ee150e0`, 2026-11-13) |
-| Next authorized stage | — (S2 needs the developer's authorization after S1 is approved and merged) |
-| Pending human action | Merge `feature/analytics-core` into `develop` with `--no-ff`, then authorize S2 and start a new conversation for it |
+| Current stage | S2 — Catalog browsing, networking and images (`IN_PROGRESS`) |
+| Current branch | `feature/catalog-browse` (from `develop` at `30838a3`) |
+| Last completed stage | S1 — Analytics core and diagnostics (merged into `develop` with `--no-ff` at `30838a3`, 2026-11-13) |
+| Next authorized stage | S2 (authorized by the developer, 2026-11-13) |
+| Pending human action | — |
 | Open review findings | — |
 | Blockers | — |
 
@@ -22,8 +22,8 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | ID | Stage | Branch | Status | Head commit | Review |
 |---|---|---|---|---|---|
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
-| S1 | Analytics core & diagnostics | `feature/analytics-core` | APPROVED | `93e36b3` + docs commits | Approved by the developer (2026-11-13) |
-| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | PLANNED | — | — |
+| S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
+| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | IN_PROGRESS | — | Authorized by the developer (2026-11-13) |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
@@ -380,3 +380,8 @@ Decisions marked "Agent" are open to the developer's override during plan review
 
 - The developer reported S1 **approved**. No Codex findings or manual-check results were shared with the agent.
 - Status → `APPROVED`. The developer merges `feature/analytics-core` into `develop` with `--no-ff`; the next stage's conversation records `COMPLETED` once it confirms the merge. S2 is not authorized yet.
+
+#### S1 merge (recorded by the S2 conversation, 2026-11-13)
+
+- `git branch --merged develop` lists `feature/analytics-core`; the developer merged it with `--no-ff` (merge commit `30838a3`) and wants `--no-ff` merges for later stages too. Status → `COMPLETED`.
+- The developer authorized S2 on 2026-11-13.
