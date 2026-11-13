@@ -137,7 +137,7 @@ struct ProductDetailViewModelTests {
     /// AC-D3: saving on details shows on the catalog card at once; both read one store.
     @Test func saveOnDetailsUpdatesTheCatalogCard() async {
         let store = await loadedSavedStore()
-        let catalog = CatalogViewModel(repository: FakeProductRepository(), analytics: SpyAnalytics(), router: Router(), savedProducts: store, clock: TestClock())
+        let catalog = CatalogViewModel(repository: FakeProductRepository(), analytics: SpyAnalytics(), router: Router(), savedProducts: store, cardExperiment: unobservedCardExperiment(), clock: TestClock())
         let viewModel = makeViewModel(store: store)
 
         viewModel.saveToggled()

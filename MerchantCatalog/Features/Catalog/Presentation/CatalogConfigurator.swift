@@ -6,17 +6,27 @@ enum CatalogConfigurator {
         let repository: any ProductRepository
         let analytics: any AnalyticsTracking
         let savedProducts: SavedProductsStore
+        let experiments: any ExperimentService
+        let exposure: ExposureTracker
     }
 
     static func resolveDependencies(from container: any ServiceContainerType) -> Dependencies? {
         guard
             let repository: any ProductRepository = container.resolve(),
             let analytics: any AnalyticsTracking = container.resolve(),
-            let savedProducts: SavedProductsStore = container.resolve()
+            let savedProducts: SavedProductsStore = container.resolve(),
+            let experiments: any ExperimentService = container.resolve(),
+            let exposure: ExposureTracker = container.resolve()
         else {
             return nil
         }
-        return Dependencies(repository: repository, analytics: analytics, savedProducts: savedProducts)
+        return Dependencies(
+            repository: repository,
+            analytics: analytics,
+            savedProducts: savedProducts,
+            experiments: experiments,
+            exposure: exposure
+        )
     }
 
     /// - Parameters:
@@ -30,7 +40,11 @@ enum CatalogConfigurator {
             repository: dependencies.repository,
             analytics: dependencies.analytics,
             router: router,
-            savedProducts: dependencies.savedProducts
+            savedProducts: dependencies.savedProducts,
+            cardExperiment: CardExperiment(
+                assignment: dependencies.experiments.assignment(for: .productCardDensity),
+                exposure: dependencies.exposure
+            )
         )
         return CatalogView(viewModel: viewModel, isTabSelected: isTabSelected)
     }

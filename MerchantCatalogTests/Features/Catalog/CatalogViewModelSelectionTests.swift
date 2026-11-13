@@ -16,7 +16,7 @@ struct CatalogViewModelSelectionTests {
     /// A view model browsing products 1...20 of 194, with the analytics so far cleared.
     private func browsingViewModel() async -> CatalogViewModel {
         repository.enqueue(page(1...20, total: 194, skip: 0))
-        let viewModel = CatalogViewModel(repository: repository, analytics: analytics, router: router, savedProducts: SavedProductsStore(repository: InMemorySavedRepository(), analytics: SpyAnalytics()), clock: clock)
+        let viewModel = CatalogViewModel(repository: repository, analytics: analytics, router: router, savedProducts: SavedProductsStore(repository: InMemorySavedRepository(), analytics: SpyAnalytics()), cardExperiment: unobservedCardExperiment(), clock: clock)
         await viewModel.start()
         analytics.reset()
         return viewModel

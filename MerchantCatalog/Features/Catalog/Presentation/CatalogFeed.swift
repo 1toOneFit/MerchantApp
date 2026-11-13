@@ -31,10 +31,13 @@ struct CatalogFeed {
     var firstPage: FirstPageStatus = .notLoaded
     var pageLoad: PageLoadStatus = .idle
     var refreshError: AppError?
+    /// Decides whether the cards show the rating (`product_card_density_v1`, D-70).
+    let cardVariant: ExperimentVariant
 
-    init(query: SearchQuery?, sort: ProductSort) {
+    init(query: SearchQuery?, sort: ProductSort, cardVariant: ExperimentVariant) {
         self.query = query
         self.sort = sort
+        self.cardVariant = cardVariant
     }
 
     var context: ListContext {
@@ -92,7 +95,7 @@ struct CatalogFeed {
     /// Page 1 arrived: it replaces the list.
     mutating func applyFirstPage(_ page: ProductPage) {
         list.replace(with: page)
-        cards = list.items.map { ProductCardModel(product: $0) }
+        cards = list.items.map { ProductCardModel(product: $0, variant: cardVariant) }
         firstPage = .loaded
         pageLoad = .idle
     }
@@ -100,7 +103,7 @@ struct CatalogFeed {
     /// A page ≥ 2 arrived; returns how many new products it added.
     mutating func appendPage(_ page: ProductPage) -> Int {
         let added = list.append(page)
-        cards += list.items.suffix(added).map { ProductCardModel(product: $0) }
+        cards += list.items.suffix(added).map { ProductCardModel(product: $0, variant: cardVariant) }
         pageLoad = .idle
         return added
     }
