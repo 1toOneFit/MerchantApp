@@ -7,12 +7,12 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S2 — Catalog browsing, networking and images (`READY_FOR_REVIEW`) |
+| Current stage | S2 — Catalog browsing, networking and images (`APPROVED`, awaiting merge into `develop`) |
 | Current branch | `feature/catalog-browse` (from `develop` at `30838a3`) |
 | Last completed stage | S1 — Analytics core and diagnostics (merged into `develop` with `--no-ff` at `30838a3`, 2026-11-13) |
-| Next authorized stage | S2 (authorized by the developer, 2026-11-13) |
-| Pending human action | Codex re-review of the four fixes and the manual Simulator checks (see the S2 review log entry) |
-| Open review findings | — (S2 Codex findings 1–4 fixed, awaiting re-review) |
+| Next authorized stage | S3 — Search and sort (authorized by the developer, 2026-11-13; starts after the S2 merge) |
+| Pending human action | Merge `feature/catalog-browse` into `develop` with `--no-ff` |
+| Open review findings | — |
 | Blockers | — |
 
 ## Stage status
@@ -23,7 +23,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 |---|---|---|---|---|---|
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
-| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | READY_FOR_REVIEW | `cc2347f` + docs | Codex review: 4 findings fixed; awaiting re-review |
+| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | APPROVED | `cc2347f` + docs commits | Approved: Codex re-review + developer (2026-11-13) |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
@@ -455,3 +455,8 @@ The developer ran an independent Codex review and shared four findings. Each was
 - **Not verified by tests:** that no other log line contains an error description. Checked by reading: the only remaining `localizedDescription` is the DEBUG Diagnostics log-store error, which is not a network error.
 - **Scope:** no change beyond S2. Analytics.md and D-41 mention the footer Retry; Architecture § 5 and § 10 and Networking.md § 2 describe the task lifecycle and error logging as built.
 - **Process note:** for the red check of finding 1, the agent briefly used `git stash` on one file, against this shared folder's rules; it was popped at once (`git stash list` is empty). Later red checks didn't use it.
+
+#### S2 review result (2026-11-13)
+
+- Codex re-review of the four fixes, run manually by the developer: **approved**. Developer's final approval: **approved**. No manual-check results were shared with the agent; open question 1 (offline error codes, D-43) stays open until check 4 is run.
+- Status → `APPROVED`. The developer merges `feature/catalog-browse` into `develop` with `--no-ff`. The developer also authorized S3; the S3 conversation records S2 `COMPLETED` once it confirms the merge.
