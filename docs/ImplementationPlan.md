@@ -23,7 +23,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 |---|---|---|---|---|---|
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
-| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | READY_FOR_REVIEW | `e25b889` + review-gate docs | Awaiting the developer's Codex review |
+| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | READY_FOR_REVIEW | `8dd6d5a` + docs | Developer feedback applied (view-model ownership); awaiting the Codex review |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
@@ -247,7 +247,7 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-5 | Moya-style `TargetType` over native `URLSession` (no Alamofire) | Developer | |
 | D-6 | `@Observable`, async/await, Swift 6 strict concurrency; structured concurrency first | Developer | Rules in CLAUDE.md § Swift concurrency. |
 | D-7 | Swift Testing | Developer | Agent recommendation. |
-| D-8 | Two tabs, one stack and router per tab | Developer | Agent recommendation. |
+| D-8 | Two tabs, one stack and router per tab | Developer | Agent recommendation. Reconfirmed at the S2 review (2026-11-13) after comparing it with the developer's previous app's single `NavigationStack` around the tab view: per-tab stacks keep the tab bar visible on push and a back stack per tab. |
 | D-9 | Saved items persisted as snapshots in a JSON file | Developer | Instant, offline Saved tab; details always refetch. User data, not a cache. |
 | D-10 | **No caching** of any kind: `urlCache = nil`, no custom cache managers | Developer | Replaces the earlier plan (URLCache revalidation + memory image cache). The headers give no useful HTTP caching; custom caching is too much for this scope. |
 | D-11 | No computed discounted price | Agent | The API doesn't define whether `price` is before or after the discount. |
@@ -414,7 +414,7 @@ Decisions marked "Agent" are open to the developer's override during plan review
   5. Page error: load page 1, turn the network off, scroll to the bottom: the footer shows the error message and Retry, page 1 stays. Restore, tap Retry: the next page appends (`retry_requested` with `failed_surface: catalog_page`, then `catalog_page_requested` with `is_retry: true`).
   6. Pull to refresh with the network on: the grid never blanks; `catalog_refreshed` (`result: success`). With the network off: content stays, a banner with the message and a close button appears over the grid; `catalog_refreshed` (`result: failure`, `error_type`). The close button hides it; the next pull also clears it.
   7. Slow network: Diagnostics → Network → turn on "Slow network", terminate and relaunch: the skeleton stays about 2 s. Scroll to the end of the loaded page: the spinner footer stays about 2 s. The Console `network` lines show `delay=2000`. Turn it off afterwards (it persists).
-  8. Tabs: switch to Saved and back: one new `catalog_viewed` per switch back, the scroll position is kept, no reload. Opening and closing Diagnostics sends no `catalog_viewed`.
+  8. Tabs: switch to Saved and back several times: exactly one new `catalog_viewed` per switch back (none missing, none doubled; this checks that the hidden Catalog tab receives `isTabSelected = false`), the scroll position is kept, no reload. Opening and closing Diagnostics sends no `catalog_viewed`.
   9. Image cancellation check from [Networking.md § 4](Networking.md#verification) (Network Link Conditioner "3G", a proxy or Instruments; scroll fast): requests for cells that left the screen should end as cancelled. Please record the date, method and result there.
   10. Console.app, subsystem `com.example.MerchantCatalog`, category `network`, debug messages included: lines like `[a1b2c3d4] GET https://dummyjson.com/products?limit=20&skip=0` and `[a1b2c3d4] 200 in 312 ms, 48213 bytes`. Category `performance`: `catalog first page (initial) in … ms`.
   11. Optional: dark mode and an iPad simulator: the skeleton, cards and banner stay readable; the grid has 2 columns on iPad too (iPad-specific layouts are excluded).
@@ -431,3 +431,11 @@ Decisions marked "Agent" are open to the developer's override during plan review
   1. D-43 maps only `notConnectedToInternet`, `networkConnectionLost` and `dataNotAllowed` to "offline". If check 4 shows another code with the network off (e.g. `cannotFindHost` or `cannotConnectToHost`), should those also count as offline?
   2. Task 9 deviated from the plan: `AppTabView` owns the catalog view model (built by `CatalogConfigurator.makeViewModel(from:)`) and reports tab visibility from its root `onChange`, instead of passing `isTabSelected` into `CatalogView`. OK to keep?
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S2 follow-up — developer feedback at the gate (2026-11-13)
+
+- **Feedback:** `AppTabView` must not own the catalog view model (open question 2). The developer also asked whether `AppTabView` is a custom tab bar (no: it is the app's root view around the native `TabView`, holding the tab selection, one `Router` and `NavigationStack` per tab, and the Diagnostics sheet flag) and whether the app could use one `NavigationStack` for the whole app, as their previous app does.
+- **Decisions:** keep per-tab stacks (D-8 reconfirmed). For the tab signal, the planned `isTabSelected` flag (chosen over reporting `onAppear` from `CatalogView`).
+- **Change:** `8dd6d5a`: `CatalogConfigurator.make(from:isTabSelected:)` returns `CatalogView`, which owns its view model in `@State` and sends `catalog_viewed` from `.onChange(of: isTabSelected, initial: true)`; `AppTabView` passes `selection == .catalog` and owns no view model. No view-model behavior changed, so no unit test changed; manual check 8 now also checks that no switch back is missed or doubled.
+- **Re-verification:** `xcodebuild … clean build`: result bundle **0 warnings**, 0 errors, 0 analyzer warnings; Release build 0 warnings, 0 errors; `xcodebuild … test`: **146 passed, 0 failed, 0 skipped** in 27 suites.
+- **Open questions left:** 1 (offline error codes, D-43).
