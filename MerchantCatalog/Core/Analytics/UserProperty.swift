@@ -36,6 +36,18 @@ enum UserProperty: Equatable, Sendable {
 
     /// `yyyy-MM-dd` in UTC.
     private static let dayStyle = Date.ISO8601FormatStyle(timeZone: .gmt).year().month().day()
+
+    /// The properties set at every launch, in the order Analytics.md § 2 lists them.
+    static func launchProperties(app: AppInfo, firstSeenDate: Date) -> [UserProperty] {
+        [
+            .appVersion(app.appVersion),
+            .buildNumber(app.buildNumber),
+            .osVersion(app.osVersion),
+            .deviceModel(app.deviceModel),
+            .firstSeenDate(firstSeenDate),
+            .isDebugBuild(app.isDebugBuild),
+        ]
+    }
 }
 
 /// A user property's change as providers receive it; `oldValue` is `nil` the first time it is set
