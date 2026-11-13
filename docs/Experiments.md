@@ -22,23 +22,24 @@ Everything else is identical across arms: card size and layout grid, details scr
 ### Assignment (stable, local)
 
 - **Unit:** installation (`installation_id`, see [Analytics.md § 2](Analytics.md#2-identity-sessions-and-user-properties)).
-- **Bucketing:** first 8 bytes of `SHA-256("product_card_density_v1:" + installation_id)` as `UInt64`, modulo 10 000; `< 5 000` → `control`, otherwise `treatment`. Swift's `hashValue` is **not** used: it is seeded per process and would change the variant on every launch.
-- **Persistence:** the first computed variant is stored in `UserDefaults` and reused afterwards. This way a later allocation change can't silently move existing users.
-- **User property:** `experiment_assignments.product_card_density_v1` is set when the variant is assigned.
-- **Reset:** a new installation id (reinstall, or DEBUG reset) clears stored assignments and re-buckets.
+- **Bucketing:** first 8 bytes of `SHA-256("product_card_density_v1:" + installation_id)` as a big-endian `UInt64`, modulo 10 000 (`installation_id` in its uppercase UUID form, as the analytics envelope sends it, D-73); `< 5 000` → `control`, otherwise `treatment`. Swift's `hashValue` is **not** used: it is seeded per process and would change the variant on every launch.
+- **Persistence:** the first computed variant is stored in `UserDefaults` and reused afterwards. This way a later allocation change can't silently move existing users. A stored value that isn't a known variant is re-bucketed (D-73).
+- **Per launch:** the assignment is resolved at launch and kept until the app restarts, so the cards, the exposure and the user property always agree (D-69).
+- **User property:** `experiment_assignments.product_card_density_v1` is set at every launch, when the variant is resolved.
+- **Reset:** a new installation id (reinstall, or DEBUG reset) clears stored assignments and re-buckets. After the DEBUG reset, the new bucket applies at the next launch (D-69); the override is kept (D-72).
 
 **Assignment ≠ exposure.** An assigned installation may never open the catalog (e.g. it goes straight to Saved), or may quit during the initial load. Assignment alone says nothing about what the user saw, so analysis is based on exposure.
 
 ### Development override (DEBUG only)
 
-The Diagnostics panel offers **Auto / Control / Treatment**. Overrides are stored separately from assignments, are compiled out of Release builds, and set `assignment_source = override` on exposure. Analysis excludes override and debug-build traffic (`is_debug_build`).
+The Diagnostics panel offers **Auto / Control / Treatment** and shows the variant this launch uses. Overrides are stored separately from assignments, apply at the next launch (D-69), are compiled out of Release builds, and set `assignment_source = override` on exposure. Analysis excludes override and debug-build traffic (`is_debug_build`).
 
 ### Eligibility and exposure
 
 - **Eligible:** every installation. There is no targeting.
 - **Exposure surfaces:** the catalog grid and the search results grid (both render the experiment card).
-- **Exposure event:** `experiment_exposed { experiment_id, variant, assignment_source, surface }`. It fires when the **first product card renders** on an eligible surface in a session, for **both** arms, since control users are exposed to the control card.
-- **Deduplication:** once per experiment per session (`ExposureTracker`, keyed by session id + experiment id). Repeats are suppressed and logged at debug level. Analysis uses each installation's **first** exposure.
+- **Exposure event:** `experiment_exposed { experiment_id, variant, assignment_source, surface }`. It fires when the **first product card renders** on an eligible surface in a session, for **both** arms, since control users are exposed to the control card. "Renders" = a loaded card of the list on screen appears; the hidden browse layer under search results doesn't count (D-70).
+- **Deduplication:** once per experiment per session (`ExposureTracker`, keyed by session id + experiment id). Repeats are suppressed and logged at debug level. Analysis uses each installation's **first** exposure. A session that starts while cards are already on screen (a return after ≥ 30 minutes) is exposed at the next card appearance (D-74).
 - Not exposure: assignment, app launch, a failed initial load with no cards, the Saved tab, or the details screen.
 
 ### Proposed evaluation (defined before any data)

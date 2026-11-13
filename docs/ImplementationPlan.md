@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S6 — Card rating experiment (`IN_PROGRESS`) |
+| Current stage | S6 — Card rating experiment (`READY_FOR_REVIEW`) |
 | Current branch | `feature/card-rating-experiment` (from `develop` at `dc04338`) |
 | Last completed stage | S5 — Saved products (merged into `develop` with `--no-ff` at `dc04338`, 2026-11-13) |
 | Next authorized stage | S6 — Card rating experiment (authorized by the developer, 2026-11-13) |
-| Pending human action | — |
+| Pending human action | Independent Codex review of `feature/card-rating-experiment` and the manual Simulator checks in the S6 review log |
 | Open review findings | — |
 | Blockers | — |
 
@@ -27,7 +27,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
-| S6 | Card rating experiment | `feature/card-rating-experiment` | IN_PROGRESS | — | — |
+| S6 | Card rating experiment | `feature/card-rating-experiment` | READY_FOR_REVIEW | `5afca46` + docs commit | Awaiting the developer's Codex review |
 | S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
 
 The stages run strictly in order, S0 → S7. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
@@ -670,3 +670,42 @@ The developer ran the independent Codex review and asked for all three fixes on 
 #### S5 merge (recorded by the S6 conversation, 2026-11-13)
 
 - The developer merged `feature/saved-products` into `develop` with `--no-ff`: merge commit `dc04338` (parents `46b8e6d` and `e2d4f0c`; `git branch --merged develop` lists the branch). S5 → `COMPLETED`. S6 (authorized 2026-11-13) starts from `develop` at `dc04338` on `feature/card-rating-experiment`.
+
+### S6 — Card rating experiment · READY_FOR_REVIEW (2026-11-13)
+
+- **Branch:** `feature/card-rating-experiment` (from `develop` at `dc04338`). **Head:** the `docs: record S6 review gate` commit on top of `5afca46`.
+- **Scope confirmed by the developer** (2026-11-13): as planned; agent recommendations accepted for the assignment resolved once per launch with the override and reset applied at the next launch (D-69), a `CardExperiment` value injected into `CatalogViewModel` with exposure from `itemAppeared` (D-70), "★ 4.9" with one fraction digit and a hidden placeholder row in control (D-71), and the reset keeping the override (D-72). Agent decisions D-73 (uppercase id, big-endian bytes, launch resolution, unknown stored value re-bucketed) and D-74 (session id read after tracking; a resumed session is exposed at the next card appearance). Task plan: [plans/S6-card-rating-experiment.md](plans/S6-card-rating-experiment.md) (with deviations).
+- **Commits:** `f3fd9ab` S5 completed / S6 in progress · `53d6e65` task plan + D-69–D-74 · `05963ff` bucketing · `3f10810` experiment service + `experiment_assignments` (Analytics.md § 2) · `e520d59` exposure tracker, `experiment_exposed` → Active · `9fc8d11` rating on treatment cards + exposure from the grid · `5afca46` Diagnostics override · review-gate docs.
+- **Changed files:**
+  - App: new `Core/Experiments/{Experiment, ExperimentAssigner, ExperimentService, LocalExperimentService, ExposureTracker}.swift`, `Features/Catalog/Presentation/CardExperiment.swift`; changed `Core/Analytics/{AnalyticsEvent, AnalyticsValue, UserProperty}.swift`, `App/AppContext.swift`, `Features/Catalog/Presentation/{ProductCardModel, ProductCardView, CatalogFeed, CatalogViewModel, CatalogConfigurator, CatalogView}.swift`, `Features/Diagnostics/Presentation/{DiagnosticsViewModel, DiagnosticsConfigurator, DiagnosticsView}.swift`.
+  - Tests: new `Core/Experiments/{ExperimentAssignerTests, LocalExperimentServiceTests, ExposureTrackerTests}`, `Features/Catalog/CatalogViewModelExperimentTests`, `Support/CardExperiments`; additions to `AnalyticsEventTests`, `AppContextRegistrationTests`, `ProductCardModelTests`, `DiagnosticsViewModelTests`, `TaxonomyDocumentationTests` (no Planned event left); `cardExperiment:` at the other catalog view-model call sites.
+  - Docs: Experiments.md (byte order, id form, per-launch resolution, reset and override timing, exposure definition), Analytics.md (`experiment_exposed` Active, `experiment_assignments`, reset wording), ProductSpecification § 4.1 as built, Architecture § 2/4/5/6, README status, this file, the task plan.
+- **Build settings** (`xcodebuild -showBuildSettings`, 2026-11-13): unchanged (`SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`; no default actor isolation). No packages; CryptoKit is a system framework.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator): succeeded; result bundle **0 warnings**, 0 errors, 0 analyzer warnings. `xcodebuild … -configuration Release build`: succeeded; 0 warnings, 0 errors (the override code is compiled out). The test action's log has no compiler warnings. `git diff --check develop..HEAD` clean.
+- **Tests:** `xcodebuild … test`: **356 passed, 0 failed, 0 skipped** in 56 suites (result bundle summary; +37 since S5). New suites: `ExperimentAssignerTests` 4 (golden buckets parameterized over 4 ids), `LocalExperimentServiceTests` 8, `ExposureTrackerTests` 6, `CatalogViewModelExperimentTests` 7. Grown: `AnalyticsEventTests` +2, `AppContextRegistrationTests` 13 → 15, `ProductCardModelTests` 3 → 7, `DiagnosticsViewModelTests` 9 → 13. Counts are test functions.
+- **Red first:** every new suite failed on compilation first; `TaxonomyDocumentationTests` failed on its "a Planned event must remain" control once `experiment_exposed` became Active (control removed, see the task plan), and `userPropertiesAreSortedRows` caught the Diagnostics service's user property reaching the event log (the test now gives the service its own spy). Tests that passed when first run were mutation-checked: the launch cache and stored reuse, the session id read after tracking, the exposure guard in `itemAppeared`, and the reset clearing assignments.
+- **Golden values:** buckets for `uuid(0)`, `uuid(1)`, `uuid(3)` and `E621E1F8-…` were computed independently with Python `hashlib`; 10 000 sequential ids give 4 930 control (49.3 %).
+- **Manual Simulator checks for the developer** (the agent did not run the app). Events and user properties are in Diagnostics (newest first).
+  1. **Assignment at launch:** open Diagnostics. Section `product_card_density_v1` shows "This launch: control (hashed)" or "treatment (hashed)"; user property `experiment_assignments` shows `{product_card_density_v1: <same variant>}`. Relaunch (stop and run in Xcode): same variant.
+  2. **Force treatment:** pick Override → Treatment; nothing changes on screen ("Changes apply at the next launch"). Relaunch: "This launch: treatment (override)". The catalog cards show "★ 4.9"-style ratings under the price (e.g. "Essence Mascara Lash Princess" ★ 2.6 for its rating 2.56 — check against the details screen's At a Glance rating, which shows up to 2 digits).
+  3. **Exposure, catalog:** with treatment forced, after the relaunch the event log has exactly one `experiment_exposed` (`experiment_id: product_card_density_v1`, `variant: treatment`, `assignment_source: override`, `surface: catalog_grid`) right after the first grid appears, not during the skeleton. Scroll to the end, open details and go back, switch tabs: still one per session. Console `experiment` (debug) shows "suppressed" lines for repeats.
+  4. **Force control:** Override → Control, relaunch. Cards show no rating, and the **card height is unchanged** compared with treatment (same number of rows on screen; compare screenshots of the first screen in both arms). One `experiment_exposed` with `variant: control`, `assignment_source: override`.
+  5. **Auto:** Override → Auto, relaunch: "This launch: … (hashed)", the hashed variant from check 1; exposure with `assignment_source: hashed`.
+  6. **Search surface:** at launch the browse grid renders first, so the launch's exposure is `catalog_grid`. To see `search_grid`, start a new session while the grid is already on screen: background the app for 30+ minutes, return, and **without scrolling** type "phone" in the search field. The first card that appears is a search result: one `experiment_exposed` with `surface: search_grid` (D-70, D-74). Clearing the search shows the browse grid again without a new exposure.
+  7. **New session:** background the app for 30+ minutes (or relaunch), come back and scroll a little: one new `experiment_exposed` in the new session (D-74: cards already on screen at the return don't count until a card appears).
+  8. **Failed load is not exposure:** with the Mac's network off, launch: the full-screen offline error, no `experiment_exposed`. Turn the network on, Retry: the grid appears, then one exposure.
+  9. **Reset installation ID:** with Override = Auto, tap Reset installation ID. The installation id changes, a new `session_started` appears; "This launch" and the cards don't change (D-69). Relaunch: "This launch" shows the new id's hashed variant (it may or may not differ: 50 %); repeat the reset + relaunch until it flips to see the re-bucketing. With an override set, the reset keeps it (D-72).
+  10. **VoiceOver (treatment):** a card reads e.g. "Essence Mascara Lash Princess, $9.99, rated 2.6 of 5, not saved, button"; control omits the rating. The rating row itself is not a separate element.
+  11. **Release build:** Product → Scheme → Edit Scheme → Run → Release, run: no Diagnostics override exists (compiled out); the variant is the hashed one.
+  12. ⌘U in Xcode: 356 tests pass.
+- **Known limitations:**
+  - An override or reset applies at the next launch (D-69, the developer's choice); in the same launch, events after a reset carry the new installation id with the old launch's variant (DEBUG only).
+  - A session that starts while cards are already on screen is exposed at the next card appearance, not at the return (D-74). Analysis uses each installation's first exposure, so this affects only per-session counts.
+  - Equal card height, the star's look, dark mode, and VoiceOver reading are SwiftUI behavior checked manually (checks 4, 10), not by unit tests (no snapshot tests).
+  - Assignment can't be stopped remotely (Experiments.md § Limitations).
+- **Open questions:**
+  1. (From S2.) D-43: which other `URLError` codes, if any, should count as offline?
+  2. (From S3.) The short sort labels and the sort control at the toolbar's leading edge.
+  3. (From S4.) Category names shown as the slug in words ("Mens Shirts").
+  4. (From S5.) A "Price when saved" label on the snapshot's price row.
+- **Findings and resolution:** awaiting the developer's Codex review.
