@@ -11,7 +11,7 @@ struct CatalogViewModelSortTests {
     private let clock = TestClock()
 
     private func makeViewModel() -> CatalogViewModel {
-        CatalogViewModel(repository: repository, analytics: analytics, clock: clock)
+        CatalogViewModel(repository: repository, analytics: analytics, router: Router(), clock: clock)
     }
 
     /// A view model browsing products 1...20 of 194, with the analytics so far cleared.

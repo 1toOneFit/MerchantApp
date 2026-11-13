@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S3 — Search and sort (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/search-sort` (from `develop` at `59415a9`) |
-| Last completed stage | S2 — Catalog browsing, networking and images (merged into `develop` with `--no-ff` at `59415a9`, 2026-11-13) |
-| Next authorized stage | — (S4 — Product details — not yet authorized) |
-| Pending human action | Merge `feature/search-sort` into `develop` with `--no-ff` |
+| Current stage | S4 — Product details (`APPROVED`, awaiting merge into `develop`) |
+| Current branch | `feature/product-details` (from `develop` at `152da21`) |
+| Last completed stage | S3 — Search and sort (merged into `develop` with `--no-ff` at `152da21`, 2026-11-13) |
+| Next authorized stage | — (S5 — Saved products — not yet authorized) |
+| Pending human action | Merge `feature/product-details` into `develop` with `--no-ff` |
 | Open review findings | — |
 | Blockers | — |
 
@@ -24,8 +24,8 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
-| S3 | Search & sort | `feature/search-sort` | APPROVED | `ad651e3` + docs commits | Approved: Codex re-review + developer (2026-11-13) |
-| S4 | Product details | `feature/product-details` | PLANNED | — | — |
+| S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
+| S4 | Product details | `feature/product-details` | APPROVED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13) |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
 | S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
@@ -292,6 +292,13 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-50 | During the 300 ms debounce the current list stays on screen; a committed query shows the skeleton; an edit that leaves the trimmed query unchanged sends nothing | Agent (S3) | A query's results never show under another query once they load. |
 | D-51 | A `+` in a query value is sent as `%2B` | Agent (S3) | The API decodes `+` as a space (Networking.md A13); `URLComponents` leaves `+` unencoded (checked with a Swift script, 2026-11-13). |
 | D-52 | Task handles per list: `firstPageTask` (browse page 1 from taps), `searchTask` (search page 1), one page ≥ 2 task per list; a hidden list's in-flight load finishes in the background; `itemAppeared(id:in:)` is ignored for the hidden list | Agent (S3) | One request per list at a time; the hidden browse layer can't trigger search pagination. |
+| D-53 | The Catalog screen gets its tab's `Router` by injection: `CatalogConfigurator.make(from:router:isTabSelected:)` passes `AppTabView`'s `catalogRouter` to `CatalogViewModel`; a card tap calls `cardSelected(id:in:)` | Developer (S4 scope) | Agent recommendation, chosen over a closure callback or a routing protocol. `AppTabView` still owns no view model; tests use a real `Router`. |
+| D-54 | `searchDismissed()` is ignored while a route is on the Catalog stack | Developer (S4 scope) | Agent recommendation (AC-C6): if SwiftUI deactivated the search field on a push to details, the S3 Cancel handling would clear the search. Whether it happens is checked manually. |
+| D-55 | The At a Glance rating chip shows the rating only; the 3 reviews appear only under "Recent reviews" | Developer (S4 scope) | Agent recommendation, chosen over "rating · 3 reviews": the aggregate rating isn't based on the 3 returned reviews (ProductSpecification § 6). |
+| D-56 | `product_details_viewed` sends no `is_saved` until S5 | Developer (S4 scope) | Agent recommendation, chosen over a constant `false`. |
+| D-57 | `ProductDetailRoute` = the list's `Product` + `source`; `Product` is `Hashable`. No `ProductsTarget.detail`, details Retry or `FailedSurface.details` in S4 | Agent (S4) | Details from a list need no request (A7); the fetch, its Retry and the saved snapshot arrive with S5, which extends the route. |
+| D-58 | Numbers are shown as the API gives them: rating and discount with up to 2 fraction digits ("4.94", "−7.17%"); weight and dimensions without units | Agent (S4) | The API gives no units (A14); a whole-percent discount would show "−0%" for 0.04 %. |
+| D-59 | `product_details_viewed` fires at the details view's first appearance, once per view model (one per push); `product_gallery_interacted` at the first page change away from the shown image, once per view model. `category` = the API slug; `availability` omitted when unknown | Agent (S4) | Tab switches and re-appearances don't re-send; a new push builds a new view model. |
 
 Decisions marked "Agent" are open to the developer's override during plan review.
 
@@ -538,3 +545,49 @@ The developer ran an independent Codex review and shared four findings. Each was
 - Codex re-review of the four fixes, run manually by the developer: **approved**. Developer's final approval: **approved**. No manual-check results were shared with the agent; open questions 1–3 of the S3 review log (D-43 offline codes, the short sort labels, the sort control at the leading edge) stay open, and the S3 behavior they describe stays as built.
 - Status → `APPROVED`. The developer merges `feature/search-sort` into `develop` with `--no-ff`; the next stage's conversation records S3 `COMPLETED` once it confirms the merge.
 
+#### S3 merge (recorded by the S4 conversation, 2026-11-13)
+
+- The developer merged `feature/search-sort` into `develop` with `--no-ff`: merge commit `152da21` (`git branch --merged develop` lists the branch). S3 → `COMPLETED`. S4 (authorized 2026-11-13) starts from `develop` at `152da21` on `feature/product-details`.
+
+### S4 — Product details · READY_FOR_REVIEW (2026-11-13)
+
+- **Branch:** `feature/product-details` (from `develop` at `152da21`). **Head:** the `docs: record S4 review gate` commit on top of `34ffb7c`.
+- **Scope confirmed by the developer** (2026-11-13): as planned, with the agent's recommendation on all four open choices: the Catalog tab's `Router` injected into `CatalogViewModel` (D-53), the search guarded against a dismissal while details are pushed (D-54), a rating chip without the review count (D-55), no `is_saved` until S5 (D-56). Agent decisions D-57 (route carries the list's product; no fetch, details Retry or `FailedSurface.details` until S5), D-58 (numbers as given, no units), D-59 (when the details events fire). Task plan: [plans/S4-product-details.md](plans/S4-product-details.md) (with deviations).
+- **Commits:** `7e821cb` S3 completed / S4 in progress · `3a79b27` task plan + D-53–D-59 · `9c9e80b` product details fields (+ Networking.md A14) · `ef15a4f` `ProductInsights` · `ad48055` details presentation models · `fa84b05` details analytics events (3 → Active) · `8f5edf8` route, router and details view model · `934c8b8` card selection from the catalog · `34ffb7c` details screen · review-gate docs.
+- **Changed files:**
+  - App: `Shared/Products/Domain/{Product, ProductInsights (new)}.swift`, `Shared/Products/Data/ProductDTO.swift`, `Core/Navigation/{Route, Router, ProductDetailRoute (new)}.swift`, `Core/Analytics/AnalyticsEvent.swift`, `Features/ProductDetail/Presentation/{ProductDetailView, ProductGalleryView, ProductDetailViewModel, ProductDetailConfigurator, ProductDetailHeader, ProductGalleryModel, ProductFactRow}.swift` (all new), `Features/Catalog/Presentation/{CatalogViewModel, CatalogConfigurator, CatalogView}.swift`, `App/AppTabView.swift`.
+  - Tests: new `Shared/Products/ProductInsightsTests`, `Features/ProductDetail/{ProductFactRowTests, ProductDetailHeaderTests, ProductGalleryModelTests, ProductDetailViewModelTests}`, `Features/Catalog/CatalogViewModelSelectionTests`, `Core/Analytics/DetailsAnalyticsEventTests`; additions to `ProductDTOTests`, `RouterTests`, `AppContextRegistrationTests`; `router:` at the three catalog view-model suites' call sites; `ProductCardModelTests` (fixture); `Fakes/ProductFixtures` (`makeProduct` builder).
+  - Docs: Analytics.md (3 events Active, `is_saved` from S5, D-59 notes), ProductSpecification § 4.3, Networking.md A14 and § 2, Architecture § 2/6/7, README status, AILog, this file, the task plan.
+- **Build settings** (`xcodebuild -showBuildSettings`, 2026-11-13): unchanged (`SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`; no default actor isolation). No packages.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator): `** BUILD SUCCEEDED **`; result bundle **0 warnings**, 0 errors, 0 analyzer warnings (the raw log again has only the `appintentsmetadataprocessor` "Metadata extraction skipped" tool line). `xcodebuild … -configuration Release build`: succeeded; result bundle 0 warnings, 0 errors. The test action's log has no compiler warnings either (see the task plan's Task 1 deviation).
+- **Tests:** `xcodebuild … test`: **240 passed, 0 failed, 0 skipped** in 41 suites (result bundle summary). New suites: `ProductInsightsTests` 6, `ProductFactRowTests` 1 (24 cases), `ProductDetailHeaderTests` 2, `ProductGalleryModelTests` 3, `ProductDetailViewModelTests` 5, `CatalogViewModelSelectionTests` 7, `DetailsAnalyticsEventTests` 1 (7 cases); `ProductDTOTests` grew from 9 to 16, `RouterTests` from 6 to 7, `AppContextRegistrationTests` from 8 to 9. Counts are test functions; parameterized ones run more cases.
+- **Red first:** every new suite failed on compilation first (missing types or members); `CatalogViewModelSelectionTests` also failed on its assertions against a stub. Tests that passed when first run were mutation-checked (the details view model's once-guards, the hidden-list guard, the return-from-details state); details in the task plan's deviations.
+- **Manual Simulator checks for the developer** (the agent did not run the app). Values below are from the API on 2026-11-13 (A14).
+  1. Run the Debug build on an iOS 26 iPhone simulator. Tap the first card, "Essence Mascara Lash Princess" (id 1): details appear at once, with no spinner (AC-D1). One image, **no** page dots. Header: title, "Essence", "Beauty". At a Glance chips: Rating 2.56; Availability "In stock · 99 units"; Minimum order "48 units"; Shipping "Ships in 3-5 business days"; Returns "No return policy"; Warranty "1 week warranty" (no review count, D-55). Pricing: $9.99 and Discount "−10.48%". Overview: description and tags. Product information: SKU BEA-ESS-ESS-001, brand, category, Weight "4", Dimensions "W × H × D", warranty. Shipping & availability, then "Recent reviews" with 3 reviews (stars, comment, name, date; no email anywhere).
+  2. Events in Diagnostics (newest first): `product_details_viewed` (`product_id: 1`, `source: catalog`, `category: beauty`, `availability: in_stock`, `has_discount: true`, `image_count: 1`, `content_origin: list`, **no** `is_saved`) after `product_selected` (`product_id: 1`, `source: catalog`, `position: 0`, `sort: default_order`). Console `network` shows **no** request when details open.
+  3. Without brand: search "apple" and open "Apple" (id 16): no brand line in the header and no Brand row in Product information. `product_selected` has `source: search` and the search's sort; going back shows the results, the search text and the field still there (AC-C6, D-54). Then tap Cancel: browse returns and one `search_cleared` is sent (Cancel still works after returning).
+  4. Six images: open "300 Touring" (id 167; e.g. search "touring", or sort by price high to low): page dots show 6 pages; swipe through them: each image shows a placeholder, then the picture. Exactly **one** `product_gallery_interacted` (`image_count: 6`) for the visit, however many swipes; leave and open it again: a new `product_details_viewed` and, after a swipe, a new gallery event.
+  5. Edge data: "Sportbike Motorcycle" (id 117) reads "Out of stock · 0 units" and Stock "0 units"; "Sports Sneakers Off White Red" (id 92) shows Discount "−0.04%".
+  6. Back restores state (AC-C6): in browse, scroll well down (60+ products), change the sort, open a product, go back (button and edge swipe): same scroll position, same products and sort, no `catalog_viewed`, no new `catalog_load_completed` and no request in Console. The thumbnails on screen download again (no cache, D-10). Do the same from search results.
+  7. Search dismissal on push (D-54 risk): with search results shown and the search field active (keyboard dismissed, Cancel visible), open a product and go back. Please record whether the field is still active. Either way the results must still be there and `search_cleared` must not have been sent.
+  8. Tabs: open details, switch to Saved and back: details are still shown and no second `product_details_viewed` is sent; going back to the grid sends no `catalog_viewed` (D-39).
+  9. Quick VoiceOver pass on details: the title and section titles are headings; each At a Glance chip reads label and value; each gallery page reads "Product image n of m" (the image component itself is decorative, so please confirm the page element is reachable); review stars read "Rated n of 5". Cards in the grid read as buttons.
+  10. Optional: dark mode and an iPad simulator: the chips, rows and page dots stay readable.
+  11. ⌘U in Xcode: 240 tests pass.
+- **Known limitations:**
+  - Rendering, the gallery's paging, page-indicator visibility, per-page image loading in a page-style `TabView`, scroll restoration on back and whether SwiftUI deactivates the search field on a push are expected SwiftUI behavior, checked manually (checks 1, 4, 6, 7, 9), not by unit tests. `product_details_viewed` relies on `onAppear` firing once when the screen is pushed.
+  - A page-style `TabView` may create the neighboring page before it is visible, which would start that image's download early (expected, not verified).
+  - Returning from details re-downloads the visible thumbnails (no cache, D-10).
+  - Details show the product as the list loaded it; there is no refresh from `/products/{id}` and no details Retry until S5 (D-57).
+  - Weight and dimensions have no units because the API states none (A14).
+  - No save button yet (S5).
+- **Open questions:**
+  1. (From S2.) D-43: which other `URLError` codes, if any, should count as offline?
+  2. (From S3.) The short sort labels and the sort control at the toolbar's leading edge.
+  3. Category names are shown as the API's slug in words ("Mens Shirts", "Womens Jewellery"), without an apostrophe or other rewording. OK?
+- **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S4 review result (2026-11-13)
+
+- Independent Codex review, run manually by the developer: **no findings**. Developer's final approval: **approved**. No manual-check results were shared with the agent; the S4 open questions (D-43 offline codes, the S3 sort labels and position, category display names) stay open, and the behavior they describe stays as built.
+- Status → `APPROVED`. The developer merges `feature/product-details` into `develop` with `--no-ff`; the next stage's conversation records S4 `COMPLETED` once it confirms the merge. S5 is not yet authorized.

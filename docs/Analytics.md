@@ -57,7 +57,7 @@ No name, email, location, IP, advertising identifier, or free text is collected.
 |---|---|
 | `sort` / `from_sort` / `to_sort` | `default_order`, `price_asc`, `price_desc`, `rating_desc` |
 | `list_context` | `browse`, `search` |
-| `source` (where a product was opened from) | `catalog`, `search`, `saved` |
+| `source` (where a product was opened from) | `catalog`, `search`, `saved` (S5) |
 | `surface` (where a save/unsave happened) | `catalog_card`, `search_card`, `details`, `saved_list` |
 | `error_type` | `offline`, `timeout`, `not_found`, `rate_limited`, `server`, `decoding`, `unknown` |
 | `trigger` (why a first page loaded) | Browse: `initial`, `retry` (full-screen Retry), `reload` (the empty state's Reload, D-38), `sort_change`. Search: `typing`, `retry`, `sort_change` (D-48) |
@@ -143,10 +143,11 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Screen:** Catalog. **Dedup:** once per failed request. **Privacy:** none.
 
 #### `product_selected`
-- **Status:** Planned (S4)
+- **Status:** Active
 - **Meaning:** the user chose a product from a list (intent to evaluate). Distinct from `product_details_viewed`, which records that details were actually shown.
 - **Trigger:** tap on a product card or Saved row.
 - **Properties:** `product_id` Int; `source` (`catalog` | `search` | `saved`); `position` Int (0-based index in the list); `sort` (catalog/search only).
+- **Note:** `source`, `position` and `sort` come from the list on screen: `search` with the search's sort while results are shown (D-46). A card of the hidden browse layer can't be selected (D-47). `saved` arrives in S5.
 - **Screen:** Catalog, Saved. **Dedup:** once per tap. **Privacy:** product id only.
 
 ### Search
@@ -193,11 +194,11 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 ### Details
 
 #### `product_details_viewed`
-- **Status:** Planned (S4)
+- **Status:** Active
 - **Meaning:** product details were shown to the user.
-- **Trigger:** details content first displayed for a navigation push.
-- **Properties:** `product_id` Int; `source`; `category` String; `availability`; `has_discount` Bool; `image_count` Int; `is_saved` Bool; `content_origin` `list` | `snapshot` | `network`.
-- **Screen:** Product details. **Dedup:** once per push. **Privacy:** none.
+- **Trigger:** details content first displayed for a navigation push: the details screen's first appearance (D-59).
+- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (omitted when the API sends an unknown value); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (from S5, D-56); `content_origin` `list` | `snapshot` | `network` (S4 sends only `list`: details opened from a list render the list's product, Networking.md A7; `snapshot` and `network` arrive with S5).
+- **Screen:** Product details. **Dedup:** once per push: tab switches and returning to the screen don't re-send; a new push does. **Privacy:** none.
 
 #### `product_details_load_failed`
 - **Status:** Planned (S5)
@@ -207,9 +208,9 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Screen:** Product details. **Dedup:** once per failed request. **Privacy:** none.
 
 #### `product_gallery_interacted`
-- **Status:** Planned (S4)
+- **Status:** Active
 - **Meaning:** the user looked beyond the first product image.
-- **Trigger:** first swipe to another image during a details visit.
+- **Trigger:** first swipe to another image during a details visit (a page change away from the image shown, D-59). A product with one image can't send it.
 - **Properties:** `product_id` Int; `image_count` Int.
 - **Screen:** Product details. **Dedup:** once per details visit. **Privacy:** none.
 

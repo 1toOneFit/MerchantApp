@@ -56,6 +56,10 @@ struct AppContextRegistrationTests {
         #expect(CatalogConfigurator.resolveDependencies(from: configure().container) != nil)
     }
 
+    @Test func productDetailDependenciesResolve() {
+        #expect(ProductDetailConfigurator.resolveDependencies(from: configure().container) != nil)
+    }
+
     #if DEBUG
     @Test func diagnosticsDependenciesResolve() {
         #expect(DiagnosticsConfigurator.resolveDependencies(from: configure().container) != nil)

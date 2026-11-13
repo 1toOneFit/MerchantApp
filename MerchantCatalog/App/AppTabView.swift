@@ -25,7 +25,7 @@ struct AppTabView: View {
         TabView(selection: $selection) {
             Tab("Catalog", systemImage: "square.grid.2x2", value: AppTab.catalog) {
                 NavigationStack(path: $catalogRouter.path) {
-                    CatalogConfigurator.make(from: container, isTabSelected: selection == .catalog)
+                    CatalogConfigurator.make(from: container, router: catalogRouter, isTabSelected: selection == .catalog)
                     #if DEBUG
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
@@ -67,12 +67,12 @@ struct AppTabView: View {
         #endif
     }
 
-    /// S0 placeholder; S4 builds the product details screen through its Configurator.
+    /// Builds each pushed screen through its Configurator.
     @ViewBuilder
     private func destination(for route: Route) -> some View {
         switch route {
-        case .productDetail(let productID):
-            Text("Product \(productID)")
+        case .productDetail(let route):
+            ProductDetailConfigurator.make(from: container, route: route)
         }
     }
 }

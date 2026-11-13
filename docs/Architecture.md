@@ -32,7 +32,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
     AppTab.swift                       # .catalog / .saved
   Core/
     DI/            ServiceContainerType.swift, ServiceContainer.swift
-    Navigation/    Router.swift, Route.swift
+    Navigation/    Router.swift, Route.swift, ProductDetailRoute.swift [S4]
     Logging/       Log.swift (Logger categories), LogStoreReader.swift (OSLogStore reader [DEBUG])
     Time/          Clock+Stopwatch.swift (elapsed time on an injected clock), Duration+Milliseconds.swift
     Analytics/     AnalyticsTracking.swift (protocol), AnalyticsProvider.swift (protocol),
@@ -62,8 +62,8 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
                     CatalogPhase (+ CatalogFooter, CatalogListContent), CatalogConfigurator,
                     ProductCardView, ProductCardModel, ProductSort+Title [S3]
     ProductDetail/
-      Presentation/ ProductDetailView, ProductDetailViewModel, ProductDetailConfigurator,
-                    GalleryView, AtAGlanceView
+      Presentation/ ProductDetailView (+ sections), ProductDetailViewModel, ProductDetailConfigurator,
+                    ProductGalleryView, ProductGalleryModel, ProductDetailHeader, ProductFactRow [S4]
     Saved/
       Presentation/ SavedView, SavedViewModel, SavedConfigurator
     Diagnostics/                        # compiled in DEBUG only
@@ -90,6 +90,8 @@ MerchantCatalogTests/
 **What exists (S2):** `Networking/` (all files listed), `Core/Time`, `Shared/Products/{Domain,Data}` (without `ProductQuery`/`ProductInsights`), `Features/Catalog/{Domain,Presentation}` (without `SortMenu`/`SearchDebouncer`), `DesignSystem/Components/{ProductImageView, ErrorBanner}`, `Features/Diagnostics/Domain/SlowNetworkSetting`, plus tests in `MerchantCatalogTests/{Networking, Shared/Products, Features/Catalog, Core/Time}`. There is no `HTTPStatusCode` type: the status mapping is a small switch in `URLSessionAPIClient`. `DesignSystem/Theme` isn't needed yet (system styles only).
 
 **What exists (S3):** `Features/Catalog/Domain/SearchQuery`, `Features/Catalog/Presentation/{CatalogFeed, ProductSort+Title}` (the sort menu is a private view in `CatalogView.swift`), `ProductsTarget.search` and `ProductRepository.search`, plus tests in `MerchantCatalogTests/Features/Catalog/{CatalogViewModelSearchTests, CatalogViewModelSortTests, SearchQueryTests, ProductSortTitleTests}`, `Core/Analytics/SearchAnalyticsEventTests` and `Support/TestClockTests`. The target layout's `ProductQuery` and `SearchDebouncer` weren't needed: only the catalog uses the trimmed query, so `SearchQuery` lives in the feature, and the debounce is a sleep on the injected clock inside the view model's search task.
+
+**What exists (S4):** `Core/Navigation/ProductDetailRoute`, `Shared/Products/Domain/ProductInsights` (and the details fields on `Product`, with `ProductDimensions` and `ProductReview`), `Features/ProductDetail/Presentation` as listed above, plus tests in `MerchantCatalogTests/Shared/Products/ProductInsightsTests`, `MerchantCatalogTests/Features/ProductDetail/` and `MerchantCatalogTests/Features/Catalog/CatalogViewModelSelectionTests`. The At a Glance chips are a private view in `ProductDetailView.swift`; `ProductFactRow` turns each `ProductInsights.Fact` into a label, value and symbol. `ProductsTarget.detail` isn't needed yet (S5).
 
 ## 3. Layer rules
 
@@ -142,7 +144,7 @@ protocol ServiceContainerType: AnyObject {
 - `AppContext.configure(defaults:appInfo:)` runs once at launch and registers, by protocol: `APIClientType`, `ProductRepository`, `SavedProductsRepository`, `AnalyticsTracking`, `ExperimentService`, plus `SavedProductsStore`, `SessionTracker`, `InstallationIDProvider`, and in DEBUG `InMemoryAnalyticsProvider` and `LogReading`. **S1 state:** the analytics services are registered; it also sets the launch user properties and exposes `lifecycle` (`AppLifecycleTracker`), which `MerchantCatalogApp` feeds with `scenePhase` changes (`onChange(of:initial: true)`, app-wide phase). Tests pass an isolated `UserDefaults` suite. Each call returns a new `AppContext` with a new container; the app keeps the one built at launch. There is no global singleton, and every test gets an isolated container.
 - `ServiceContainer` keys services by `ObjectIdentifier(T.self)`, the exact registered type. `String(describing:)` keys collide for same-named types in different scopes; an S0 test showed this.
 - Each scene has a **Configurator** that resolves services and builds the view model with **init injection**. View models never touch the container, so unit tests construct them directly with fakes. `make(...)` returns the screen, which owns its view model in `@State` (`CatalogConfigurator.make(from:isTabSelected:)`, `DiagnosticsConfigurator.make(from:)`). `AppTabView` owns only the tab selection, the routers and the sheet flag, never a feature's view model; it passes the Catalog screen `isTabSelected` for `catalog_viewed` (D-39). Its body re-runs the Configurator on each update; `@State` keeps the first view model, and the extra ones are discarded unused (view-model initializers have no side effects).
-- **Registration guard** (developer's choice, 2026-11-13): each Configurator resolves its services in `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`, which returns `nil` if anything is missing, and its `make(...)` uses the same function. `AppContextRegistrationTests` calls every Configurator's `resolveDependencies(from:)` against `AppContext.configure().container`, so a missing registration fails a test instead of crashing in `forceResolve`. Cases: `DiagnosticsConfigurator` (S1, DEBUG) and `CatalogConfigurator` (S2). **S2 state:** `AppContext` also registers `URLSessionAPIClient` as `any APIClientType`, `LiveProductRepository` as `any ProductRepository`, and in DEBUG `SlowNetworkSetting`, which shares the client's `RequestDelay`.
+- **Registration guard** (developer's choice, 2026-11-13): each Configurator resolves its services in `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`, which returns `nil` if anything is missing, and its `make(...)` uses the same function. `AppContextRegistrationTests` calls every Configurator's `resolveDependencies(from:)` against `AppContext.configure().container`, so a missing registration fails a test instead of crashing in `forceResolve`. Cases: `DiagnosticsConfigurator` (S1, DEBUG), `CatalogConfigurator` (S2) and `ProductDetailConfigurator` (S4). **S4:** `CatalogConfigurator.make(from:router:isTabSelected:)` also takes the Catalog tab's `Router`, which `AppTabView` owns, and injects it into `CatalogViewModel` (D-53). **S2 state:** `AppContext` also registers `URLSessionAPIClient` as `any APIClientType`, `LiveProductRepository` as `any ProductRepository`, and in DEBUG `SlowNetworkSetting`, which shares the client's `RequestDelay`.
 
 ## 7. Navigation
 
@@ -160,7 +162,8 @@ final class Router {
 }
 ```
 
-- **S0 state:** `Route` has one placeholder case, `productDetail(productID: Int)`, with a text placeholder destination: an uninhabited enum couldn't be pushed or tested. S4 introduces `ProductDetailRoute` and `showProductDetail(_:)`. The S0 `Router` API is `path`, `push(_:)`, `pop()` and `popToRoot()`; both pops do nothing at the root.
+- **S0 state:** `Route` had one placeholder case, `productDetail(productID: Int)`, with a text placeholder destination. The S0 `Router` API is `path`, `push(_:)`, `pop()` and `popToRoot()`; both pops do nothing at the root.
+- **As built (S4):** `Route.productDetail(ProductDetailRoute)`, where `ProductDetailRoute` holds the list's `Product` (now `Hashable`) and the `source` (`catalog` / `search`); S5 extends it for Saved (D-57). `Router.showProductDetail(_:)` pushes it; the `navigation` log names only the product id and source (`Route.logDescription`), never a title. `CatalogViewModel` gets the Catalog tab's router by injection (D-53): a card tap calls `cardSelected(id:in:)`, which tracks `product_selected` from the list on screen and pushes the route; cards of the hidden browse layer are ignored. While a route is on the Catalog stack, `searchDismissed()` is ignored (D-54). The destination is `ProductDetailConfigurator.make(from:route:)`; the screen owns its `ProductDetailViewModel` in `@State`, which sends `product_details_viewed` once (one view model per push) and `product_gallery_interacted` once per visit (D-59). Details need no request: list items are full products (Networking.md A7).
 - One `Router` per tab, owned by `AppTabView`. `AppTabView` hosts the two `NavigationStack(path:)` and the single `navigationDestination(for: Route.self)` switch that calls Configurators.
 - **Navigation rule** (enforced by `NavigationRuleTests`, a source scan): `NavigationStack` and `navigationDestination` appear only in `App/AppTabView.swift`; `NavigationLink` and `NavigationView` appear nowhere. Feature views request navigation through view-model intents that call the router.
 - Tab switching (e.g. the Saved empty state's "Browse catalog") goes through an `@Observable` tab selection owned by `AppTabView`.
