@@ -37,7 +37,7 @@
 | `sequence` | Int | 1-based order within the session |
 
 ### User properties
-User properties describe the installation, not a single event. They are set when their value changes; each change is logged (`analytics` category, old → new). Change detection is in memory, so every launch sends each launch property once (old value `nil`). In a real integration they map to the vendor's identify/user-property call, so every later event can be segmented by them. S1 implements the launch properties; `saved_products_count` arrives in S5 and `experiment_assignments` in S6.
+User properties describe the installation, not a single event. They are set when their value changes; each change is logged (`analytics` category, old → new). Change detection is in memory, so every launch sends each launch property once (old value `nil`). In a real integration they map to the vendor's identify/user-property call, so every later event can be segmented by them. S1 implements the launch properties. `saved_products_count` (S5) is set by `SavedProductsStore` once the saved list is read at launch, and after every save or removal. `experiment_assignments` arrives in S6.
 
 | Property | Type | Values / format | Updated when |
 |---|---|---|---|
@@ -46,7 +46,7 @@ User properties describe the installation, not a single event. They are set when
 | `os_version` | String | `26.0` | launch |
 | `device_model` | String | hardware identifier, e.g. `iPhone17,1` (in the Simulator, the simulated model) | launch |
 | `first_seen_date` | String | `yyyy-MM-dd` in UTC (installation date) | launch (value fixed at first launch; changes only on the DEBUG reset) |
-| `saved_products_count` | Int | ≥ 0 | save/unsave, launch |
+| `saved_products_count` | Int | ≥ 0 | save/unsave, launch (after the saved list is read) |
 | `experiment_assignments` | Map<String, String> | `{ "product_card_density_v1": "control" \| "treatment" }` | assignment or override |
 | `is_debug_build` | Bool | | launch |
 
