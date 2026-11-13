@@ -101,6 +101,7 @@ private struct CatalogListView: View {
             } actions: {
                 Button("Reload") { viewModel.reload() }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
         case .noResults(let query):
             ContentUnavailableView {
@@ -110,6 +111,7 @@ private struct CatalogListView: View {
             } actions: {
                 Button("Clear search", action: clearSearch)
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
         case .failed(let error):
             ContentUnavailableView {
@@ -122,6 +124,7 @@ private struct CatalogListView: View {
             } actions: {
                 Button("Retry") { viewModel.retry() }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
         }
     }
@@ -225,6 +228,7 @@ private struct CatalogFooterView: View {
                     .multilineTextAlignment(.center)
                 Button("Retry", action: retry)
                     .buttonStyle(.bordered)
+                    .controlSize(.large)
             }
         case .end:
             Text("You've reached the end")

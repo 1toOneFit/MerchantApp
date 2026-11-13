@@ -136,7 +136,7 @@ private struct SavedStatusView: View {
                 StatusBanner(systemImage: "exclamationmark.triangle.fill", message: "Couldn't refresh — showing saved info") {
                     Button("Retry", action: retry)
                         .buttonStyle(.bordered)
-                        .frame(minHeight: 44)
+                        .controlSize(.large)
                 }
             case .unavailable:
                 StatusBanner(systemImage: "xmark.circle.fill", message: AppError.notFound.userMessage) {
