@@ -46,6 +46,10 @@ struct AppContextRegistrationTests {
     }
 
     #if DEBUG
+    @Test func diagnosticsDependenciesResolve() {
+        #expect(DiagnosticsConfigurator.resolveDependencies(from: configure().container) != nil)
+    }
+
     @Test func launchUserPropertiesReachTheEventLog() throws {
         let container = configure().container
         let eventLog = try #require(container.resolve() as InMemoryAnalyticsProvider?)

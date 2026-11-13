@@ -34,6 +34,7 @@ final class AppContext {
         let eventLog = InMemoryAnalyticsProvider()
         providers.append(eventLog)
         container.register(eventLog)
+        container.register(OSLogStoreReader(subsystem: Log.subsystem) as any LogReading)
         #endif
         let analytics = AnalyticsService(providers: providers, installation: installation, sessions: sessions)
 

@@ -15,7 +15,7 @@ struct MerchantCatalogApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppTabView()
+            AppTabView(container: context.container)
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
             context.lifecycle.handle(AppPhase(phase))

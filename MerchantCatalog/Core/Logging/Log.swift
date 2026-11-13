@@ -6,7 +6,7 @@ import OSLog
 /// Interpolate ids, status codes and durations with `privacy: .public`; search terms and product
 /// titles with `privacy: .private`. Never log tokens or full payloads.
 enum Log {
-    private static let subsystem = Bundle.main.bundleIdentifier ?? "com.example.MerchantCatalog"
+    static let subsystem = Bundle.main.bundleIdentifier ?? "com.example.MerchantCatalog"
 
     /// Launch, scene phase, session start.
     static let lifecycle = Logger(subsystem: subsystem, category: "lifecycle")
