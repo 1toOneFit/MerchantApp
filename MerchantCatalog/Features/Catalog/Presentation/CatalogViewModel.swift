@@ -176,6 +176,12 @@ final class CatalogViewModel {
         searchTextChanged(to: "")
     }
 
+    /// The search field was dismissed (Cancel): the query is cleared and browse returns. The system
+    /// may also empty the field's text, before or after; that second change is a no-op.
+    func searchDismissed() {
+        searchTextChanged(to: "")
+    }
+
     /// The sort menu's selection. Another sort reloads page 1 of the list on screen in that order,
     /// on the server; while searching it changes only the search's sort (D-45, D-46).
     func sortSelected(_ newSort: ProductSort) {

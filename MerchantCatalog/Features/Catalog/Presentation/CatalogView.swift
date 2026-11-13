@@ -44,6 +44,12 @@ struct CatalogView: View {
                 CatalogSortMenu(sort: viewModel.sort) { viewModel.sortSelected($0) }
             }
         }
+        .onChange(of: isSearchPresented) { wasPresented, isPresented in
+            // Cancel ends the search explicitly, without relying on the system emptying the text.
+            if wasPresented, !isPresented {
+                viewModel.searchDismissed()
+            }
+        }
         .task { await viewModel.start() }
         .onChange(of: isTabSelected, initial: true) { _, isSelected in
             if isSelected {

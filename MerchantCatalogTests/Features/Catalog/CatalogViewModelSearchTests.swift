@@ -182,6 +182,45 @@ struct CatalogViewModelSearchTests {
         #expect(analytics.events == [.searchCleared(queryLength: 5, hadResults: true)])
     }
 
+    /// How Cancel reaches the view model: the field's dismissal alone, or with the system also
+    /// emptying the text, in either order.
+    enum CancelSequence: CaseIterable {
+        case dismissalOnly
+        case dismissalThenEmptyText
+        case emptyTextThenDismissal
+    }
+
+    /// Review finding 1: Cancel ends the search however the system reports it: browse again, the
+    /// request cancelled, exactly one `search_cleared`.
+    @Test(arguments: CancelSequence.allCases)
+    func cancelEndsTheSearchOnce(sequence: CancelSequence) async {
+        let viewModel = await browsingViewModel()
+        viewModel.searchTextChanged(to: "phone")
+        await finishDebounce()
+        await repository.waitForPendingRequests(1)
+        let task = viewModel.searchTask
+        analytics.reset()
+
+        switch sequence {
+        case .dismissalOnly:
+            viewModel.searchDismissed()
+        case .dismissalThenEmptyText:
+            viewModel.searchDismissed()
+            viewModel.searchTextChanged(to: "")
+        case .emptyTextThenDismissal:
+            viewModel.searchTextChanged(to: "")
+            viewModel.searchDismissed()
+        }
+        repository.resumeNext(with: .success(page(101...120, total: 23, skip: 0)))
+        await task?.value
+
+        #expect(viewModel.searchText.isEmpty)
+        #expect(viewModel.listContext == .browse)
+        #expect(viewModel.cards.map(\.id) == Array(1...20))
+        #expect(analytics.events == [.searchCleared(queryLength: 5, hadResults: false)])
+        #expect(repository.cancelledRequestCount == 1)
+    }
+
     @Test func clearingDuringTheDebounceSendsNothing() async {
         let viewModel = await browsingViewModel()
         viewModel.searchTextChanged(to: "ph")
