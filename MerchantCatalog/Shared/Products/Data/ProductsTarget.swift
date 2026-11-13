@@ -1,17 +1,21 @@
 import Foundation
 
-/// DummyJSON product endpoints. S4/S5 add the single-product endpoint.
+/// DummyJSON product endpoints.
 enum ProductsTarget: TargetType {
     /// One page of the catalog: `GET /products?limit=&skip=[&sortBy=&order=]`.
     case list(skip: Int, limit: Int, sort: ProductSort)
     /// One page of search results: `GET /products/search?q=&limit=&skip=[&sortBy=&order=]`. Search,
     /// sort and pagination work together on the server (Networking.md A3).
     case search(query: String, skip: Int, limit: Int, sort: ProductSort)
+    /// One product: `GET /products/{id}`; an unknown id is a 404 (Networking.md A6). Only details
+    /// opened from Saved need it: list items are full products (A7).
+    case detail(id: Int)
 
     var path: String {
         switch self {
         case .list: "/products"
         case .search: "/products/search"
+        case .detail(let id): "/products/\(id)"
         }
     }
 
@@ -28,6 +32,8 @@ enum ProductsTarget: TargetType {
                 URLQueryItem(name: "limit", value: String(limit)),
                 URLQueryItem(name: "skip", value: String(skip)),
             ] + Self.queryItems(for: sort)
+        case .detail:
+            []
         }
     }
 

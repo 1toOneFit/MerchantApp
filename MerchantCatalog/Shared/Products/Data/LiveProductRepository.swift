@@ -23,4 +23,10 @@ struct LiveProductRepository: ProductRepository {
         )
         return response.toDomain()
     }
+
+    @concurrent
+    func product(id: Product.ID) async throws -> Product {
+        let response: ProductDTO = try await client.request(ProductsTarget.detail(id: id))
+        return response.toDomain()
+    }
 }

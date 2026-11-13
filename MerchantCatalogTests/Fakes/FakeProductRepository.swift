@@ -3,8 +3,9 @@ import Testing
 
 /// A controllable `ProductRepository`. Results queued with `enqueue` answer requests in order; a
 /// request with nothing queued suspends until the test calls `resumeNext(with:)`, which lets tests
-/// observe in-flight states and out-of-order completion. Main-actor isolated, so tests read and
-/// change it without locks.
+/// observe in-flight states and out-of-order completion. Single-product requests (`product(id:)`)
+/// have their own queue (`enqueueProduct`, `resumeNextProduct`). Main-actor isolated, so tests read
+/// and change it without locks.
 @MainActor
 final class FakeProductRepository: ProductRepository {
     struct Request: Equatable {
@@ -26,6 +27,51 @@ final class FakeProductRepository: ProductRepository {
     private var waiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     var pendingCount: Int { pending.count }
+
+    /// Ids of `product(id:)` requests, in order.
+    private(set) var productRequests: [Int] = []
+    private var queuedProducts: [Result<Product, any Error>] = []
+    private var pendingProducts: [CheckedContinuation<Product, any Error>] = []
+    private var productWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+
+    var pendingProductCount: Int { pendingProducts.count }
+
+    func enqueueProduct(_ result: Result<Product, any Error>) {
+        queuedProducts.append(result)
+    }
+
+    func product(id: Product.ID) async throws -> Product {
+        productRequests.append(id)
+        defer {
+            if Task.isCancelled { cancelledRequestCount += 1 }
+        }
+        if !queuedProducts.isEmpty {
+            return try queuedProducts.removeFirst().get()
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            pendingProducts.append(continuation)
+            let ready = productWaiters.filter { pendingProducts.count >= $0.count }
+            productWaiters.removeAll { pendingProducts.count >= $0.count }
+            ready.forEach { $0.continuation.resume() }
+        }
+    }
+
+    /// Answers the oldest suspended `product(id:)` request.
+    func resumeNextProduct(with result: Result<Product, any Error>) {
+        guard !pendingProducts.isEmpty else {
+            Issue.record("FakeProductRepository: no suspended product request to resume")
+            return
+        }
+        pendingProducts.removeFirst().resume(with: result)
+    }
+
+    /// Returns once at least `count` `product(id:)` requests are suspended.
+    func waitForPendingProductRequests(_ count: Int) async {
+        guard pendingProducts.count < count else { return }
+        await withCheckedContinuation { continuation in
+            productWaiters.append((count, continuation))
+        }
+    }
 
     func enqueue(_ page: ProductPage) {
         queued.append(.success(page))

@@ -51,4 +51,25 @@ struct LiveProductRepositoryTests {
             try await LiveProductRepository(client: client).products(sort: .defaultOrder, skip: 0, limit: 20)
         }
     }
+
+    @Test func requestsDetailTargetAndMapsProduct() async throws {
+        let client = FakeAPIClient()
+        client.responseJSON = Data(ProductJSON.product.utf8)
+
+        let product = try await LiveProductRepository(client: client).product(id: 1)
+
+        #expect(client.requests == [FakeAPIClient.Request(path: "/products/1", queryItems: [])])
+        let expected = try JSONDecoder().decode(ProductDTO.self, from: client.responseJSON).toDomain()
+        #expect(product == expected)
+    }
+
+    /// An unknown id is a 404 (A6), which details opened from Saved show as "no longer available".
+    @Test func detailPropagatesNotFound() async {
+        let client = FakeAPIClient()
+        client.error = AppError.notFound
+
+        await #expect(throws: AppError.notFound) {
+            try await LiveProductRepository(client: client).product(id: 99999)
+        }
+    }
 }
