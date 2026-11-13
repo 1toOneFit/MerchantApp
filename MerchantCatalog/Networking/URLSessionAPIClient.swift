@@ -79,6 +79,8 @@ final class URLSessionAPIClient: APIClientType {
             throw AppError.unknown
         }
         components.queryItems = queryItems.isEmpty ? nil : queryItems
+        // `URLComponents` leaves `+` unencoded, and the API decodes it as a space (Networking.md A13).
+        components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
         guard let url = components.url else {
             throw AppError.unknown
         }
