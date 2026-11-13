@@ -1,7 +1,7 @@
 import Foundation
 
 /// User properties from Analytics.md § 2. They describe the installation rather than one event and
-/// are set when their value changes. `experiment_assignments` (S6) arrives with its stage.
+/// are set when their value changes.
 enum UserProperty: Equatable, Sendable {
     case appVersion(String)
     case buildNumber(String)
@@ -12,6 +12,8 @@ enum UserProperty: Equatable, Sendable {
     case isDebugBuild(Bool)
     /// Set by `SavedProductsStore` after the launch load and after every save or removal.
     case savedProductsCount(Int)
+    /// Experiment id → the variant this launch uses; set by `LocalExperimentService` (D-69).
+    case experimentAssignments([String: String])
 
     var name: String {
         switch self {
@@ -22,6 +24,7 @@ enum UserProperty: Equatable, Sendable {
         case .firstSeenDate: "first_seen_date"
         case .isDebugBuild: "is_debug_build"
         case .savedProductsCount: "saved_products_count"
+        case .experimentAssignments: "experiment_assignments"
         }
     }
 
@@ -35,6 +38,8 @@ enum UserProperty: Equatable, Sendable {
             .bool(value)
         case .savedProductsCount(let count):
             .int(count)
+        case .experimentAssignments(let assignments):
+            .stringMap(assignments)
         }
     }
 

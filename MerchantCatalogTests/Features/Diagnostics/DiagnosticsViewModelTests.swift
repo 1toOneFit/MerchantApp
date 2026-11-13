@@ -15,12 +15,16 @@ struct DiagnosticsViewModelTests {
     private let analytics: AnalyticsService
     private let requestDelay = RequestDelay()
     private let slowNetwork: SlowNetworkSetting
+    /// Buckets `uuid(1)`, the first installation id, into control; its user property goes to a spy
+    /// of its own, so the event-log tests see only what they set.
+    private let experiments: LocalExperimentService
 
     init() {
         installation = InstallationIDProvider(defaults: store.defaults, now: clock.now, makeID: installationIDs.next)
         sessions = SessionTracker(defaults: store.defaults, makeID: sessionIDs.next)
         analytics = AnalyticsService(providers: [eventLog], installation: installation, sessions: sessions, now: clock.now)
         slowNetwork = SlowNetworkSetting(defaults: store.defaults, requestDelay: requestDelay)
+        experiments = LocalExperimentService(defaults: store.defaults, installation: installation, analytics: SpyAnalytics())
     }
 
     private func makeViewModel(
@@ -33,8 +37,46 @@ struct DiagnosticsViewModelTests {
             analytics: analytics,
             logReader: FakeLogReader(result: logs),
             slowNetwork: slowNetwork,
+            experiments: experiments,
+            overrides: experiments,
             now: clock.now
         )
+    }
+
+    @Test func showsTheLaunchAssignment() {
+        #expect(makeViewModel().cardAssignment == ExperimentAssignment(variant: .control, source: .hashed))
+    }
+
+    /// Persisted at once; applies at the next launch (D-69).
+    @Test func overrideChoiceIsPersisted() {
+        let viewModel = makeViewModel()
+        #expect(viewModel.cardOverride == nil)
+
+        viewModel.cardOverride = .treatment
+        #expect(experiments.override(for: .productCardDensity) == .treatment)
+
+        viewModel.cardOverride = nil
+        #expect(experiments.override(for: .productCardDensity) == nil)
+        #expect(viewModel.cardAssignment == ExperimentAssignment(variant: .control, source: .hashed))
+    }
+
+    @Test func overrideStartsFromTheStoredChoice() {
+        experiments.setOverride(.control, for: .productCardDensity)
+
+        #expect(makeViewModel().cardOverride == .control)
+    }
+
+    /// D-34, D-72: the next launch re-buckets the new id; the override stays.
+    @Test func resetClearsStoredAssignmentsAndKeepsTheOverride() {
+        let viewModel = makeViewModel()
+        viewModel.cardOverride = .treatment
+        #expect(store.defaults.dictionary(forKey: "experiments.assignments") != nil)
+
+        viewModel.resetInstallationID()
+
+        #expect(store.defaults.dictionary(forKey: "experiments.assignments") == nil)
+        #expect(experiments.override(for: .productCardDensity) == .treatment)
+        #expect(viewModel.cardOverride == .treatment)
     }
 
     @Test func slowNetworkToggleForwardsToSetting() {

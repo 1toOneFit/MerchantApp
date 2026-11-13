@@ -48,7 +48,7 @@ final class CatalogViewModel {
     /// The latest page ≥ 2 load of the list on screen; tests await it.
     var pageTask: Task<Void, Never>? { pageTasks[listContext] }
 
-    private var browse = CatalogFeed(query: nil, sort: .defaultOrder)
+    private var browse: CatalogFeed
     private var search: CatalogFeed?
     private var isRefreshing = false
     /// Source of the feeds' generation stamps.
@@ -63,6 +63,8 @@ final class CatalogViewModel {
     @ObservationIgnored private let router: Router
     /// Shared with every screen; observed, so the cards' save state follows it (AC-V1).
     @ObservationIgnored private let savedProducts: SavedProductsStore
+    /// `product_card_density_v1`: the cards' variant and the exposure report (D-70).
+    @ObservationIgnored private let cardExperiment: CardExperiment
 
     /// Why a page 1 loads, and for which list.
     private enum FirstPageTrigger {
@@ -109,13 +111,16 @@ final class CatalogViewModel {
         analytics: any AnalyticsTracking,
         router: Router,
         savedProducts: SavedProductsStore,
+        cardExperiment: CardExperiment,
         clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.repository = repository
         self.analytics = analytics
         self.router = router
         self.savedProducts = savedProducts
+        self.cardExperiment = cardExperiment
         self.clock = clock
+        browse = CatalogFeed(query: nil, sort: .defaultOrder, cardVariant: cardExperiment.variant)
     }
 
     /// Cancels the tasks the view model owns when the screen goes away.
@@ -215,14 +220,15 @@ final class CatalogViewModel {
         }
     }
 
-    /// A card of the `context` list appeared on screen. Near the end of the list on screen this
-    /// loads the next page: one page request at a time, none past the end, and no automatic retry
-    /// after a page failure. Cards of a hidden list are ignored (D-52).
+    /// A card of the `context` list appeared on screen: it reports experiment exposure (D-70), and
+    /// near the end of the list it loads the next page: one page request at a time, none past the
+    /// end, and no automatic retry after a page failure. Cards of a hidden list are ignored (D-52).
     func itemAppeared(id: Product.ID, in context: ListContext) {
+        guard context == listContext, let feed = feed(for: context), feed.firstPage == .loaded else {
+            return
+        }
+        cardExperiment.cardRendered(in: context)
         guard
-            context == listContext,
-            let feed = feed(for: context),
-            feed.firstPage == .loaded,
             feed.pageLoad == .idle,
             !isRefreshing,
             feed.list.canLoadMore,
@@ -359,7 +365,7 @@ final class CatalogViewModel {
 
     /// A committed query gets a new search feed, in the sort on screen (D-46).
     private func beginSearch(_ query: SearchQuery) -> FirstPageLoad {
-        search = CatalogFeed(query: query, sort: sort)
+        search = CatalogFeed(query: query, sort: sort, cardVariant: cardExperiment.variant)
         return beginFirstPage(.search(query, .typing))
     }
 

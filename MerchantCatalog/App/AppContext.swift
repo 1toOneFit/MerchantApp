@@ -72,6 +72,18 @@ final class AppContext {
             analytics.setUserProperty(property)
         }
 
+        // Every experiment is resolved at launch and kept for the launch (D-69, D-73), which sets
+        // `experiment_assignments`.
+        let experiments = LocalExperimentService(defaults: defaults, installation: installation, analytics: analytics)
+        container.register(experiments as any ExperimentService)
+        #if DEBUG
+        container.register(experiments as any ExperimentOverrides)
+        #endif
+        for experiment in Experiment.allCases {
+            _ = experiments.assignment(for: experiment)
+        }
+        container.register(ExposureTracker(analytics: analytics, sessions: sessions))
+
         let lifecycle = AppLifecycleTracker(analytics: analytics, sessions: sessions)
         return AppContext(container: container, lifecycle: lifecycle, savedProducts: savedProducts)
     }

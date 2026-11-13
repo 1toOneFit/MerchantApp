@@ -89,7 +89,7 @@ struct SavedViewModelTests {
     /// AC-V4: the catalog card follows a swipe in Saved.
     @Test func swipeUpdatesTheCatalogCard() async {
         let store = await loadedSavedStore(items)
-        let catalog = CatalogViewModel(repository: FakeProductRepository(), analytics: SpyAnalytics(), router: Router(), savedProducts: store, clock: TestClock())
+        let catalog = CatalogViewModel(repository: FakeProductRepository(), analytics: SpyAnalytics(), router: Router(), savedProducts: store, cardExperiment: unobservedCardExperiment(), clock: TestClock())
         let viewModel = makeViewModel(store: store)
 
         viewModel.removeSwiped(id: 5)

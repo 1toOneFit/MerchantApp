@@ -17,7 +17,7 @@
 - UUID v4 generated on first launch, stored in `UserDefaults`. Used as the analytics user id.
 - **Survives** relaunches and app updates. **Resets** on uninstall/reinstall — deliberately not stored in the Keychain, so a reinstall is a new anonymous installation and no cross-install tracking happens.
 - Not IDFA/IDFV; no App Tracking Transparency prompt is needed.
-- DEBUG "Reset installation ID" simulates a reinstall (D-34): it generates a new id and a new `first_seen_date`, clears stored experiment assignments (S6; they are re-derived from the new id, so the variant may change), and immediately starts a new session that reports `is_first_session = true` and `launch_kind = cold`.
+- DEBUG "Reset installation ID" simulates a reinstall (D-34): it generates a new id and a new `first_seen_date`, clears stored experiment assignments (S6; the next launch re-derives them from the new id, so the variant may change; the DEBUG override is kept, D-69, D-72), and immediately starts a new session that reports `is_first_session = true` and `launch_kind = cold`.
 
 ### Session
 - A new session starts on cold launch, or when the app returns to the foreground after **≥ 30 minutes** in the background (exactly 30:00 counts).
@@ -37,7 +37,7 @@
 | `sequence` | Int | 1-based order within the session |
 
 ### User properties
-User properties describe the installation, not a single event. They are set when their value changes; each change is logged (`analytics` category, old → new). Change detection is in memory, so every launch sends each launch property once (old value `nil`). In a real integration they map to the vendor's identify/user-property call, so every later event can be segmented by them. S1 implements the launch properties. `saved_products_count` (S5) is set by `SavedProductsStore` once the saved list is read at launch, and after every save or removal. `experiment_assignments` arrives in S6.
+User properties describe the installation, not a single event. They are set when their value changes; each change is logged (`analytics` category, old → new). Change detection is in memory, so every launch sends each launch property once (old value `nil`). In a real integration they map to the vendor's identify/user-property call, so every later event can be segmented by them. S1 implements the launch properties. `saved_products_count` (S5) is set by `SavedProductsStore` once the saved list is read at launch, and after every save or removal. `experiment_assignments` (S6) is set by `LocalExperimentService` at launch, when `AppContext` resolves every experiment for the launch (D-69, D-73): experiment id → the variant this launch shows, the override's when one is set. A DEBUG override or reset changes it only at the next launch.
 
 | Property | Type | Values / format | Updated when |
 |---|---|---|---|
@@ -47,7 +47,7 @@ User properties describe the installation, not a single event. They are set when
 | `device_model` | String | hardware identifier, e.g. `iPhone17,1` (in the Simulator, the simulated model) | launch |
 | `first_seen_date` | String | `yyyy-MM-dd` in UTC (installation date) | launch (value fixed at first launch; changes only on the DEBUG reset) |
 | `saved_products_count` | Int | ≥ 0 | save/unsave, launch (after the saved list is read) |
-| `experiment_assignments` | Map<String, String> | `{ "product_card_density_v1": "control" \| "treatment" }` | assignment or override |
+| `experiment_assignments` | Map<String, String> | `{ "product_card_density_v1": "control" \| "treatment" }` (logs show `{product_card_density_v1: treatment}`) | launch (assignment, or an override set during an earlier launch, D-69) |
 | `is_debug_build` | Bool | | launch |
 
 No name, email, location, IP, advertising identifier, or free text is collected.
@@ -259,11 +259,12 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 ### Experiments
 
 #### `experiment_exposed`
-- **Status:** Planned (S6)
+- **Status:** Active
 - **Meaning:** the user actually saw a surface rendered according to their experiment variant. See [Experiments.md](Experiments.md).
-- **Trigger:** first product card rendered on an eligible surface in a session.
-- **Properties:** `experiment_id` String; `variant` `control` | `treatment`; `assignment_source` `hashed` | `override`; `surface` `catalog_grid` | `search_grid`.
-- **Screen:** Catalog. **Dedup:** once per experiment per session (duplicates are suppressed and logged at debug level). **Privacy:** none.
+- **Trigger:** first product card rendered on an eligible surface in a session: a loaded card of the list on screen appears (`onAppear`); cards of the hidden browse layer under search results don't count (D-70). Both arms send it.
+- **Properties:** `experiment_id` String; `variant` `control` | `treatment` (this launch's assignment, which the cards show, D-69); `assignment_source` `hashed` | `override`; `surface` `catalog_grid` (browse) | `search_grid` (search results) — the surface of the session's first rendered card.
+- **Note:** a session that starts while cards are already on screen (a return after ≥ 30 minutes) is exposed at the next card appearance, e.g. scrolling, a search, or returning from details (D-74).
+- **Screen:** Catalog. **Dedup:** once per experiment per session, keyed by session id (`ExposureTracker`; duplicates are suppressed and logged at debug level in the `experiment` category). An exposure that is the launch's first event counts for the cold session it starts (D-74). **Privacy:** none.
 
 ## 4. Candidate events from the master spec — final mapping
 

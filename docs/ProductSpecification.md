@@ -48,9 +48,11 @@ Out of scope: see [§ 8 Deliberate exclusions](#8-deliberate-exclusions).
 | Title (max 2 lines) | ✓ | ✓ |
 | Price | ✓ | ✓ |
 | Save/unsave button | ✓ | ✓ |
-| Rating (★ 4.6) | — | ✓ |
+| Rating: the product's API rating, one decimal (★ + e.g. 4.96 → 5.0, D-71) | — | ✓ |
 
 Category, brand, discount and availability are deliberately **not** on the card, to keep the experiment's single variable clean; they appear on the details screen.
+
+**Rating on the card (as built, S6):** under the price, a filled star and the product's API rating formatted to one decimal (e.g. 4.94 → "★ 4.9", 4.96 → "★ 5.0", D-71), in the secondary color. The control card lays out the same row, invisible, so both arms have the same card height (D-21). VoiceOver reads the same value in the card's label, e.g. "rated 4.9 of 5" (§ 4.5). The variant is the installation's assignment for the launch (D-69).
 
 **Behavior**
 - First page loads on first display (20 items). The next page is requested when the user scrolls within ~5 items of the end. Only one page request is in flight at a time. Items are de-duplicated by `id` when appended.

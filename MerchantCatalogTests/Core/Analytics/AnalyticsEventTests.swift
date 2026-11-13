@@ -38,4 +38,18 @@ struct AnalyticsEventTests {
     func valueDescriptionIsThePlainValue(value: AnalyticsValue, text: String) {
         #expect(value.description == text)
     }
+
+    /// `experiment_assignments` (S6): keys sorted, so logs and Diagnostics read the same each time.
+    @Test func stringMapDescriptionIsSorted() {
+        let value = AnalyticsValue.stringMap(["b_experiment": "treatment", "a_experiment": "control"])
+
+        #expect(value.description == "{a_experiment: control, b_experiment: treatment}")
+    }
+
+    @Test func experimentAssignmentsProperty() {
+        let property = UserProperty.experimentAssignments(["product_card_density_v1": "treatment"])
+
+        #expect(property.name == "experiment_assignments")
+        #expect(property.value == .stringMap(["product_card_density_v1": "treatment"]))
+    }
 }

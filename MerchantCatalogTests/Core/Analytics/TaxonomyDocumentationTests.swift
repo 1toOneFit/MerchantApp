@@ -24,7 +24,8 @@ struct TaxonomyDocumentationTests {
         let events = try Self.documentedEvents()
         let planned = Set(events.filter { $0.status?.hasPrefix("Planned") == true }.map(\.name))
 
-        #expect(!planned.isEmpty, "expected Planned events for later stages")
+        // S6 made the last Planned event (`experiment_exposed`) Active, so `planned` may be empty;
+        // `everyEventHeadingHasAStatus` is the parser's positive control.
         #expect(planned.isDisjoint(with: Self.codeNames))
     }
 

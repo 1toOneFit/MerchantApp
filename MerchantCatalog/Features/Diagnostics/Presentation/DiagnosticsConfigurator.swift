@@ -10,6 +10,8 @@ enum DiagnosticsConfigurator {
         let analytics: any AnalyticsTracking
         let logReader: any LogReading
         let slowNetwork: SlowNetworkSetting
+        let experiments: any ExperimentService
+        let overrides: any ExperimentOverrides
     }
 
     static func resolveDependencies(from container: any ServiceContainerType) -> Dependencies? {
@@ -19,7 +21,9 @@ enum DiagnosticsConfigurator {
             let sessions: SessionTracker = container.resolve(),
             let analytics: any AnalyticsTracking = container.resolve(),
             let logReader: any LogReading = container.resolve(),
-            let slowNetwork: SlowNetworkSetting = container.resolve()
+            let slowNetwork: SlowNetworkSetting = container.resolve(),
+            let experiments: any ExperimentService = container.resolve(),
+            let overrides: any ExperimentOverrides = container.resolve()
         else {
             return nil
         }
@@ -29,7 +33,9 @@ enum DiagnosticsConfigurator {
             sessions: sessions,
             analytics: analytics,
             logReader: logReader,
-            slowNetwork: slowNetwork
+            slowNetwork: slowNetwork,
+            experiments: experiments,
+            overrides: overrides
         )
     }
 
@@ -43,7 +49,9 @@ enum DiagnosticsConfigurator {
             sessions: dependencies.sessions,
             analytics: dependencies.analytics,
             logReader: dependencies.logReader,
-            slowNetwork: dependencies.slowNetwork
+            slowNetwork: dependencies.slowNetwork,
+            experiments: dependencies.experiments,
+            overrides: dependencies.overrides
         )
         return DiagnosticsView(viewModel: viewModel)
     }

@@ -11,7 +11,7 @@ struct CatalogViewModelTests {
     private let clock = TestClock()
 
     private func makeViewModel() -> CatalogViewModel {
-        CatalogViewModel(repository: repository, analytics: analytics, router: Router(), savedProducts: SavedProductsStore(repository: InMemorySavedRepository(), analytics: SpyAnalytics()), clock: clock)
+        CatalogViewModel(repository: repository, analytics: analytics, router: Router(), savedProducts: SavedProductsStore(repository: InMemorySavedRepository(), analytics: SpyAnalytics()), cardExperiment: unobservedCardExperiment(), clock: clock)
     }
 
     private func advanceClockOnEachRequest(by duration: Duration) {

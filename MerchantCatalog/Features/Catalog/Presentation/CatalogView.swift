@@ -186,8 +186,7 @@ private struct CatalogGrid: View {
                         }
                     }
                     .accessibilityElement(children: .ignore)
-                    // S6 passes the rating in the treatment arm.
-                    .accessibilityLabel(ProductCardAccessibility.label(title: card.title, price: card.price, rating: nil, isSaved: isSaved))
+                    .accessibilityLabel(ProductCardAccessibility.label(title: card.title, price: card.price, rating: card.rating, isSaved: isSaved))
                     .accessibilityAddTraits(.isButton)
                     .accessibilityAction {
                         viewModel.cardSelected(id: card.id, in: context)

@@ -15,7 +15,7 @@ struct CatalogViewModelSaveTests {
     /// A view model browsing products 1...20 of 194 over `store`, with the analytics so far cleared.
     private func browsingViewModel(store: SavedProductsStore) async -> CatalogViewModel {
         repository.enqueue(page(1...20, total: 194, skip: 0))
-        let viewModel = CatalogViewModel(repository: repository, analytics: analytics, router: Router(), savedProducts: store, clock: clock)
+        let viewModel = CatalogViewModel(repository: repository, analytics: analytics, router: Router(), savedProducts: store, cardExperiment: unobservedCardExperiment(), clock: clock)
         await viewModel.start()
         analytics.reset()
         return viewModel

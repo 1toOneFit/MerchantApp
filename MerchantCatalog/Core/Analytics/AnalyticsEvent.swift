@@ -27,6 +27,7 @@ enum AnalyticsEventName: String, CaseIterable, Sendable {
     case productUnsaved = "product_unsaved"
     case savedProductsViewed = "saved_products_viewed"
     case savedProductRevisited = "saved_product_revisited"
+    case experimentExposed = "experiment_exposed"
 }
 
 /// How a session began: a cold launch, or a return to the foreground after the session timeout.
@@ -161,6 +162,8 @@ enum AnalyticsEvent: Equatable, Sendable {
     case savedProductsViewed(savedCount: Int)
     /// Details of a product saved before the current session (derived by `AnalyticsService`, D-64).
     case savedProductRevisited(productID: Int, source: ProductSource, daysSinceSaved: Int)
+    /// The first experiment card rendered in a session (`ExposureTracker`, Experiments.md).
+    case experimentExposed(experiment: Experiment, assignment: ExperimentAssignment, surface: ExposureSurface)
 
     var name: AnalyticsEventName {
         switch self {
@@ -188,6 +191,7 @@ enum AnalyticsEvent: Equatable, Sendable {
         case .productUnsaved: .productUnsaved
         case .savedProductsViewed: .savedProductsViewed
         case .savedProductRevisited: .savedProductRevisited
+        case .experimentExposed: .experimentExposed
         }
     }
 
@@ -316,6 +320,13 @@ enum AnalyticsEvent: Equatable, Sendable {
             ["saved_count": .int(savedCount)]
         case .savedProductRevisited(let productID, let source, let daysSinceSaved):
             ["product_id": .int(productID), "source": .string(source.rawValue), "days_since_saved": .int(daysSinceSaved)]
+        case .experimentExposed(let experiment, let assignment, let surface):
+            [
+                "experiment_id": .string(experiment.rawValue),
+                "variant": .string(assignment.variant.rawValue),
+                "assignment_source": .string(assignment.source.rawValue),
+                "surface": .string(surface.rawValue),
+            ]
         }
     }
 
