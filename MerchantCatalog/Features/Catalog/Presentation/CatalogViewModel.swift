@@ -30,6 +30,8 @@ final class CatalogViewModel {
     private var list = CatalogListState()
     private var firstPage: FirstPageStatus = .notLoaded
     private var pageLoad: PageLoadStatus = .idle
+    private var isRefreshing = false
+    private var refreshError: AppError?
     private var generation = 0
 
     @ObservationIgnored private let repository: any ProductRepository
@@ -62,7 +64,7 @@ final class CatalogViewModel {
         case .failed(let error):
             .failed(error)
         case .loaded:
-            list.isEmpty ? .empty : .content(footer: footer, refreshError: nil)
+            list.isEmpty ? .empty : .content(footer: footer, refreshError: refreshError)
         }
     }
 
@@ -107,6 +109,7 @@ final class CatalogViewModel {
         guard
             firstPage == .loaded,
             pageLoad == .idle,
+            !isRefreshing,
             list.canLoadMore,
             cards.suffix(Self.prefetchDistance).contains(where: { $0.id == id })
         else {
@@ -120,6 +123,44 @@ final class CatalogViewModel {
         guard case .failed(let error) = pageLoad else { return }
         analytics.track(.retryRequested(failedSurface: .catalogPage, error: error))
         startPageTask(isRetry: true)
+    }
+
+    /// Pull-to-refresh: reloads page 1 without clearing visible content (AC-C5). A failure keeps the
+    /// content and shows a banner. It cancels an in-flight page load and pauses load-more until it
+    /// ends; it sends only `catalog_refreshed` (D-41).
+    func refresh() async {
+        guard firstPage == .loaded, !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        refreshError = nil
+        pageTask?.cancel()
+        if pageLoad == .loading {
+            pageLoad = .idle
+        }
+        generation += 1
+        let generation = generation
+        let elapsed = clock.stopwatch()
+
+        do {
+            let page = try await repository.products(sort: sort, skip: 0, limit: Self.pageSize)
+            guard generation == self.generation else { return }
+            list.replace(with: page)
+            cards = list.items.map { ProductCardModel(product: $0) }
+            pageLoad = .idle
+            analytics.track(.catalogRefreshed(listContext: .browse, outcome: .success, durationMs: elapsed().wholeMilliseconds))
+        } catch is CancellationError {
+            return
+        } catch {
+            guard generation == self.generation else { return }
+            let appError = error as? AppError ?? .unknown
+            refreshError = appError
+            analytics.track(.catalogRefreshed(listContext: .browse, outcome: .failure(appError), durationMs: elapsed().wholeMilliseconds))
+        }
+    }
+
+    /// Closes the refresh-error banner.
+    func dismissRefreshError() {
+        refreshError = nil
     }
 
     // MARK: - Loading

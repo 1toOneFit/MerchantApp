@@ -326,4 +326,119 @@ struct CatalogViewModelTests {
         #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
         #expect(analytics.events.map(\.name) == [.catalogPageRequested])
     }
+
+    // MARK: - Pull-to-refresh
+
+    @Test func refreshReplacesContent() async {
+        let viewModel = await loadedViewModel()
+        advanceClockOnEachRequest(by: .milliseconds(120))
+        repository.enqueue(page(101...120, total: 150, skip: 0))
+
+        await viewModel.refresh()
+
+        #expect(repository.requests.last == .init(sort: .defaultOrder, skip: 0, limit: 20))
+        #expect(viewModel.cards.map(\.id) == Array(101...120))
+        #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
+        #expect(analytics.events == [.catalogRefreshed(listContext: .browse, outcome: .success, durationMs: 120)])
+    }
+
+    /// AC-C5: pull-to-refresh never blanks the grid, even when it fails.
+    @Test func refreshFailureKeepsContent() async {
+        let viewModel = await loadedViewModel()
+        repository.enqueue(failure: AppError.offline)
+
+        await viewModel.refresh()
+
+        #expect(viewModel.cards.map(\.id) == Array(1...20))
+        #expect(viewModel.phase == .content(footer: .idle, refreshError: .offline))
+        #expect(analytics.events == [.catalogRefreshed(listContext: .browse, outcome: .failure(.offline), durationMs: 0)])
+    }
+
+    @Test func refreshKeepsContentVisibleWhileLoading() async {
+        let viewModel = await loadedViewModel()
+        let refresh = Task { await viewModel.refresh() }
+
+        await repository.waitForPendingRequests(1)
+        #expect(viewModel.cards.count == 20)
+        #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
+
+        repository.resumeNext(with: .success(page(1...20, total: 194, skip: 0)))
+        await refresh.value
+    }
+
+    /// D-41: a page that was in flight when the refresh started never lands on the fresh page 1.
+    @Test func refreshDropsAnInFlightPageResult() async {
+        let viewModel = await loadedViewModel()
+        viewModel.itemAppeared(id: 20)
+        await repository.waitForPendingRequests(1)
+        repository.enqueue(page(1...20, total: 194, skip: 0))
+
+        await viewModel.refresh()
+        repository.resumeNext(with: .success(page(21...40, total: 194, skip: 20)))
+        await viewModel.pageTask?.value
+
+        #expect(viewModel.cards.map(\.id) == Array(1...20))
+        #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
+        #expect(!analytics.events.contains { $0.name == .catalogPageLoaded })
+
+        repository.enqueue(page(21...40, total: 194, skip: 20))
+        viewModel.itemAppeared(id: 20)
+        await viewModel.pageTask?.value
+        #expect(viewModel.cards.count == 40, "loading more works again after the refresh")
+    }
+
+    @Test func loadMoreIsPausedDuringRefresh() async {
+        let viewModel = await loadedViewModel()
+        let refresh = Task { await viewModel.refresh() }
+        await repository.waitForPendingRequests(1)
+
+        viewModel.itemAppeared(id: 20)
+        #expect(repository.requests.count == 2, "page 1 and the refresh only")
+
+        repository.resumeNext(with: .success(page(1...20, total: 194, skip: 0)))
+        await refresh.value
+    }
+
+    @Test func dismissRefreshErrorClearsBanner() async {
+        let viewModel = await loadedViewModel()
+        repository.enqueue(failure: AppError.offline)
+        await viewModel.refresh()
+
+        viewModel.dismissRefreshError()
+
+        #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
+    }
+
+    @Test func nextRefreshClearsBanner() async {
+        let viewModel = await loadedViewModel()
+        repository.enqueue(failure: AppError.offline)
+        await viewModel.refresh()
+
+        let refresh = Task { await viewModel.refresh() }
+        await repository.waitForPendingRequests(1)
+        #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
+
+        repository.resumeNext(with: .success(page(1...20, total: 194, skip: 0)))
+        await refresh.value
+    }
+
+    @Test func cancelledRefreshSendsNothing() async {
+        let viewModel = await loadedViewModel()
+        repository.enqueue(failure: CancellationError())
+
+        await viewModel.refresh()
+
+        #expect(viewModel.cards.count == 20)
+        #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func refreshToNoProductsShowsEmpty() async {
+        let viewModel = await loadedViewModel()
+        repository.enqueue(emptyPage(total: 0, skip: 0))
+
+        await viewModel.refresh()
+
+        #expect(viewModel.phase == .empty)
+    }
 }
