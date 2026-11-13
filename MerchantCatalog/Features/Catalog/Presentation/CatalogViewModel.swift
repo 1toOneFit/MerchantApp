@@ -176,6 +176,20 @@ final class CatalogViewModel {
         searchTextChanged(to: "")
     }
 
+    /// The sort menu's selection. Another sort reloads page 1 of the list on screen in that order,
+    /// on the server; while searching it changes only the search's sort (D-45, D-46).
+    func sortSelected(_ newSort: ProductSort) {
+        guard newSort != sort else { return }
+        analytics.track(.sortChanged(from: sort, to: newSort, listContext: listContext))
+        if let query = search?.query {
+            search?.sort = newSort
+            startSearchLoad(query, trigger: .sortChange)
+        } else {
+            browse.sort = newSort
+            startBrowseLoad(trigger: .sortChange)
+        }
+    }
+
     /// A card of the `context` list appeared on screen. Near the end of the list on screen this
     /// loads the next page: one page request at a time, none past the end, and no automatic retry
     /// after a page failure. Cards of a hidden list are ignored (D-52).
@@ -281,12 +295,11 @@ final class CatalogViewModel {
 
     /// A committed query gets a new search feed, in the sort on screen (D-46).
     private func beginSearch(_ query: SearchQuery) -> FirstPageLoad {
-        pageTasks[.search]?.cancel()
         search = CatalogFeed(query: query, sort: sort)
         return beginFirstPage(.search(query, .typing))
     }
 
-    /// Search page 1 without the debounce (Retry).
+    /// Search page 1 without the debounce (Retry, sort change).
     private func startSearchLoad(_ query: SearchQuery, trigger: SearchTrigger) {
         searchTask?.cancel()
         let load = beginFirstPage(.search(query, trigger))

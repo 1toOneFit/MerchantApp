@@ -343,4 +343,86 @@ struct CatalogViewModelSearchTests {
         #expect(viewModel.browseList.phase == .content(footer: .idle, refreshError: nil))
         #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
     }
+
+    // MARK: - Pages, refresh, teardown
+
+    /// AC-S3: pages of search results keep the query and the sort.
+    @Test func searchPaginatesWithQueryAndSort() async {
+        let viewModel = await browsingViewModel()
+        await search("phone", in: viewModel, answer: page(101...120, total: 23, skip: 0))
+        analytics.reset()
+        repository.enqueue(page(121...123, total: 23, skip: 20))
+
+        viewModel.itemAppeared(id: 120, in: .search)
+        await viewModel.pageTask?.value
+
+        #expect(repository.requests.last == .init(query: "phone", sort: .defaultOrder, skip: 20, limit: 20))
+        #expect(viewModel.cards.map(\.id) == Array(101...123))
+        #expect(viewModel.phase == .content(footer: .end, refreshError: nil))
+        #expect(analytics.events == [
+            .catalogPageRequested(listContext: .search, pageIndex: 2, sort: .defaultOrder, isRetry: false),
+            .catalogPageLoaded(listContext: .search, pageIndex: 2, itemCount: 3, hasMore: false, durationMs: 0),
+        ])
+    }
+
+    @Test func newQueryDropsAnInFlightSearchPage() async {
+        let viewModel = await browsingViewModel()
+        await search("phone", in: viewModel, answer: page(101...120, total: 23, skip: 0))
+        viewModel.itemAppeared(id: 120, in: .search)
+        await repository.waitForPendingRequests(1)
+        let pageTask = viewModel.pageTask
+
+        await search("phones", in: viewModel, answer: page(201...205, total: 5, skip: 0))
+        repository.resumeNext(with: .success(page(121...123, total: 23, skip: 20)))
+        await pageTask?.value
+
+        #expect(viewModel.cards.map(\.id) == Array(201...205))
+        #expect(!analytics.events.contains { $0.name == .catalogPageLoaded })
+        #expect(repository.cancelledRequestCount == 1)
+    }
+
+    /// D-48: refreshing search results sends only `catalog_refreshed` with `list_context: search`.
+    @Test func refreshWhileSearchingReloadsTheQuery() async {
+        let viewModel = await browsingViewModel()
+        await search("phone", in: viewModel, answer: page(101...120, total: 23, skip: 0))
+        analytics.reset()
+        repository.enqueue(page(131...150, total: 23, skip: 0))
+
+        await viewModel.refresh()
+
+        #expect(repository.requests.last == .init(query: "phone", sort: .defaultOrder, skip: 0, limit: 20))
+        #expect(viewModel.cards.map(\.id) == Array(131...150))
+        #expect(analytics.events == [.catalogRefreshed(listContext: .search, outcome: .success, durationMs: 0)])
+    }
+
+    @Test func releasingTheViewModelCancelsTheSearch() async {
+        var viewModel: CatalogViewModel? = await browsingViewModel()
+        viewModel?.searchTextChanged(to: "phone")
+        await finishDebounce()
+        await repository.waitForPendingRequests(1)
+        let task = viewModel?.searchTask
+        weak var released = viewModel
+
+        viewModel = nil
+
+        #expect(released == nil)
+        repository.resumeNext(with: .success(page(101...120, total: 23, skip: 0)))
+        await task?.value
+        #expect(repository.cancelledRequestCount == 1)
+        #expect(!analytics.events.contains { $0.name == .searchPerformed })
+    }
+
+    @Test func releasingTheViewModelDuringTheDebounceSendsNothing() async {
+        var viewModel: CatalogViewModel? = await browsingViewModel()
+        viewModel?.searchTextChanged(to: "phone")
+        await clock.waitForSleepers(1)
+        let task = viewModel?.searchTask
+
+        viewModel = nil
+
+        #expect(clock.sleeperCount == 0, "deinit cancelled the debounce")
+        clock.advance(by: CatalogViewModel.searchDebounce)
+        await task?.value
+        #expect(repository.requests.count == 1)
+    }
 }
