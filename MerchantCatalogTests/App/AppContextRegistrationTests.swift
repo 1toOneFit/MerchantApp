@@ -73,6 +73,15 @@ struct AppContextRegistrationTests {
         #expect(context.savedProducts.items == [item])
     }
 
+    @Test func experimentServiceIsRegisteredByProtocol() {
+        let container = configure().container
+
+        #expect(container.resolve() as (any ExperimentService)? != nil)
+        #if DEBUG
+        #expect(container.resolve() as (any ExperimentOverrides)? != nil)
+        #endif
+    }
+
     @Test func catalogDependenciesResolve() {
         #expect(CatalogConfigurator.resolveDependencies(from: configure().container) != nil)
     }
@@ -120,6 +129,9 @@ struct AppContextRegistrationTests {
             "device_model": .string("iPhone18,3"),
             "first_seen_date": UserProperty.firstSeenDate(installation.firstSeenDate).value,
             "is_debug_build": .bool(true),
+            "experiment_assignments": .stringMap([
+                "product_card_density_v1": ExperimentAssigner.variant(for: .productCardDensity, installationID: installation.installationID).rawValue,
+            ]),
         ])
     }
 
