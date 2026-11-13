@@ -21,7 +21,7 @@ struct DiagnosticsEvent: Identifiable, Equatable {
 }
 
 /// DEBUG Diagnostics: shows the in-memory event log, the current user properties and recent log
-/// entries, and resets the installation id.
+/// entries, resets the installation id, and toggles the slow network.
 @MainActor
 @Observable
 final class DiagnosticsViewModel {
@@ -34,12 +34,18 @@ final class DiagnosticsViewModel {
     private(set) var logs: LogsState = .idle
     /// Stored, not read through from the provider, so the sheet updates after a reset.
     private(set) var installationID: String
+    /// Adds a 2 s server-side delay to every API request (D-42). Stored so the toggle redraws;
+    /// forwarded to the setting, which persists it.
+    var isSlowNetworkEnabled: Bool {
+        didSet { slowNetwork.isEnabled = isSlowNetworkEnabled }
+    }
 
     private let eventLog: InMemoryAnalyticsProvider
     private let installation: InstallationIDProvider
     private let sessions: SessionTracker
     private let analytics: any AnalyticsTracking
     private let logReader: any LogReading
+    private let slowNetwork: SlowNetworkSetting
     private let now: () -> Date
 
     init(
@@ -48,6 +54,7 @@ final class DiagnosticsViewModel {
         sessions: SessionTracker,
         analytics: any AnalyticsTracking,
         logReader: any LogReading,
+        slowNetwork: SlowNetworkSetting,
         now: @escaping () -> Date = Date.init
     ) {
         self.eventLog = eventLog
@@ -55,8 +62,10 @@ final class DiagnosticsViewModel {
         self.sessions = sessions
         self.analytics = analytics
         self.logReader = logReader
+        self.slowNetwork = slowNetwork
         self.now = now
         installationID = installation.installationID.uuidString
+        isSlowNetworkEnabled = slowNetwork.isEnabled
     }
 
     /// Newest first.

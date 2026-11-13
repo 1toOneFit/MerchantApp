@@ -48,6 +48,9 @@ final class AppContext {
         let client = URLSessionAPIClient(delay: requestDelay)
         container.register(client as any APIClientType)
         container.register(LiveProductRepository(client: client) as any ProductRepository)
+        #if DEBUG
+        container.register(SlowNetworkSetting(defaults: defaults, requestDelay: requestDelay))
+        #endif
 
         for property in UserProperty.launchProperties(app: appInfo, firstSeenDate: installation.firstSeenDate) {
             analytics.setUserProperty(property)

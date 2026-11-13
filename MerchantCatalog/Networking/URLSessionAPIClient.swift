@@ -10,7 +10,8 @@ import Foundation
 final class URLSessionAPIClient: APIClientType {
     /// Exposed so tests can check the no-cache configuration.
     let session: URLSession
-    private let delay: RequestDelay
+    /// Exposed so tests can check that the DEBUG slow-network toggle reaches the client.
+    let delay: RequestDelay
     private let decoder = JSONDecoder()
 
     /// - Parameters:

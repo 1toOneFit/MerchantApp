@@ -13,11 +13,14 @@ struct DiagnosticsViewModelTests {
     private let installation: InstallationIDProvider
     private let sessions: SessionTracker
     private let analytics: AnalyticsService
+    private let requestDelay = RequestDelay()
+    private let slowNetwork: SlowNetworkSetting
 
     init() {
         installation = InstallationIDProvider(defaults: store.defaults, now: clock.now, makeID: installationIDs.next)
         sessions = SessionTracker(defaults: store.defaults, makeID: sessionIDs.next)
         analytics = AnalyticsService(providers: [eventLog], installation: installation, sessions: sessions, now: clock.now)
+        slowNetwork = SlowNetworkSetting(defaults: store.defaults, requestDelay: requestDelay)
     }
 
     private func makeViewModel(
@@ -29,8 +32,25 @@ struct DiagnosticsViewModelTests {
             sessions: sessions,
             analytics: analytics,
             logReader: FakeLogReader(result: logs),
+            slowNetwork: slowNetwork,
             now: clock.now
         )
+    }
+
+    @Test func slowNetworkToggleForwardsToSetting() {
+        let viewModel = makeViewModel()
+        #expect(!viewModel.isSlowNetworkEnabled)
+
+        viewModel.isSlowNetworkEnabled = true
+
+        #expect(slowNetwork.isEnabled)
+        #expect(requestDelay.value == SlowNetworkSetting.delay)
+    }
+
+    @Test func slowNetworkToggleStartsFromTheSetting() {
+        slowNetwork.isEnabled = true
+
+        #expect(makeViewModel().isSlowNetworkEnabled)
     }
 
     @Test func eventsAreNewestFirstWithSortedProperties() throws {
