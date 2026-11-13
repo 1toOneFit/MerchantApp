@@ -8,6 +8,8 @@ import Testing
 @MainActor
 struct ProductDetailViewModelTests {
     private let analytics = SpyAnalytics()
+    private let repository = FakeProductRepository()
+    private let now = TestNow()
 
     private static let images = (1...3).compactMap { URL(string: "https://cdn.dummyjson.com/products/1/\($0).webp") }
     private static let mascara = makeProduct(
@@ -22,8 +24,17 @@ struct ProductDetailViewModelTests {
         stock: 5
     )
 
-    private func makeViewModel(product: Product = mascara, source: ProductSource = .search) -> ProductDetailViewModel {
-        ProductDetailViewModel(route: ProductDetailRoute.list(product, source: source), analytics: analytics)
+    private func makeViewModel(
+        product: Product = mascara,
+        source: ProductSource = .search,
+        store: SavedProductsStore? = nil
+    ) -> ProductDetailViewModel {
+        ProductDetailViewModel(
+            route: .list(product, source: source),
+            repository: repository,
+            savedProducts: store ?? SavedProductsStore(repository: InMemorySavedRepository(), analytics: SpyAnalytics()),
+            analytics: analytics
+        )
     }
 
     /// AC-D1: everything is there at once; nothing is tracked before the screen appears.
@@ -78,5 +89,59 @@ struct ProductDetailViewModelTests {
 
         #expect(analytics.events == [.productGalleryInteracted(productID: 1, imageCount: 3)])
         #expect(viewModel.galleryIndex == 0)
+    }
+
+    // MARK: - Saving (S5)
+
+    /// `is_saved` comes from the store when details appear; the save date travels with the event
+    /// for `saved_product_revisited` (D-64).
+    @Test func detailsViewedReportsTheSavedDate() async {
+        let savedAt = date("2026-11-10T10:00:00Z")
+        let store = await loadedSavedStore([SavedProduct(Self.mascara, savedAt: savedAt)])
+        let viewModel = makeViewModel(store: store)
+
+        viewModel.contentAppeared()
+
+        #expect(analytics.events == [
+            .productDetailsViewed(productID: 1, source: .search, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, savedAt: savedAt, contentOrigin: .list),
+        ])
+    }
+
+    @Test func toolbarSaveAndUnsaveTrackDetailsSurface() async {
+        let store = await loadedSavedStore(now: now.now)
+        let viewModel = makeViewModel(store: store)
+
+        viewModel.saveToggled()
+        #expect(viewModel.isSaved)
+        now.advance(by: 30)
+        viewModel.saveToggled()
+
+        #expect(!viewModel.isSaved)
+        #expect(analytics.events == [
+            .productSaved(productID: 1, surface: .details, category: "beauty", price: Self.mascara.price, position: nil, savedCountAfter: 1),
+            .productUnsaved(productID: 1, surface: .details, savedDurationS: 30, savedCountAfter: 0),
+        ])
+    }
+
+    /// Details from a list need no request (A7).
+    @Test func listRouteNeverFetches() async {
+        let viewModel = makeViewModel()
+
+        await viewModel.start()
+
+        #expect(repository.productRequests.isEmpty)
+        #expect(viewModel.refresh == .idle)
+        #expect(!viewModel.isShowingSnapshot)
+    }
+
+    /// AC-D3: saving on details shows on the catalog card at once; both read one store.
+    @Test func saveOnDetailsUpdatesTheCatalogCard() async {
+        let store = await loadedSavedStore()
+        let catalog = CatalogViewModel(repository: FakeProductRepository(), analytics: SpyAnalytics(), router: Router(), savedProducts: store, clock: TestClock())
+        let viewModel = makeViewModel(store: store)
+
+        viewModel.saveToggled()
+
+        #expect(catalog.isSaved(1))
     }
 }

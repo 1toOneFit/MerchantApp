@@ -2,8 +2,10 @@ import SwiftUI
 
 /// The product details screen (ProductSpecification § 4.3): gallery, header, At a Glance, Pricing,
 /// Overview, Product information, Shipping & availability and Recent reviews, top to bottom. It
-/// renders at once from the list's product (AC-D1); a section without data is left out (AC-D2). It
-/// owns its view model; `AppTabView` pushes it through `ProductDetailConfigurator`.
+/// renders at once from the list's product (AC-D1), or from the saved snapshot while `/products/{id}`
+/// refreshes it (§ 4.4, AC-D4); a section without data is left out (AC-D2). The toolbar's save
+/// button follows the shared store (AC-D3). It owns its view model; `AppTabView` pushes it through
+/// `ProductDetailConfigurator`.
 struct ProductDetailView: View {
     @State private var viewModel: ProductDetailViewModel
 
@@ -20,6 +22,12 @@ struct ProductDetailView: View {
                 }
                 ProductDetailHeaderView(header: viewModel.header)
                     .padding(.horizontal)
+                if let snapshot = viewModel.savedSnapshot {
+                    SavedStatusView(snapshot: snapshot, refresh: viewModel.refresh, isShowingSnapshot: viewModel.isShowingSnapshot) {
+                        viewModel.retry()
+                    }
+                    .padding(.horizontal)
+                }
                 Group {
                     if !insights.atAGlance.isEmpty {
                         DetailSection("At a Glance") {
@@ -28,6 +36,9 @@ struct ProductDetailView: View {
                     }
                     DetailSection("Pricing") {
                         FactRows(facts: insights.pricing)
+                        if let savedPrice = viewModel.savedPriceIfChanged {
+                            PriceChangedNote(savedPrice: savedPrice)
+                        }
                     }
                     if !insights.overview.isEmpty {
                         DetailSection("Overview") {
@@ -55,7 +66,13 @@ struct ProductDetailView: View {
             .padding(.bottom)
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                SaveButton(isSaved: viewModel.isSaved) { viewModel.saveToggled() }
+            }
+        }
         .onAppear { viewModel.contentAppeared() }
+        .task { await viewModel.start() }
     }
 
     /// The gallery reports page changes to the view model, which keeps the index (D-59).
@@ -86,6 +103,84 @@ private struct ProductDetailHeaderView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+/// Details opened from Saved: labels the snapshot as saved information while it shows, and reports
+/// the refresh: in progress, failed with Retry, or the product gone (ProductSpecification § 4.3).
+private struct SavedStatusView: View {
+    let snapshot: SavedProduct
+    let refresh: DetailRefreshState
+    let isShowingSnapshot: Bool
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if isShowingSnapshot {
+                Text("Saved information · \(SavedProductFormat.savedDate(snapshot.savedAt))")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            switch refresh {
+            case .idle, .refreshed:
+                EmptyView()
+            case .loading:
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Updating…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+            case .failed:
+                StatusBanner(systemImage: "exclamationmark.triangle.fill", message: "Couldn't refresh — showing saved info") {
+                    Button("Retry", action: retry)
+                        .buttonStyle(.bordered)
+                        .frame(minHeight: 44)
+                }
+            case .unavailable:
+                StatusBanner(systemImage: "xmark.circle.fill", message: AppError.notFound.userMessage) {
+                    EmptyView()
+                }
+            }
+        }
+    }
+}
+
+/// A message on a material background with an optional action.
+private struct StatusBanner<Action: View>: View {
+    let systemImage: String
+    let message: String
+    @ViewBuilder let action: Action
+
+    var body: some View {
+        HStack {
+            Image(systemName: systemImage)
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            Text(message)
+                .font(.footnote)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            action
+        }
+        .padding(12)
+        .background(.regularMaterial, in: .rect(cornerRadius: 12))
+    }
+}
+
+/// The fresh price differs from the snapshot's: said factually, with the price when saved.
+private struct PriceChangedNote: View {
+    let savedPrice: Decimal
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label("Price changed since you saved it", systemImage: "info.circle")
+                .font(.subheadline.weight(.medium))
+            Text(SavedProductFormat.priceWhenSaved(savedPrice))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
