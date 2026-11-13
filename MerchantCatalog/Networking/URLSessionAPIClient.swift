@@ -42,13 +42,13 @@ final class URLSessionAPIClient: APIClientType {
                 throw CancellationError()
             }
             let appError = (error as? URLError).map(Self.appError(for:)) ?? .unknown
-            NetworkLogger.failed(id: id, error: appError, underlying: String(describing: error), latency: latency)
+            NetworkLogger.failed(id: id, error: appError, cause: NetworkLogger.summary(of: error), latency: latency)
             throw appError
         }
 
         let latency = start.duration(to: .now)
         guard let http = response as? HTTPURLResponse else {
-            NetworkLogger.failed(id: id, error: .unknown, underlying: "not an HTTP response", latency: latency)
+            NetworkLogger.failed(id: id, error: .unknown, cause: "not an HTTP response", latency: latency)
             throw AppError.unknown
         }
         NetworkLogger.received(id: id, status: http.statusCode, latency: latency, bytes: data.count)
@@ -59,7 +59,7 @@ final class URLSessionAPIClient: APIClientType {
         do {
             return try decoder.decode(Response.self, from: data)
         } catch {
-            NetworkLogger.failed(id: id, error: .decoding, underlying: String(describing: error), latency: latency)
+            NetworkLogger.failed(id: id, error: .decoding, cause: NetworkLogger.summary(of: error), latency: latency)
             throw AppError.decoding
         }
     }
