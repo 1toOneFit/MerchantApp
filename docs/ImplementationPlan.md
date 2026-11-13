@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S2 — Catalog browsing, networking and images (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/catalog-browse` (from `develop` at `30838a3`) |
-| Last completed stage | S1 — Analytics core and diagnostics (merged into `develop` with `--no-ff` at `30838a3`, 2026-11-13) |
-| Next authorized stage | S3 — Search and sort (authorized by the developer, 2026-11-13; starts after the S2 merge) |
-| Pending human action | Merge `feature/catalog-browse` into `develop` with `--no-ff` |
+| Current stage | S3 — Search and sort (`IN_PROGRESS`) |
+| Current branch | `feature/search-sort` (from `develop` at `59415a9`) |
+| Last completed stage | S2 — Catalog browsing, networking and images (merged into `develop` with `--no-ff` at `59415a9`, 2026-11-13) |
+| Next authorized stage | — (S3 authorized by the developer, 2026-11-13; in progress) |
+| Pending human action | — |
 | Open review findings | — |
 | Blockers | — |
 
@@ -23,8 +23,8 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 |---|---|---|---|---|---|
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
-| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | APPROVED | `cc2347f` + docs commits | Approved: Codex re-review + developer (2026-11-13) |
-| S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
+| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
+| S3 | Search & sort | `feature/search-sort` | IN_PROGRESS | — | Authorized by the developer (2026-11-13) |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
@@ -460,3 +460,7 @@ The developer ran an independent Codex review and shared four findings. Each was
 
 - Codex re-review of the four fixes, run manually by the developer: **approved**. Developer's final approval: **approved**. No manual-check results were shared with the agent; open question 1 (offline error codes, D-43) stays open until check 4 is run.
 - Status → `APPROVED`. The developer merges `feature/catalog-browse` into `develop` with `--no-ff`. The developer also authorized S3; the S3 conversation records S2 `COMPLETED` once it confirms the merge.
+
+#### S2 merge (recorded by the S3 conversation, 2026-11-13)
+
+- The developer merged `feature/catalog-browse` into `develop` with `--no-ff`: merge commit `59415a9` (`git branch --merged develop` lists the branch). S2 → `COMPLETED`. S3 (authorized 2026-11-13) starts from `develop` at `59415a9` on `feature/search-sort`.
