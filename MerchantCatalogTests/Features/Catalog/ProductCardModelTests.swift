@@ -15,8 +15,12 @@ struct ProductCardModelTests {
     }
 
     @Test(arguments: [("9.99", "$9.99"), ("1899.99", "$1,899.99"), ("0.5", "$0.50")])
-    func formatsPriceAsUSD(price: String, expected: String) throws {
-        let product = makeProduct(id: 1, title: "Item", price: try #require(Decimal(string: price)), thumbnailURL: .some(nil))
+    func formatsPriceAsUSD(price: String, expected: String) {
+        guard let value = Decimal(string: price) else {
+            Issue.record("not a decimal: \(price)")
+            return
+        }
+        let product = makeProduct(id: 1, title: "Item", price: value, thumbnailURL: .some(nil))
 
         #expect(ProductCardModel(product: product, locale: Self.enUS).price == expected)
     }
