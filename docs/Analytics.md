@@ -117,7 +117,7 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 #### `catalog_refreshed`
 - **Status:** Active
 - **Meaning:** a user-initiated pull-to-refresh finished.
-- **Trigger:** refresh completes (success or failure); a cancelled refresh sends nothing. A refresh cancels an in-flight page request, and load-more waits until it ends (D-41).
+- **Trigger:** refresh completes (success or failure); a cancelled refresh sends nothing. A refresh cancels an in-flight page request; load-more and the page footer's Retry wait until it ends (D-41).
 - **Properties:** `list_context`; `result` `success` | `failure`; `error_type` (failure only); `duration_ms` Int.
 - **Screen:** Catalog. **Dedup:** once per pull. **Privacy:** none.
 

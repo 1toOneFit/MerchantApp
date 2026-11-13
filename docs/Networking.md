@@ -74,7 +74,7 @@ The client does no automatic retries. Retries are user-initiated, which keeps th
 
 Codes and statuses outside this table (e.g. `URLError.cannotFindHost`, a 400, a non-HTTP response) map to `.unknown` / `.server(status:)` (D-43).
 
-**Request logging** (`network` category): method, URL with the `q` value redacted (`q=<private>`), a short request id, status, latency, response size, cancellation and errors.
+**Request logging** (`network` category): method, URL with the `q` value redacted (`q=<private>`), a short request id, status, latency, response size, cancellation and errors. Errors are logged as a code or category (`URLError -1009`, `DecodingError.typeMismatch at price`), never as their description, which can include the request URL.
 
 **As built (S2):** `URLSessionAPIClient.makeRequest(for:delay:)` builds the request (base URL + path + query items, method, headers, timeout, `.reloadIgnoringLocalCacheData`) and appends `delay=<ms>` when the DEBUG slow-network toggle is on: a `RequestDelay` shared with `SlowNetworkSetting` and read on every request (D-42). `request(_:)` is `@concurrent`. `URLSessionAPIClientTests` cover each row of the table with `StubURLProtocol`, plus the no-cache configuration and cancellation. `ProductsTarget` has `.list` only; S3 adds `.search`, S4/S5 `.detail`.
 

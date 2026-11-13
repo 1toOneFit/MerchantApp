@@ -11,8 +11,8 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Current branch | `feature/catalog-browse` (from `develop` at `30838a3`) |
 | Last completed stage | S1 — Analytics core and diagnostics (merged into `develop` with `--no-ff` at `30838a3`, 2026-11-13) |
 | Next authorized stage | S2 (authorized by the developer, 2026-11-13) |
-| Pending human action | Manual Simulator checks and an independent Codex review of `feature/catalog-browse` (see the S2 review log entry) |
-| Open review findings | — |
+| Pending human action | Codex re-review of the four fixes and the manual Simulator checks (see the S2 review log entry) |
+| Open review findings | — (S2 Codex findings 1–4 fixed, awaiting re-review) |
 | Blockers | — |
 
 ## Stage status
@@ -23,7 +23,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 |---|---|---|---|---|---|
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
-| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | READY_FOR_REVIEW | `8dd6d5a` + docs | Developer feedback applied (view-model ownership); awaiting the Codex review |
+| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | READY_FOR_REVIEW | `cc2347f` + docs | Codex review: 4 findings fixed; awaiting re-review |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
@@ -280,7 +280,7 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-38 | The catalog empty state's Reload loads page 1 with `trigger: reload` and sends no `retry_requested` | Developer (S2 scope) | Agent recommendation, chosen over reusing `trigger: retry`. Retry outcomes stay paired with `retry_requested`. |
 | D-39 | `catalog_viewed` fires on the first display and on each switch back to the Catalog tab (driven by `AppTabView`'s selection); not on popping back from details or returning from the background | Developer (S2 scope) | Agent recommendation, chosen over also re-firing when a new session starts while Catalog is visible. |
 | D-40 | `duration_ms` is measured with an injected monotonic `any Clock<Duration>` (`ContinuousClock`; `TestClock` in tests); sessions keep the wall clock (D-35) | Agent (S2) | Latency must not jump with the wall clock; S3's debounce uses the same clock. |
-| D-41 | Pull-to-refresh sends only `catalog_refreshed`; it cancels an in-flight page load (dropped by generation) and pauses load-more until it ends; a refresh failure shows a dismissible banner, cleared by the next refresh | Agent (S2) | One event per meaning; one page request in flight. |
+| D-41 | Pull-to-refresh sends only `catalog_refreshed`; it cancels an in-flight page load (dropped by generation) and pauses load-more and the page footer's Retry until it ends; a refresh failure shows a dismissible banner, cleared by the next refresh | Agent (S2) | One event per meaning; one page request in flight. The footer Retry was added after review finding 1. |
 | D-42 | DEBUG slow network adds `delay=2000` (ms) to every API request and is persisted in `UserDefaults` (DEBUG only) | Agent (S2) | The skeleton only shows on a first-page load; a persisted toggle makes it checkable at launch. |
 | D-43 | `URLError` codes outside Networking.md's table (e.g. `cannotFindHost`) map to `.unknown`; non-2xx other than 404/429 → `.server(status:)`; a non-HTTP response → `.unknown` | Agent (S2) | Follows the documented table without guessing which other codes mean "offline". |
 
@@ -439,3 +439,19 @@ Decisions marked "Agent" are open to the developer's override during plan review
 - **Change:** `8dd6d5a`: `CatalogConfigurator.make(from:isTabSelected:)` returns `CatalogView`, which owns its view model in `@State` and sends `catalog_viewed` from `.onChange(of: isTabSelected, initial: true)`; `AppTabView` passes `selection == .catalog` and owns no view model. No view-model behavior changed, so no unit test changed; manual check 8 now also checks that no switch back is missed or doubled.
 - **Re-verification:** `xcodebuild … clean build`: result bundle **0 warnings**, 0 errors, 0 analyzer warnings; Release build 0 warnings, 0 errors; `xcodebuild … test`: **146 passed, 0 failed, 0 skipped** in 27 suites.
 - **Open questions left:** 1 (offline error codes, D-43).
+
+#### S2 Codex review — findings and resolution (2026-11-13)
+
+The developer ran an independent Codex review and shared four findings. Each was checked against the code and accepted; each fix went in test-first on this branch, as its own commit.
+
+| # | Finding | Assessment | Fix | Tests |
+|---|---|---|---|---|
+| 1 | P1 — `retryPage()` can start a page request while `refresh()` runs | Accepted. A refresh leaves a failed footer in place; its Retry started a second request (breaking one-request-in-flight) whose page could land after the fresh page 1. | `c9702ea`: `retryPage()` is ignored while refreshing (no request, no `retry_requested`); load-more already was (D-41). | `retryPageIsIgnoredDuringRefresh`: failed before the fix (4 requests and a `retry_requested`), passes after. |
+| 2 | P1 — `URLSessionAPIClient` logs `String(describing: error)`, which can contain the request URL and search query | Accepted. A `URLError`'s description includes the failing URL; with S3's search the term would reach the log. | `b43b422`: `NetworkLogger.summary(of:)` logs `URLError <code>`, `DecodingError.<kind> at <path>` or the error's type name; the failure line names the `error_type`. | `urlErrorSummaryOmitsTheURL`, `decodingErrorSummaryNamesThePathOnly`, `otherErrorsAreSummarizedByType`: compile failure first, then pass. |
+| 3 | P2 — `ProductDTO.webURL` checks only the scheme | Accepted. `https:foo`, `http:/x`, `https://` and `https:///…` were accepted as image URLs. | `08042d1`: a non-empty host is required. | `urlsWithoutAWebHostAreDropped` (5 cases): the four host-less cases failed before the fix; `ftp://…` was already rejected. |
+| 4 | P2 — `CatalogViewModel` keeps unstructured tasks without cancelling them on teardown | Accepted. `[weak self]` was re-acquired for the whole request, so a running task kept the view model alive and could track events after the screen was gone. | `cc2347f`: the tasks fetch through a static helper that doesn't reference the view model, apply the result through `[weak self]`, and an `isolated deinit` cancels both. | `releasingTheViewModelCancelsAPageLoad`, `releasingTheViewModelCancelsARetry`: failed before the fix (the view model stayed alive, the request wasn't cancelled, `catalog_page_loaded` was tracked), pass after. `FakeProductRepository` now counts requests that return to a cancelled task. |
+
+- **Re-verification:** `xcodebuild … clean build`: result bundle **0 warnings**, 0 errors, 0 analyzer warnings; Release build 0 warnings, 0 errors; `xcodebuild … test`: **153 passed, 0 failed, 0 skipped** in 27 suites (146 + 7 new tests).
+- **Not verified by tests:** that no other log line contains an error description. Checked by reading: the only remaining `localizedDescription` is the DEBUG Diagnostics log-store error, which is not a network error.
+- **Scope:** no change beyond S2. Analytics.md and D-41 mention the footer Retry; Architecture § 5 and § 10 and Networking.md § 2 describe the task lifecycle and error logging as built.
+- **Process note:** for the red check of finding 1, the agent briefly used `git stash` on one file, against this shared folder's rules; it was popped at once (`git stash list` is empty). Later red checks didn't use it.
