@@ -15,7 +15,7 @@
 | Variant | Catalog/search card | Allocation |
 |---|---|---|
 | `control` | image, title, price, save button | 50 % |
-| `treatment` | same card **plus rating** (★ 4.6) | 50 % |
+| `treatment` | same card **plus the product's API rating**, a star and one decimal (e.g. 4.96 → "★ 5.0", D-71) | 50 % |
 
 Everything else is identical across arms: card size and layout grid, details screen, Saved list, sort options (including "Rating: High to Low"), search, and all other interactions. The card reserves the same height in both arms, so the number of cards per screen does not change. That way rating is the only visual difference.
 

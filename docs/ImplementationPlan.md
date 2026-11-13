@@ -686,7 +686,7 @@ The developer ran the independent Codex review and asked for all three fixes on 
 - **Red first:** every new suite failed on compilation first; `TaxonomyDocumentationTests` failed on its "a Planned event must remain" control once `experiment_exposed` became Active (control removed, see the task plan), and `userPropertiesAreSortedRows` caught the Diagnostics service's user property reaching the event log (the test now gives the service its own spy). Tests that passed when first run were mutation-checked: the launch cache and stored reuse, the session id read after tracking, the exposure guard in `itemAppeared`, and the reset clearing assignments.
 - **Golden values:** buckets for `uuid(0)`, `uuid(1)`, `uuid(3)` and `E621E1F8-…` were computed independently with Python `hashlib`; 10 000 sequential ids give 4 930 control (49.3 %).
 - **Manual Simulator checks for the developer** (the agent did not run the app). Events and user properties are in Diagnostics (newest first).
-  1. **Assignment at launch:** open Diagnostics. Section `product_card_density_v1` shows "This launch: control (hashed)" or "treatment (hashed)"; user property `experiment_assignments` shows `{product_card_density_v1: <same variant>}`. Relaunch (stop and run in Xcode): same variant.
+  1. **Assignment at launch:** open Diagnostics. Section "Experiment" shows "Experiment ID: product_card_density_v1" and "This launch: control (hashed)" or "treatment (hashed)"; user property `experiment_assignments` shows `{product_card_density_v1: <same variant>}`. Relaunch (stop and run in Xcode): same variant.
   2. **Force treatment:** pick Override → Treatment; nothing changes on screen ("Changes apply at the next launch"). Relaunch: "This launch: treatment (override)". The catalog cards show "★ 4.9"-style ratings under the price (e.g. "Essence Mascara Lash Princess" ★ 2.6 for its rating 2.56 — check against the details screen's At a Glance rating, which shows up to 2 digits).
   3. **Exposure, catalog:** with treatment forced, after the relaunch the event log has exactly one `experiment_exposed` (`experiment_id: product_card_density_v1`, `variant: treatment`, `assignment_source: override`, `surface: catalog_grid`) right after the first grid appears, not during the skeleton. Scroll to the end, open details and go back, switch tabs: still one per session. Console `experiment` (debug) shows "suppressed" lines for repeats.
   4. **Force control:** Override → Control, relaunch. Cards show no rating, and the **card height is unchanged** compared with treatment (same number of rows on screen; compare screenshots of the first screen in both arms). One `experiment_exposed` with `variant: control`, `assignment_source: override`.
@@ -709,3 +709,13 @@ The developer ran the independent Codex review and asked for all three fixes on 
   3. (From S4.) Category names shown as the slug in words ("Mens Shirts").
   4. (From S5.) A "Price when saved" label on the snapshot's price row.
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S6 Codex review — findings and resolution (2026-11-13)
+
+The developer shared two remaining findings and asked for both fixes on the branch.
+
+1. **The Diagnostics section header was the experiment id, not "Experiment".** The header is now exactly "Experiment"; `product_card_density_v1` shows inside the section as an "Experiment ID" row; the assignment row, the override picker and the footer are unchanged. No test added: views have no unit tests in this project (no snapshot tests), and the view model, which holds the section's data, is unchanged. Manual check 1 updated.
+2. **Stale "★ 4.6" in the variant tables.** Experiments.md (variants table) and ProductSpecification § 4.1 (card table and the "as built" note) now describe treatment as the product's API rating formatted to one decimal, e.g. 4.96 → 5.0 (D-71). No result or metric is claimed.
+
+- **Re-verification** (2026-11-13): `git diff --check` clean. `xcodebuild … clean build` (Debug): succeeded, result bundle 0 warnings / 0 errors / 0 analyzer warnings. Release build: succeeded, 0 warnings / 0 errors. `xcodebuild … test`: **356 passed, 0 failed, 0 skipped** in 56 suites; the test log has no compiler warnings.
+- Status stays `READY_FOR_REVIEW`, awaiting the developer's re-review.
