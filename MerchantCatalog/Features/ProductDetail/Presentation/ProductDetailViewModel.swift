@@ -20,9 +20,10 @@ enum DetailRefreshState: Equatable {
 /// - From a list, the content is the list's product, complete at once with no request (AC-D1,
 ///   Networking.md A7).
 /// - From Saved, the snapshot shows first and `/products/{id}` refreshes it: `start()` runs from the
-///   view's `.task`, so leaving the screen cancels it. A failure keeps the snapshot (AC-D4); Retry
-///   runs from a tap, so the view model keeps that task and cancels it when it goes away. The stored
-///   snapshot is never overwritten (D-67).
+///   view's `.task`, so leaving the screen cancels it. Retry runs from a tap, so the view model keeps
+///   that task and cancels it when it goes away. A cancelled request applies nothing, even when its
+///   response won the race. A failure keeps the snapshot (AC-D4). The stored snapshot is never
+///   overwritten (D-67).
 /// - The toolbar's save button toggles the shared store (AC-D3).
 /// - Analytics go through `AnalyticsTracking` only: `product_details_viewed` once per screen, which
 ///   is once per push, and `product_gallery_interacted` at the first swipe to another image (D-59).
@@ -97,7 +98,7 @@ final class ProductDetailViewModel {
         guard savedSnapshot != nil, refresh == .idle else { return }
         refresh = .loading
         let result = await Self.fetch(product.id, from: repository)
-        finishRefresh(result)
+        finishRefresh(Task.isCancelled ? .failure(CancellationError()) : result)
     }
 
     /// The banner's Retry after a failed refresh.
@@ -110,7 +111,7 @@ final class ProductDetailViewModel {
         retryTask?.cancel()
         retryTask = Task { [weak self] in
             let result = await Self.fetch(id, from: repository)
-            self?.finishRefresh(result)
+            self?.finishRefresh(Task.isCancelled ? .failure(CancellationError()) : result)
         }
     }
 

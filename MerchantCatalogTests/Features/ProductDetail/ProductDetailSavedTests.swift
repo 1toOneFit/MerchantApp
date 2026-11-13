@@ -188,6 +188,38 @@ struct ProductDetailSavedTests {
         #expect(viewModel.refresh == .refreshed)
     }
 
+    /// Review finding 1: the response arrives after the screen's task was cancelled. Cancellation
+    /// wins: no fresh product, no state change, no event.
+    @Test func cancellationWinsOverALateSuccess() async {
+        let viewModel = makeViewModel(store: await savedStore())
+        let start = Task { await viewModel.start() }
+        await repository.waitForPendingProductRequests(1)
+
+        start.cancel()
+        repository.resumeNextProduct(with: .success(Self.fresh(price: "12.49")))
+        await start.value
+
+        #expect(viewModel.refresh == .idle)
+        #expect(viewModel.product == Self.snapshot.displayProduct)
+        #expect(viewModel.isShowingSnapshot)
+        #expect(analytics.events.isEmpty)
+    }
+
+    /// The same race for the banner's Retry: a cancelled retry applies nothing.
+    @Test func cancelledRetryIgnoresALateSuccess() async {
+        let viewModel = await failedViewModel(.offline, store: await savedStore())
+        viewModel.retry()
+        await repository.waitForPendingProductRequests(1)
+
+        viewModel.retryTask?.cancel()
+        repository.resumeNextProduct(with: .success(Self.fresh(price: "12.49")))
+        await viewModel.retryTask?.value
+
+        #expect(viewModel.refresh != .refreshed)
+        #expect(viewModel.product == Self.snapshot.displayProduct)
+        #expect(analytics.events == [.retryRequested(failedSurface: .details, error: .offline)])
+    }
+
     @Test func startFetchesOnce() async {
         let viewModel = makeViewModel(store: await savedStore())
         repository.enqueueProduct(.success(Self.fresh()))
