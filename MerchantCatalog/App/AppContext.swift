@@ -1,3 +1,5 @@
+import Foundation
+
 /// Composition root: the only place that names concrete service types.
 ///
 /// `configure()` runs once at launch (`MerchantCatalogApp`) and registers every service under its
@@ -10,14 +12,41 @@
 @MainActor
 final class AppContext {
     let container: any ServiceContainerType
+    /// Receives scene-phase changes from `MerchantCatalogApp`.
+    let lifecycle: AppLifecycleTracker
 
-    private init(container: any ServiceContainerType) {
+    private init(container: any ServiceContainerType, lifecycle: AppLifecycleTracker) {
         self.container = container
+        self.lifecycle = lifecycle
     }
 
-    static func configure() -> AppContext {
+    /// - Parameters:
+    ///   - defaults: where the installation id and session bookkeeping live; tests pass an
+    ///     isolated suite.
+    ///   - appInfo: the launch user properties' source.
+    static func configure(defaults: UserDefaults = .standard, appInfo: AppInfo = .current()) -> AppContext {
         let container = ServiceContainer()
-        // Services are registered here from S1 on, each under its protocol type.
-        return AppContext(container: container)
+
+        let installation = InstallationIDProvider(defaults: defaults)
+        let sessions = SessionTracker(defaults: defaults)
+        var providers: [any AnalyticsProvider] = [LoggingAnalyticsProvider()]
+        #if DEBUG
+        let eventLog = InMemoryAnalyticsProvider()
+        providers.append(eventLog)
+        container.register(eventLog)
+        container.register(OSLogStoreReader(subsystem: Log.subsystem) as any LogReading)
+        #endif
+        let analytics = AnalyticsService(providers: providers, installation: installation, sessions: sessions)
+
+        container.register(analytics as any AnalyticsTracking)
+        container.register(installation)
+        container.register(sessions)
+
+        for property in UserProperty.launchProperties(app: appInfo, firstSeenDate: installation.firstSeenDate) {
+            analytics.setUserProperty(property)
+        }
+
+        let lifecycle = AppLifecycleTracker(analytics: analytics, sessions: sessions)
+        return AppContext(container: container, lifecycle: lifecycle)
     }
 }

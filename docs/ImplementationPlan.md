@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S0 — Project foundation (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/project-foundation` (from `develop` at `a8f777c`) |
-| Last completed stage | Planning (docs committed to `main` as the initial commit) |
-| Next authorized stage | **S1 — Analytics core and diagnostics** (authorized by the developer on 2026-11-13; starts in a new conversation after S0 is merged into `develop`) |
-| Pending human action | Merge `feature/project-foundation` into `develop` (`--no-ff`), then start a new conversation for S1 |
+| Current stage | S1 — Analytics core and diagnostics (`APPROVED`, awaiting merge into `develop`) |
+| Current branch | `feature/analytics-core` (from `develop` at `ee150e0`) |
+| Last completed stage | S0 — Project foundation (merged into `develop` at `ee150e0`, 2026-11-13) |
+| Next authorized stage | — (S2 needs the developer's authorization after S1 is approved and merged) |
+| Pending human action | Merge `feature/analytics-core` into `develop` with `--no-ff`, then authorize S2 and start a new conversation for it |
 | Open review findings | — |
 | Blockers | — |
 
@@ -21,8 +21,8 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 
 | ID | Stage | Branch | Status | Head commit | Review |
 |---|---|---|---|---|---|
-| S0 | Project foundation | `feature/project-foundation` | APPROVED | `c8b88bf` + docs commits | Approved: Codex + developer (2026-11-13) |
-| S1 | Analytics core & diagnostics | `feature/analytics-core` | PLANNED | — | — |
+| S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
+| S1 | Analytics core & diagnostics | `feature/analytics-core` | APPROVED | `93e36b3` + docs commits | Approved by the developer (2026-11-13) |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | PLANNED | — | — |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
@@ -272,6 +272,10 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-30 | Universal app (`TARGETED_DEVICE_FAMILY = 1,2`): the phone layout runs on iPad, which supports all four orientations | Developer (S0 review) | The agent proposed iPhone only; the developer chose universal. iPad-specific layouts stay excluded (ProductSpecification § 8). Apple doesn't require iPad support (iPhone-only apps run on iPad in compatibility mode); this is a product choice. |
 | D-31 | `SWIFT_DEFAULT_ACTOR_ISOLATION` and `SWIFT_APPROACHABLE_CONCURRENCY` not set | Agent (S0) | Keeps isolation explicit, as Architecture § 5 describes: nonisolated by default, `@MainActor` written on UI-facing types. |
 | D-32 | Neutral app icon drawn by `scripts/make-app-icon.swift` (Core Graphics, no dependencies; opaque 1024 px) | Developer (S0 review) | Chosen over reusing the icon of the developer's previous app, which would put another product's brand on this one. |
+| D-33 | The analytics stack (`AnalyticsTracking`, `AnalyticsProvider`, `AnalyticsService`, `SessionTracker`, `InstallationIDProvider`, `AppLifecycleTracker`) is `@MainActor`; `track(_:)` is synchronous | Developer (S1 scope) | Agent recommendation, chosen over a `Sendable` service guarded by a lock. All callers are main-actor UI code; event order and sequence numbers stay deterministic; no unstructured tasks. A vendor provider would hop off the main actor inside itself. |
+| D-34 | DEBUG "Reset installation ID" simulates a fresh install: new id, new `first_seen_date`, next session `is_first_session = true`, `session_started` (`launch_kind = cold`) sent at once | Developer (S1 scope) | Agent recommendation, chosen over keeping the original `first_seen_date` and first-session flag. |
+| D-35 | Sessions and durations use the injected wall clock (`() -> Date`); a negative interval (clock moved back) counts as 0 | Agent (S1) | Timestamps need wall time anyway; one time source keeps tests simple. |
+| D-36 | A cold session starts at the first `.active` scene phase or the first tracked event, whichever comes first; one `session_started` either way | Agent (S1) | From S2 on, a view can track before the scene reports `.active`, and every event needs a session id. |
 
 Decisions marked "Agent" are open to the developer's override during plan review.
 
@@ -328,3 +332,51 @@ Decisions marked "Agent" are open to the developer's override during plan review
 - Independent Codex review, run manually by the developer: **approved**. No findings were shared with the agent.
 - Developer's final approval: **approved**. The developer also authorized S1.
 - Status → `APPROVED`. The S1 conversation records `COMPLETED` once it confirms that `feature/project-foundation` is merged into `develop`.
+
+#### S0 merge (recorded by the S1 conversation, 2026-11-13)
+
+- `git branch --merged develop` lists `feature/project-foundation`; `develop` and the branch both point at `ee150e0`. Status → `COMPLETED`.
+- The merge was a fast-forward, so `develop` has no merge commit for S0. The git-flow section above suggests `--no-ff`; the developer decides whether that matters for later stages.
+
+### S1 — Analytics core and diagnostics · READY_FOR_REVIEW (2026-11-13)
+
+- **Branch:** `feature/analytics-core` (from `develop` at `ee150e0`). **Head:** the `docs: record S1 review gate` commit on top of `93e36b3`.
+- **Scope confirmed by the developer** (2026-11-13): as planned; analytics stack `@MainActor` and synchronous (D-33); the DEBUG reset simulates a reinstall (D-34). Agent decisions D-35 (wall-clock sessions) and D-36 (cold session at the first `.active` or the first event).
+- **Commits:** `dca80e0` S0 completed / S1 in progress · `e313e5e` task plan + D-33–D-36 · `88d0513` event model + taxonomy test (lifecycle events → Active) · `0ddacd1` InstallationIDProvider · `ef4a426` SessionTracker · `2ddcae9` AnalyticsService · `0b9752a` lifecycle events from scene phases · `66ecdd0` launch user properties · `8a1e097` logging + in-memory providers · `b9e24a9` AppContext + scene-phase wiring · `93e36b3` DEBUG Diagnostics sheet · review-gate docs.
+- **Changed files:**
+  - App: `App/{AppContext, MerchantCatalogApp, AppTabView, AppPhase+ScenePhase}.swift`; `Core/Analytics/{AnalyticsValue, AnalyticsEvent, AnalyticsEnvelope, AnalyticsTracking, AnalyticsProvider, AnalyticsService, UserProperty, AppInfo, InstallationIDProvider, SessionTracker, AppLifecycleTracker}.swift`, `Core/Analytics/Providers/{LoggingAnalyticsProvider, InMemoryAnalyticsProvider}.swift`; `Core/Logging/{Log, LogStoreReader}.swift`; `Features/Diagnostics/Presentation/{DiagnosticsView, DiagnosticsViewModel, DiagnosticsConfigurator}.swift`. DEBUG-only: the in-memory provider, the log reader and Diagnostics.
+  - Tests: `Core/Analytics/*Tests.swift` (9 suites), `Features/Diagnostics/DiagnosticsViewModelTests.swift`, `App/{AppContextRegistrationTests, AppPhaseTests}.swift`; `Fakes/{SpyAnalytics, SpyAnalyticsProvider, FakeLogReader}.swift`; `Support/{RepositoryFiles, IsolatedDefaults, TestNow, TestUUIDs}.swift`. `NavigationRuleTests` now uses the shared `RepositoryFiles` helper (no behavior change).
+  - Docs: `docs/plans/S1-analytics-core.md`, Analytics.md (three lifecycle events Active; § 2 session, envelope, reset and user-property details), Architecture § 2/4/5/6/10, README status, AILog, this file.
+- **Build settings** (`xcodebuild -showBuildSettings`, 2026-11-13): unchanged from S0 (`SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`; no default actor isolation). No packages.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator) succeeded. Result bundle: **0 warnings**, 0 errors, 0 analyzer warnings (the raw log again has only the `appintentsmetadataprocessor` "Metadata extraction skipped" tool line). `xcodebuild … -configuration Release build` also succeeded, so the DEBUG-only code compiles out cleanly.
+- **Tests:** `xcodebuild … test`: **67 passed, 0 failed, 0 skipped** in 15 suites (result bundle summary). New suites: `AnalyticsEventTests` 2, `TaxonomyDocumentationTests` 3, `InstallationIDProviderTests` 5, `SessionTrackerTests` 6, `AnalyticsServiceTests` 9, `AppLifecycleTrackerTests` 9, `LaunchUserPropertiesTests` 4, `LoggingAnalyticsProviderTests` 2, `InMemoryAnalyticsProviderTests` 3, `AppPhaseTests` 1, `DiagnosticsViewModelTests` 6; `AppContextRegistrationTests` grew from 1 to 5. Counts are test functions; parameterized ones run more cases.
+- **Red first:** `SessionTracker`, `AnalyticsService`, `AppLifecycleTracker`, both providers, `DiagnosticsViewModel` and `DiagnosticsConfigurator` failed on assertions against compiling stubs. The event model, `InstallationIDProvider`, `AppInfo`, `AppPhase` mapping and the AppContext registrations failed on compilation first. `TaxonomyDocumentationTests` was also seen failing on a deliberate doc mismatch (one event set back to Planned). `UserProperty` and `AnalyticsEnvelope.fields` formatting were written together with the service stub, so their assertions were not seen failing on their own.
+- **Manual Simulator checks for the developer** (the agent did not run the app):
+  1. Run the Debug build on an iOS 26 iPhone simulator. The Catalog tab has a Diagnostics button (stethoscope) at the top right; the Saved tab has none.
+  2. Open Diagnostics. Installation ID and Session ID show UUIDs. User properties: `app_version` 1.0, `build_number` 1, `device_model` = the simulated model (e.g. `iPhone18,3`, not `arm64`), `first_seen_date` = today's UTC date, `is_debug_build` true, `os_version` 26.0. Events: `session_started #1` with `launch_kind: cold` and `is_first_session: true` on the first launch after install.
+  3. Close the sheet, go Home (⇧⌘H), wait ~10 s, reopen the app, open Diagnostics: `app_backgrounded #2` (`foreground_duration_s`) and `app_foregrounded #3` (`background_duration_s` ≈ the wait), same Session ID.
+  4. Pull down Control Center or open the app switcher and return without leaving the app: no new events.
+  5. Terminate the app and relaunch: same Installation ID, new Session ID, `session_started #1` with `is_first_session: false`.
+  6. Tap "Reset installation ID": the Installation ID and Session ID change; the newest event is `session_started #1` with `is_first_session: true`, `launch_kind: cold`.
+  7. Recent logs: shows the app's entries from the last hour (e.g. "App launched", "scene phase active", "session started (cold)"); pull to refresh. Debug-level lines (`analytics`, `navigation`) are expected to be missing here. Please record what actually appears.
+  8. Console.app: select the simulator, filter subsystem `com.example.MerchantCatalog`, category `analytics`, enable Action → Include Debug Messages. Expect lines like `event session_started #1 session <uuid> {is_first_session=false, launch_kind=cold}` and `user property app_version: nil → 1.0`.
+  9. Optional: stay in the background for 30 minutes or more, then reopen: a new Session ID with `session_started` (`launch_kind: resume`) before `app_foregrounded`. The rule is unit-tested; this checks the real scene-phase sequence.
+  10. Optional: on an iPad simulator, the Diagnostics sheet opens and dismisses with Done.
+  11. ⌘U in Xcode: 67 tests pass.
+- **Known limitations:**
+  - The real scene-phase sequence at launch and on backgrounding is expected, not verified by the agent. The tracker ignores repeats, `.inactive` and a `.background` before the first `.active`, so either launch order gives one cold `session_started` (unit-tested); checks 2–5 confirm it on device.
+  - The app observes the app-wide `scenePhase`. On iPad with several windows, `app_backgrounded` fires only when every window is in the background. Multi-window behavior was not checked.
+  - What `OSLogStore` returns (and that debug-level entries are missing) is expected platform behavior, recorded in check 7, not tested.
+  - User-property change detection is in memory: each launch re-sends the launch properties, and the DEBUG reset re-sends only `first_seen_date` under the new id. A real vendor integration would re-identify after a reset.
+  - The in-memory event log keeps the latest 500 events and is empty after relaunch. The reset doesn't clear experiment assignments yet (S6).
+  - Sessions use the wall clock (D-35). Changing the device clock can shorten or lengthen a measured gap; negative gaps count as 0.
+  - Nothing tracks before the first `.active` yet, so the early-event path of D-36 is covered by unit tests only.
+- **Open questions** (answered by the developer, 2026-11-13):
+  1. Merge style: S1 is merged into `develop` with `--no-ff`, as the git-flow section says. S0 stays fast-forward (no history rewrite).
+  2. `app_version`: keep `MARKETING_VERSION = 1.0`; no build-setting change.
+- **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S1 review result (2026-11-13)
+
+- The developer reported S1 **approved**. No Codex findings or manual-check results were shared with the agent.
+- Status → `APPROVED`. The developer merges `feature/analytics-core` into `develop` with `--no-ff`; the next stage's conversation records `COMPLETED` once it confirms the merge. S2 is not authorized yet.

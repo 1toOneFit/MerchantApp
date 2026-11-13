@@ -2,7 +2,7 @@
 
 A SwiftUI product catalog for merchants who run their business from a phone. It's built on the public [DummyJSON Products API](https://dummyjson.com/docs/products) and supports the journey **Discover → Evaluate → Save → Revisit**.
 
-> **Status: in development.** The project foundation (stage S0) is in place: an app shell with Catalog and Saved placeholder tabs. Features arrive in later stages. Progress and stage status live in [docs/ImplementationPlan.md](docs/ImplementationPlan.md). This README is finalized in stage S7.
+> **Status: in development.** The project foundation (stage S0) and the analytics core (S1) are in place: an app shell with Catalog and Saved placeholder tabs, lifecycle analytics, and a DEBUG Diagnostics sheet. Features arrive in later stages. Progress and stage status live in [docs/ImplementationPlan.md](docs/ImplementationPlan.md). This README is finalized in stage S7.
 
 Prices, stock, shipping and return terms are demo data from a mock API.
 

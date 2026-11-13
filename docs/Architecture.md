@@ -33,11 +33,13 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
   Core/
     DI/            ServiceContainerType.swift, ServiceContainer.swift
     Navigation/    Router.swift, Route.swift
-    Logging/       Log.swift (Logger categories)
+    Logging/       Log.swift (Logger categories), LogStoreReader.swift (OSLogStore reader [DEBUG])
     Analytics/     AnalyticsTracking.swift (protocol), AnalyticsProvider.swift (protocol),
-                   AnalyticsEvent.swift, AnalyticsService.swift (AnalyticsTracking impl, fans out),
+                   AnalyticsEvent.swift, AnalyticsValue.swift, AnalyticsEnvelope.swift,
+                   AnalyticsService.swift (AnalyticsTracking impl, fans out),
                    Providers/ (LoggingAnalyticsProvider, InMemoryAnalyticsProvider [DEBUG]),
-                   SessionTracker.swift, InstallationIDProvider.swift, UserProperties.swift
+                   SessionTracker.swift, AppLifecycleTracker.swift (scene phase → lifecycle events),
+                   InstallationIDProvider.swift, UserProperty.swift, AppInfo.swift
     Experiments/   Experiment.swift, ExperimentAssigner.swift, ExperimentService.swift, ExposureTracker.swift
     Persistence/   JSONFileStore.swift (atomic write, corrupt-file quarantine)
   Networking/
@@ -62,8 +64,8 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
     Saved/
       Presentation/ SavedView, SavedViewModel, SavedConfigurator
     Diagnostics/                        # compiled in DEBUG only
-      Presentation/ DiagnosticsView (events, user properties, experiment override,
-                    slow network, logs, reset installation ID)
+      Presentation/ DiagnosticsView, DiagnosticsViewModel, DiagnosticsConfigurator (events, user
+                    properties, experiment override [S6], slow network [S2], logs, reset installation ID)
   DesignSystem/
     Theme/         Spacing, Typography (system styles only)
     Components/    ProductImageView (visibility-gated AsyncImage), StateViews (Loading/Empty/Error),
@@ -71,13 +73,16 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
   Assets.xcassets                       # AppIcon (drawn by scripts/make-app-icon.swift), AccentColor
 MerchantCatalogTests/
   Fakes/           FakeAPIClient, StubURLProtocol, FakeProductRepository, TestClock,
-                   InMemorySavedRepository, SpyAnalytics, SpyAnalyticsProvider, …
+                   InMemorySavedRepository, SpyAnalytics, SpyAnalyticsProvider, FakeLogReader, …
+  Support/         RepositoryFiles (source scans), IsolatedDefaults, TestNow, TestUUIDs
   …Tests.swift     mirror the app folders
 ```
 
 `Shared/` holds domain and data used by more than one feature (products, saved items). A feature folder holds only what that feature uses. Test doubles live in the test target only. DEBUG-only runtime tooling lives in `Features/Diagnostics`.
 
 **What exists (S0):** the tree above is the target layout. S0 created `App/` (`MerchantCatalogApp`, `AppContext`, `AppTab`, `AppTabView`), `Core/DI`, `Core/Navigation`, `Core/Logging` and `Assets.xcassets`, the repo-level `scripts/make-app-icon.swift` (not part of the app target), plus tests in `MerchantCatalogTests/App` and `MerchantCatalogTests/Core/{DI,Navigation}`. Every other folder is created together with its first file: git doesn't track empty folders, and a placeholder file inside a file-system-synchronized folder would be copied into the app bundle.
+
+**What exists (S1):** `Core/Analytics` (everything listed above), `Core/Logging/LogStoreReader.swift`, `Features/Diagnostics/Presentation`, `App/AppPhase+ScenePhase.swift`, plus tests in `MerchantCatalogTests/Core/Analytics`, `Features/Diagnostics`, `Fakes` and `Support`.
 
 ## 3. Layer rules
 
@@ -94,7 +99,7 @@ Every piece of infrastructure a feature uses sits behind a protocol, so implemen
 |---|---|---|---|
 | HTTP | `APIClientType` | `URLSessionAPIClient` | Write another conforming client and register it in `AppContext` |
 | Analytics (callers) | `AnalyticsTracking`: `track(_:)`, `setUserProperty(_:)` | `AnalyticsService` (envelope enrichment + fan-out) | — |
-| Analytics (destinations) | `AnalyticsProvider`: receives enriched events and user-property changes | `LoggingAnalyticsProvider`, `InMemoryAnalyticsProvider` (DEBUG) | Add e.g. an Amplitude/Firebase provider type; register it with `AnalyticsService`. No change to `AnalyticsTracking`, events or view models |
+| Analytics (destinations) | `AnalyticsProvider`: `send(_: AnalyticsEnvelope)`, `userPropertyDidChange(_: UserPropertyChange)` | `LoggingAnalyticsProvider`, `InMemoryAnalyticsProvider` (DEBUG) | Add e.g. an Amplitude/Firebase provider type and pass it to `AnalyticsService` in `AppContext`. No change to `AnalyticsTracking`, events or view models |
 | Products | `ProductRepository` | `LiveProductRepository` | — |
 | Saved items | `SavedProductsRepository` | `FileSavedProductsRepository` | — |
 | Experiments | `ExperimentService` protocol | `LocalExperimentService` | A remote-config implementation later |
@@ -106,7 +111,7 @@ Rules: services are registered in the container **as their protocol type**; view
 - **Swift 6 language mode with complete strict-concurrency checking.** Zero warnings is a review requirement. Before each stage, confirm the project's Swift version, deployment target and concurrency settings.
 - **Build settings** (verified 2026-11-13 in S0 with `xcodebuild -showBuildSettings`): `SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0` on both targets. `SWIFT_DEFAULT_ACTOR_ISOLATION` and `SWIFT_APPROACHABLE_CONCURRENCY` are deliberately not set, although Xcode 26 templates usually enable them: code is nonisolated by default, and `@MainActor` is written explicitly on the UI-facing types listed below.
 - **Structured first.** Work starts from SwiftUI's `.task`/`.refreshable` or from async view-model intents, so cancellation follows the view lifecycle automatically. Unstructured `Task { }` is used only where a synchronous UI callback must start async work (e.g. a button tap or text change); the view model keeps the handle and cancels it on supersession or teardown.
-- **Explicit isolation.** `@MainActor` on UI-facing types only: view models, routers, `SavedProductsStore`, `ServiceContainer`, `ExposureTracker`. Domain models and DTOs are `Sendable` value types. `URLSessionAPIClient` and repositories are `Sendable` (immutable configuration). File writes go through an **actor**. No `@unchecked Sendable` or `nonisolated(unsafe)` without a justifying comment.
+- **Explicit isolation.** `@MainActor` on UI-facing types only: view models, routers, `SavedProductsStore`, `ServiceContainer`, `ExposureTracker`, and the analytics stack (`AnalyticsTracking`, `AnalyticsProvider`, `AnalyticsService`, `SessionTracker`, `InstallationIDProvider`, `AppLifecycleTracker`; D-33). Analytics is main-actor and synchronous because every caller is main-actor UI code: event order and sequence numbers stay deterministic, with no unstructured tasks. A future vendor provider hands work to its SDK's own queue. The DEBUG `OSLogStoreReader` reads the log store in a `@concurrent` function, off the main actor. Domain models and DTOs are `Sendable` value types. `URLSessionAPIClient` and repositories are `Sendable` (immutable configuration). File writes go through an **actor**. No `@unchecked Sendable` or `nonisolated(unsafe)` without a justifying comment.
 - **Cancellation propagates.** `URLSession`'s async API cancels the network task when the Swift task is cancelled. `CancellationError` / `URLError.cancelled` means "no state change", never an error UI.
 - **Debounce** uses an injected `any Clock<Duration>`: `ContinuousClock` in the app and a hand-written `TestClock` in tests, so timing tests are deterministic.
 - **Stale-response protection:** every list request carries a monotonically increasing generation number. A result whose generation isn't current is dropped even if cancellation lost the race.
@@ -125,10 +130,10 @@ protocol ServiceContainerType: AnyObject {
 }
 ```
 
-- `AppContext.configure()` runs once at launch and registers, by protocol: `APIClientType`, `ProductRepository`, `SavedProductsRepository`, `AnalyticsTracking`, `ExperimentService`, plus `SavedProductsStore`, `SessionTracker`, `InstallationIDProvider`. Each call returns a new `AppContext` with a new container; the app keeps the one built at launch. There is no global singleton, and every test gets an isolated container.
+- `AppContext.configure(defaults:appInfo:)` runs once at launch and registers, by protocol: `APIClientType`, `ProductRepository`, `SavedProductsRepository`, `AnalyticsTracking`, `ExperimentService`, plus `SavedProductsStore`, `SessionTracker`, `InstallationIDProvider`, and in DEBUG `InMemoryAnalyticsProvider` and `LogReading`. **S1 state:** the analytics services are registered; it also sets the launch user properties and exposes `lifecycle` (`AppLifecycleTracker`), which `MerchantCatalogApp` feeds with `scenePhase` changes (`onChange(of:initial: true)`, app-wide phase). Tests pass an isolated `UserDefaults` suite. Each call returns a new `AppContext` with a new container; the app keeps the one built at launch. There is no global singleton, and every test gets an isolated container.
 - `ServiceContainer` keys services by `ObjectIdentifier(T.self)`, the exact registered type. `String(describing:)` keys collide for same-named types in different scopes; an S0 test showed this.
 - Each scene has a **Configurator** (`CatalogConfigurator.make(router:)`) that resolves services and builds the view model with **init injection**. View models never touch the container, so unit tests construct them directly with fakes.
-- **Registration guard** (developer's choice, 2026-11-13): each Configurator resolves its services in `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`, which returns `nil` if anything is missing, and its `make(...)` uses the same function. `AppContextRegistrationTests` calls every Configurator's `resolveDependencies(from:)` against `AppContext.configure().container`, so a missing registration fails a test instead of crashing in `forceResolve`. S0 has no Configurator; the first real case arrives in S2.
+- **Registration guard** (developer's choice, 2026-11-13): each Configurator resolves its services in `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`, which returns `nil` if anything is missing, and its `make(...)` uses the same function. `AppContextRegistrationTests` calls every Configurator's `resolveDependencies(from:)` against `AppContext.configure().container`, so a missing registration fails a test instead of crashing in `forceResolve`. The first real case is `DiagnosticsConfigurator` (S1, DEBUG).
 
 ## 7. Navigation
 
@@ -188,9 +193,11 @@ enum CatalogPhase: Equatable {
 | `persistence` | saved-items load/save, corrupt-file quarantine | info / error |
 | `performance` | first-page latency, time to first content | info |
 
+Analytics events are logged at debug level by `LoggingAnalyticsProvider` (`event <name> #<sequence> session <id> {properties}`; user properties as `old → new`), visible in Console.app with debug messages included.
+
 There is no `cache` category (no caching) and no `image` category: `AsyncImage` exposes no load lifecycle hooks, so image start and cancel are verified manually ([Networking.md § 4](Networking.md#4-image-loading)).
 
-Rules: search terms and product titles are interpolated with `privacy: .private` (redacted outside a debugger); status codes, ids and durations are `.public`. No tokens or full payloads are logged. `debug` messages aren't persisted by the system by default, which keeps production noise low. The DEBUG Diagnostics panel reads `OSLogStore(scope: .currentProcessIdentifier)` to show recent entries in-app.
+Rules: search terms and product titles are interpolated with `privacy: .private` (redacted outside a debugger); status codes, ids and durations are `.public`. No tokens or full payloads are logged. `debug` messages aren't persisted by the system by default, which keeps production noise low. The DEBUG Diagnostics panel reads `OSLogStore(scope: .currentProcessIdentifier)` to show the app subsystem's entries from the last hour (newest 200). Expected, not verified by a test: debug-level entries are normally not kept, so `analytics` and `navigation` lines may be missing there; the Diagnostics event log (from `InMemoryAnalyticsProvider`) and Console.app show them.
 
 **Analytics vs logs:** analytics events describe meaningful user behavior and outcomes: low volume, stable schema, documented in Analytics.md. Logs describe technical behavior: high volume, free-form, for debugging. A network request is logged, never tracked as an analytics event.
 

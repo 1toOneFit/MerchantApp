@@ -6,10 +6,17 @@ import SwiftUI
 /// Navigation rule (enforced by `NavigationRuleTests`): this is the only file that uses
 /// `NavigationStack` or `navigationDestination`. Destinations are built here; from S2 on, tab roots
 /// and destinations come from scene Configurators.
+///
+/// DEBUG builds add a Diagnostics toolbar button on the Catalog tab (ProductSpecification § 3).
 struct AppTabView: View {
+    let container: any ServiceContainerType
+
     @State private var selection: AppTab = .catalog
     @State private var catalogRouter = Router()
     @State private var savedRouter = Router()
+    #if DEBUG
+    @State private var isShowingDiagnostics = false
+    #endif
 
     var body: some View {
         TabView(selection: $selection) {
@@ -21,6 +28,15 @@ struct AppTabView: View {
                         description: Text("Products will appear here.")
                     )
                     .navigationTitle("Catalog")
+                    #if DEBUG
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Diagnostics", systemImage: "stethoscope") {
+                                isShowingDiagnostics = true
+                            }
+                        }
+                    }
+                    #endif
                     .navigationDestination(for: Route.self) { route in
                         destination(for: route)
                     }
@@ -44,6 +60,13 @@ struct AppTabView: View {
         .onChange(of: selection) { _, tab in
             Log.navigation.debug("tab \(String(describing: tab), privacy: .public)")
         }
+        #if DEBUG
+        .sheet(isPresented: $isShowingDiagnostics) {
+            NavigationStack {
+                DiagnosticsConfigurator.make(from: container)
+            }
+        }
+        #endif
     }
 
     /// S0 placeholder; S4 builds the product details screen through its Configurator.
@@ -57,5 +80,5 @@ struct AppTabView: View {
 }
 
 #Preview {
-    AppTabView()
+    AppTabView(container: AppContext.configure().container)
 }
