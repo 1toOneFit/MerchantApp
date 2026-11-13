@@ -82,6 +82,10 @@ struct AppContextRegistrationTests {
         #endif
     }
 
+    @Test func exposureTrackerIsRegistered() {
+        #expect(configure().container.resolve() as ExposureTracker? != nil)
+    }
+
     @Test func catalogDependenciesResolve() {
         #expect(CatalogConfigurator.resolveDependencies(from: configure().container) != nil)
     }

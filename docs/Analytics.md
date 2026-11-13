@@ -259,11 +259,12 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 ### Experiments
 
 #### `experiment_exposed`
-- **Status:** Planned (S6)
+- **Status:** Active
 - **Meaning:** the user actually saw a surface rendered according to their experiment variant. See [Experiments.md](Experiments.md).
-- **Trigger:** first product card rendered on an eligible surface in a session.
-- **Properties:** `experiment_id` String; `variant` `control` | `treatment`; `assignment_source` `hashed` | `override`; `surface` `catalog_grid` | `search_grid`.
-- **Screen:** Catalog. **Dedup:** once per experiment per session (duplicates are suppressed and logged at debug level). **Privacy:** none.
+- **Trigger:** first product card rendered on an eligible surface in a session: a loaded card of the list on screen appears (`onAppear`); cards of the hidden browse layer under search results don't count (D-70). Both arms send it.
+- **Properties:** `experiment_id` String; `variant` `control` | `treatment` (this launch's assignment, which the cards show, D-69); `assignment_source` `hashed` | `override`; `surface` `catalog_grid` (browse) | `search_grid` (search results) — the surface of the session's first rendered card.
+- **Note:** a session that starts while cards are already on screen (a return after ≥ 30 minutes) is exposed at the next card appearance, e.g. scrolling, a search, or returning from details (D-74).
+- **Screen:** Catalog. **Dedup:** once per experiment per session, keyed by session id (`ExposureTracker`; duplicates are suppressed and logged at debug level in the `experiment` category). An exposure that is the launch's first event counts for the cold session it starts (D-74). **Privacy:** none.
 
 ## 4. Candidate events from the master spec — final mapping
 

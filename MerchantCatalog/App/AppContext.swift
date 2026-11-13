@@ -82,6 +82,7 @@ final class AppContext {
         for experiment in Experiment.allCases {
             _ = experiments.assignment(for: experiment)
         }
+        container.register(ExposureTracker(analytics: analytics, sessions: sessions))
 
         let lifecycle = AppLifecycleTracker(analytics: analytics, sessions: sessions)
         return AppContext(container: container, lifecycle: lifecycle, savedProducts: savedProducts)
