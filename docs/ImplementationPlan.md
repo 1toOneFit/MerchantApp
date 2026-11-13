@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S6 — Card rating experiment (`READY_FOR_REVIEW`) |
+| Current stage | S6 — Card rating experiment (`APPROVED`, awaiting merge into `develop`) |
 | Current branch | `feature/card-rating-experiment` (from `develop` at `dc04338`) |
 | Last completed stage | S5 — Saved products (merged into `develop` with `--no-ff` at `dc04338`, 2026-11-13) |
 | Next authorized stage | S6 — Card rating experiment (authorized by the developer, 2026-11-13) |
-| Pending human action | Independent Codex review of `feature/card-rating-experiment` and the manual Simulator checks in the S6 review log |
+| Pending human action | Merge `feature/card-rating-experiment` into `develop` with `--no-ff` |
 | Open review findings | — |
 | Blockers | — |
 
@@ -27,7 +27,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
-| S6 | Card rating experiment | `feature/card-rating-experiment` | READY_FOR_REVIEW | `5afca46` + docs commit | Awaiting the developer's Codex review |
+| S6 | Card rating experiment | `feature/card-rating-experiment` | APPROVED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13) |
 | S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
 
 The stages run strictly in order, S0 → S7. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
@@ -719,3 +719,8 @@ The developer shared two remaining findings and asked for both fixes on the bran
 
 - **Re-verification** (2026-11-13): `git diff --check` clean. `xcodebuild … clean build` (Debug): succeeded, result bundle 0 warnings / 0 errors / 0 analyzer warnings. Release build: succeeded, 0 warnings / 0 errors. `xcodebuild … test`: **356 passed, 0 failed, 0 skipped** in 56 suites; the test log has no compiler warnings.
 - Status stays `READY_FOR_REVIEW`, awaiting the developer's re-review.
+
+#### S6 review result (2026-11-13)
+
+- Developer's final approval after the two review fixes (`7ecdeee`, `bbb9123`): **approved**. No manual-check results were shared with the agent; the carried-over open questions (D-43 offline codes, S3 sort labels and position, category display names, a "Price when saved" label) stay open, and the behavior they describe stays as built.
+- Status → `APPROVED`. The developer merges `feature/card-rating-experiment` into `develop` with `--no-ff`; the S7 conversation records S6 `COMPLETED` once it confirms the merge.
