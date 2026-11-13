@@ -60,7 +60,7 @@ No name, email, location, IP, advertising identifier, or free text is collected.
 | `source` (where a product was opened from) | `catalog`, `search`, `saved` |
 | `surface` (where a save/unsave happened) | `catalog_card`, `search_card`, `details`, `saved_list` |
 | `error_type` | `offline`, `timeout`, `not_found`, `rate_limited`, `server`, `decoding`, `unknown` |
-| `trigger` (why a first page loaded) | `initial`, `retry` (full-screen Retry), `reload` (the empty state's Reload, D-38), `sort_change`, `typing` (search only) |
+| `trigger` (why a first page loaded) | Browse: `initial`, `retry` (full-screen Retry), `reload` (the empty state's Reload, D-38), `sort_change`. Search: `typing`, `retry`, `sort_change` (D-48) |
 | `availability` | `in_stock`, `low_stock`, `out_of_stock` |
 
 ## 3. Events
@@ -96,7 +96,7 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Status:** Active
 - **Meaning:** the catalog became the screen the user is looking at.
 - **Trigger:** the Catalog tab's first display after launch, and each switch to it from another tab (driven by the tab selection, D-39). **Not** re-sent when popping back from details or when the app returns from the background, even if that starts a new session.
-- **Properties:** `sort`; `list_context`.
+- **Properties:** `sort`; `list_context` — of the list on screen: `search` while search results are shown, with the search's sort (D-46).
 - **Screen:** Catalog. **Dedup:** once per tab visibility. **Privacy:** none.
 
 #### `catalog_load_completed`
@@ -104,28 +104,28 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Meaning:** the first page of the browse list was received and shown.
 - **Trigger:** page-1 browse request succeeds and is applied (not stale).
 - **Properties:** `trigger` (`initial` | `retry` | `reload` | `sort_change`); `sort`; `result_count` Int; `total_count` Int; `duration_ms` Int (request start to response, monotonic clock, D-40).
-- **Note:** a pull-to-refresh sends `catalog_refreshed` instead (D-41).
+- **Note:** a pull-to-refresh sends `catalog_refreshed` instead (D-41). `sort_change`: the user picked another sort; page 1 of the new order replaces the list (D-45). Search results send `search_performed` instead.
 - **Screen:** Catalog. **Dedup:** once per applied response. **Privacy:** none.
 
 #### `catalog_load_failed`
 - **Status:** Active
 - **Meaning:** the first page of the browse list could not be loaded.
 - **Trigger:** page-1 browse request fails (cancellations excluded). A failed pull-to-refresh sends `catalog_refreshed` with `result: failure` instead (D-41).
-- **Properties:** `trigger`; `sort`; `error_type`; `http_status` Int (only for HTTP failures: 404, 429, other non-2xx); `has_visible_content` Bool.
+- **Properties:** `trigger`; `sort`; `error_type`; `http_status` Int (only for HTTP failures: 404, 429, other non-2xx); `has_visible_content` Bool — products were on screen when the request started (true for a sort change from a non-empty list; the screen shows the skeleton during the reload, then the full-screen error, D-45).
 - **Screen:** Catalog. **Dedup:** once per failed request. **Privacy:** none.
 
 #### `catalog_refreshed`
 - **Status:** Active
 - **Meaning:** a user-initiated pull-to-refresh finished.
 - **Trigger:** refresh completes (success or failure); a cancelled refresh sends nothing. A refresh cancels an in-flight page request; load-more and the page footer's Retry wait until it ends (D-41).
-- **Properties:** `list_context`; `result` `success` | `failure`; `error_type` (failure only); `duration_ms` Int.
+- **Properties:** `list_context` (`search` when search results are refreshed; a search refresh sends no `search_performed`, D-48); `result` `success` | `failure`; `error_type` (failure only); `duration_ms` Int.
 - **Screen:** Catalog. **Dedup:** once per pull. **Privacy:** none.
 
 #### `catalog_page_requested`
 - **Status:** Active
 - **Meaning:** the user scrolled far enough (or tapped the footer Retry) to need another page.
 - **Trigger:** a request for page ≥ 2 starts.
-- **Properties:** `list_context`; `page_index` Int (1-based, so the first value sent is 2); `sort`; `is_retry` Bool.
+- **Properties:** `list_context` (`search` for pages of search results, D-48); `page_index` Int (1-based, so the first value sent is 2); `sort`; `is_retry` Bool.
 - **Screen:** Catalog. **Dedup:** once per request; never while another page request is in flight. **Privacy:** none.
 
 #### `catalog_page_loaded`
@@ -152,47 +152,41 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 ### Search
 
 #### `search_started`
-- **Status:** Planned (S3)
+- **Status:** Active
 - **Meaning:** the user began a search.
-- **Trigger:** first non-whitespace character typed into an empty search field.
-- **Properties:** `sort`.
+- **Trigger:** first non-whitespace character typed into an empty search field: the trimmed query turns non-empty (D-49). Sent at the keystroke, before the debounce.
+- **Properties:** `sort` (of the list on screen).
 - **Screen:** Catalog. **Dedup:** once until the query becomes empty again. **Privacy:** no query text.
 
 #### `search_performed`
-- **Status:** Planned (S3)
+- **Status:** Active
 - **Meaning:** results for a search query were shown (including zero results).
 - **Trigger:** page-1 search response succeeds and is applied — i.e. after debounce, and only for the latest query.
-- **Properties:** `trigger` (`typing` | `retry` | `sort_change`); `query_length` Int; `word_count` Int; `sort`; `result_count` Int; `total_count` Int (0 = no results); `duration_ms` Int.
+- **Properties:** `trigger` (`typing` | `retry` | `sort_change`); `query_length` Int (characters of the trimmed query); `word_count` Int (whitespace-separated words); `sort`; `result_count` Int; `total_count` Int (0 = no results); `duration_ms` Int (request start to response, after the debounce).
+- **Note:** a pull-to-refresh of search results sends `catalog_refreshed` (`list_context: search`) instead; pages ≥ 2 send `catalog_page_*` with `list_context: search` (D-48).
 - **Screen:** Catalog. **Dedup:** once per applied response; superseded/stale responses never fire. **Privacy:** the raw query is **not** sent (could contain anything the user types); length and word count only.
 
 #### `search_failed`
-- **Status:** Planned (S3)
+- **Status:** Active
 - **Meaning:** a search could not be completed.
 - **Trigger:** page-1 search request fails (cancellations excluded).
 - **Properties:** `trigger`; `query_length` Int; `error_type`.
+- **Note:** the full-screen Retry sends `retry_requested` (`failed_surface: search`), then `search_performed` or `search_failed` with `trigger: retry`.
 - **Screen:** Catalog. **Dedup:** once per failed request. **Privacy:** no query text.
 
 #### `search_cleared`
-- **Status:** Planned (S3)
+- **Status:** Active
 - **Meaning:** the user left search and returned to browsing.
-- **Trigger:** the query goes from non-empty to empty by user action (clear button, deleting text, or Cancel).
-- **Properties:** `query_length` Int (before clearing); `had_results` Bool.
+- **Trigger:** the trimmed query goes from non-empty to empty by user action (clear button, deleting text, Cancel, or the no-results state's Clear search). Browse returns at once, without a request (D-46).
+- **Properties:** `query_length` Int (of the trimmed query just before clearing); `had_results` Bool (the search list on screen had at least one product; false when the user cleared before the first results arrived, D-49).
 - **Screen:** Catalog. **Dedup:** once per transition. **Privacy:** no query text.
 
 ### Sorting
 
-#### `sort_options_opened`
-- **Status:** Planned (S3)
-- **Meaning:** the user opened the sort options.
-- **Trigger:** the sort control's options become visible.
-- **Properties:** `sort` (current); `list_context`.
-- **Screen:** Catalog. **Dedup:** once per opening. **Privacy:** none.
-- **Condition:** implemented only if stage S3 verifies the sort control exposes a reliable "opened" signal. If not, this event is removed from code **and** this file, and the reason is recorded in [ImplementationPlan.md](ImplementationPlan.md).
-
 #### `sort_changed`
-- **Status:** Planned (S3)
+- **Status:** Active
 - **Meaning:** the user picked a different sort order.
-- **Trigger:** sort selection changes to a different value.
+- **Trigger:** sort selection changes to a different value. Page 1 of the list on screen reloads in the new order (`catalog_load_completed` / `search_performed` with `trigger: sort_change`). A sort change while searching changes only the search's sort (D-46).
 - **Properties:** `from_sort`; `to_sort`; `list_context`.
 - **Screen:** Catalog. **Dedup:** not sent when the same value is re-selected. **Privacy:** none.
 
@@ -281,4 +275,4 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 | `content_load_failed` | Replaced by surface-specific failure events (`catalog_load_failed`, `catalog_page_failed`, `search_failed`, `product_details_load_failed`). |
 | Cache/performance outcomes | `duration_ms` on load events. No caching in 1.0, so there are no cache outcomes to track ([Networking.md § 3](Networking.md#3-caching--deliberately-not-implemented)). |
 | *(added)* `search_failed` | Search had no failure event in the candidate list. |
-| `sort_options_opened` | Conditional — see the event's Condition. |
+| `sort_options_opened` | **Removed in S3 (D-44).** The sort control is a SwiftUI `Menu`, which reports no "opened" signal (the iOS 26.0 SDK declares only content, label and `primaryAction` initializers, checked 2026-11-13). `sort_changed` records the decisions. |

@@ -12,6 +12,11 @@ enum AnalyticsEventName: String, CaseIterable, Sendable {
     case catalogPageLoaded = "catalog_page_loaded"
     case catalogPageFailed = "catalog_page_failed"
     case retryRequested = "retry_requested"
+    case searchStarted = "search_started"
+    case searchPerformed = "search_performed"
+    case searchFailed = "search_failed"
+    case searchCleared = "search_cleared"
+    case sortChanged = "sort_changed"
 }
 
 /// How a session began: a cold launch, or a return to the foreground after the session timeout.
@@ -20,18 +25,31 @@ enum LaunchKind: String, Sendable {
     case resume
 }
 
-/// Which list an event is about (`list_context`). S3 adds `search`.
+/// Which list an event is about (`list_context`): the catalog, or the results of a search.
 enum ListContext: String, Sendable {
     case browse
+    case search
 }
 
-/// Why a first page loaded (`trigger`). S3 adds `sort_change` and `typing`.
+/// Why the first page of the browse list loaded (`trigger`).
 enum CatalogLoadTrigger: String, Sendable {
     case initial
     /// The full-screen Retry after a failed first page.
     case retry
     /// The empty state's Reload (D-38).
     case reload
+    /// The user picked another sort (D-45).
+    case sortChange = "sort_change"
+}
+
+/// Why the first page of search results loaded (`trigger` on search events, D-48).
+enum SearchTrigger: String, Sendable {
+    /// The query changed and the user stopped typing for the debounce interval.
+    case typing
+    /// The full-screen Retry after a failed search.
+    case retry
+    /// The user picked another sort while searching.
+    case sortChange = "sort_change"
 }
 
 /// How a pull-to-refresh ended (`result`, plus `error_type` on failure).
@@ -40,10 +58,13 @@ enum RefreshOutcome: Equatable, Sendable {
     case failure(AppError)
 }
 
-/// The surface whose Retry was tapped (`failed_surface`). S3/S4 add `search` and `details`.
+/// The surface whose Retry was tapped (`failed_surface`). S4 adds `details`.
 enum FailedSurface: String, Sendable {
     case catalog
+    /// A page ≥ 2 of the browse list or of search results (D-48).
     case catalogPage = "catalog_page"
+    /// The first page of search results.
+    case search
 }
 
 /// A product-analytics event with its typed properties. Features create these and pass them to
@@ -71,6 +92,17 @@ enum AnalyticsEvent: Equatable, Sendable {
     case catalogPageFailed(listContext: ListContext, pageIndex: Int, error: AppError)
     /// The user tapped a Retry control.
     case retryRequested(failedSurface: FailedSurface, error: AppError)
+    /// The search query became non-empty (D-49).
+    case searchStarted(sort: ProductSort)
+    /// Results for the latest query were shown, zero included. Length and word count only, never the
+    /// query text (D-18).
+    case searchPerformed(trigger: SearchTrigger, queryLength: Int, wordCount: Int, sort: ProductSort, resultCount: Int, totalCount: Int, durationMs: Int)
+    /// The first page of search results could not be loaded.
+    case searchFailed(trigger: SearchTrigger, queryLength: Int, error: AppError)
+    /// The search query became empty; `hadResults`: the search list on screen had products (D-49).
+    case searchCleared(queryLength: Int, hadResults: Bool)
+    /// The user picked a different sort for the list on screen.
+    case sortChanged(from: ProductSort, to: ProductSort, listContext: ListContext)
 
     var name: AnalyticsEventName {
         switch self {
@@ -85,6 +117,11 @@ enum AnalyticsEvent: Equatable, Sendable {
         case .catalogPageLoaded: .catalogPageLoaded
         case .catalogPageFailed: .catalogPageFailed
         case .retryRequested: .retryRequested
+        case .searchStarted: .searchStarted
+        case .searchPerformed: .searchPerformed
+        case .searchFailed: .searchFailed
+        case .searchCleared: .searchCleared
+        case .sortChanged: .sortChanged
         }
     }
 
@@ -140,6 +177,32 @@ enum AnalyticsEvent: Equatable, Sendable {
             ]
         case .retryRequested(let failedSurface, let error):
             ["failed_surface": .string(failedSurface.rawValue), "error_type": .string(error.analyticsErrorType)]
+        case .searchStarted(let sort):
+            ["sort": .string(sort.analyticsValue)]
+        case .searchPerformed(let trigger, let queryLength, let wordCount, let sort, let resultCount, let totalCount, let durationMs):
+            [
+                "trigger": .string(trigger.rawValue),
+                "query_length": .int(queryLength),
+                "word_count": .int(wordCount),
+                "sort": .string(sort.analyticsValue),
+                "result_count": .int(resultCount),
+                "total_count": .int(totalCount),
+                "duration_ms": .int(durationMs),
+            ]
+        case .searchFailed(let trigger, let queryLength, let error):
+            [
+                "trigger": .string(trigger.rawValue),
+                "query_length": .int(queryLength),
+                "error_type": .string(error.analyticsErrorType),
+            ]
+        case .searchCleared(let queryLength, let hadResults):
+            ["query_length": .int(queryLength), "had_results": .bool(hadResults)]
+        case .sortChanged(let from, let to, let listContext):
+            [
+                "from_sort": .string(from.analyticsValue),
+                "to_sort": .string(to.analyticsValue),
+                "list_context": .string(listContext.rawValue),
+            ]
         }
     }
 

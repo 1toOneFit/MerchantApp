@@ -1,13 +1,17 @@
 import Foundation
 
-/// DummyJSON product endpoints. S3 adds search, S4/S5 the single-product endpoint.
+/// DummyJSON product endpoints. S4/S5 add the single-product endpoint.
 enum ProductsTarget: TargetType {
     /// One page of the catalog: `GET /products?limit=&skip=[&sortBy=&order=]`.
     case list(skip: Int, limit: Int, sort: ProductSort)
+    /// One page of search results: `GET /products/search?q=&limit=&skip=[&sortBy=&order=]`. Search,
+    /// sort and pagination work together on the server (Networking.md A3).
+    case search(query: String, skip: Int, limit: Int, sort: ProductSort)
 
     var path: String {
         switch self {
         case .list: "/products"
+        case .search: "/products/search"
         }
     }
 
@@ -15,6 +19,12 @@ enum ProductsTarget: TargetType {
         switch self {
         case .list(let skip, let limit, let sort):
             [
+                URLQueryItem(name: "limit", value: String(limit)),
+                URLQueryItem(name: "skip", value: String(skip)),
+            ] + Self.queryItems(for: sort)
+        case .search(let query, let skip, let limit, let sort):
+            [
+                URLQueryItem(name: "q", value: query),
                 URLQueryItem(name: "limit", value: String(limit)),
                 URLQueryItem(name: "skip", value: String(skip)),
             ] + Self.queryItems(for: sort)

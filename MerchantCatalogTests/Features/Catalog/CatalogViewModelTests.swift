@@ -192,10 +192,10 @@ struct CatalogViewModelTests {
         advanceClockOnEachRequest(by: .milliseconds(80))
         repository.enqueue(page(21...40, total: 194, skip: 20))
 
-        viewModel.itemAppeared(id: 15)
+        viewModel.itemAppeared(id: 15, in: .browse)
         #expect(repository.requests.count == 1, "15 is not among the last 5 cards")
 
-        viewModel.itemAppeared(id: 16)
+        viewModel.itemAppeared(id: 16, in: .browse)
         await viewModel.pageTask?.value
 
         #expect(repository.requests.last == .init(sort: .defaultOrder, skip: 20, limit: 20))
@@ -211,9 +211,9 @@ struct CatalogViewModelTests {
         repository.enqueue(failure: AppError.offline)
         let viewModel = makeViewModel()
 
-        viewModel.itemAppeared(id: 1)
+        viewModel.itemAppeared(id: 1, in: .browse)
         await viewModel.start()
-        viewModel.itemAppeared(id: 1)
+        viewModel.itemAppeared(id: 1, in: .browse)
 
         #expect(repository.requests.count == 1)
     }
@@ -221,12 +221,12 @@ struct CatalogViewModelTests {
     @Test func loadMoreIsSingleFlight() async {
         let viewModel = await loadedViewModel()
 
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await repository.waitForPendingRequests(1)
         #expect(viewModel.phase == .content(footer: .loading, refreshError: nil))
 
-        viewModel.itemAppeared(id: 19)
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 19, in: .browse)
+        viewModel.itemAppeared(id: 20, in: .browse)
         #expect(repository.requests.count == 2)
         #expect(analytics.events.filter { $0.name == .catalogPageRequested }.count == 1)
 
@@ -240,14 +240,14 @@ struct CatalogViewModelTests {
         let viewModel = await loadedViewModel()
         repository.enqueue(failure: AppError.timeout)
 
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await viewModel.pageTask?.value
 
         #expect(viewModel.cards.count == 20)
         #expect(viewModel.phase == .content(footer: .failed(.timeout), refreshError: nil))
         #expect(analytics.events.last == .catalogPageFailed(listContext: .browse, pageIndex: 2, error: .timeout))
 
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         #expect(repository.requests.count == 2, "no automatic retry; the footer has a Retry button")
     }
 
@@ -255,7 +255,7 @@ struct CatalogViewModelTests {
     @Test func retryPageAppends() async {
         let viewModel = await loadedViewModel()
         repository.enqueue(failure: AppError.timeout)
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await viewModel.pageTask?.value
         repository.enqueue(page(21...40, total: 194, skip: 20))
 
@@ -276,16 +276,16 @@ struct CatalogViewModelTests {
         repository.enqueue(page(21...40, total: 45, skip: 20))
         repository.enqueue(page(41...45, total: 45, skip: 40))
 
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await viewModel.pageTask?.value
-        viewModel.itemAppeared(id: 40)
+        viewModel.itemAppeared(id: 40, in: .browse)
         await viewModel.pageTask?.value
 
         #expect(viewModel.cards.count == 45)
         #expect(viewModel.phase == .content(footer: .end, refreshError: nil))
         #expect(analytics.events.last == .catalogPageLoaded(listContext: .browse, pageIndex: 3, itemCount: 5, hasMore: false, durationMs: 0))
 
-        viewModel.itemAppeared(id: 45)
+        viewModel.itemAppeared(id: 45, in: .browse)
         #expect(repository.requests.count == 3)
     }
 
@@ -293,7 +293,7 @@ struct CatalogViewModelTests {
         let viewModel = await loadedViewModel()
         repository.enqueue(page(19...38, total: 194, skip: 20))
 
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await viewModel.pageTask?.value
 
         #expect(viewModel.cards.map(\.id) == Array(1...38))
@@ -306,10 +306,10 @@ struct CatalogViewModelTests {
 
         for start in stride(from: 21, through: 194, by: 20) {
             repository.enqueue(page(start...min(start + 19, 194), total: 194, skip: start - 1))
-            viewModel.itemAppeared(id: start - 1)
+            viewModel.itemAppeared(id: start - 1, in: .browse)
             await viewModel.pageTask?.value
         }
-        viewModel.itemAppeared(id: 194)
+        viewModel.itemAppeared(id: 194, in: .browse)
 
         #expect(viewModel.cards.map(\.id) == Array(1...194))
         #expect(viewModel.phase == .content(footer: .end, refreshError: nil))
@@ -320,7 +320,7 @@ struct CatalogViewModelTests {
         let viewModel = await loadedViewModel()
         repository.enqueue(failure: CancellationError())
 
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await viewModel.pageTask?.value
 
         #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
@@ -369,7 +369,7 @@ struct CatalogViewModelTests {
     /// D-41: a page that was in flight when the refresh started never lands on the fresh page 1.
     @Test func refreshDropsAnInFlightPageResult() async {
         let viewModel = await loadedViewModel()
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await repository.waitForPendingRequests(1)
         repository.enqueue(page(1...20, total: 194, skip: 0))
 
@@ -382,7 +382,7 @@ struct CatalogViewModelTests {
         #expect(!analytics.events.contains { $0.name == .catalogPageLoaded })
 
         repository.enqueue(page(21...40, total: 194, skip: 20))
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await viewModel.pageTask?.value
         #expect(viewModel.cards.count == 40, "loading more works again after the refresh")
     }
@@ -392,7 +392,7 @@ struct CatalogViewModelTests {
         let refresh = Task { await viewModel.refresh() }
         await repository.waitForPendingRequests(1)
 
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         #expect(repository.requests.count == 2, "page 1 and the refresh only")
 
         repository.resumeNext(with: .success(page(1...20, total: 194, skip: 0)))
@@ -404,7 +404,7 @@ struct CatalogViewModelTests {
     @Test func retryPageIsIgnoredDuringRefresh() async {
         let viewModel = await loadedViewModel()
         repository.enqueue(failure: AppError.timeout)
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await viewModel.pageTask?.value
         let refresh = Task { await viewModel.refresh() }
         await repository.waitForPendingRequests(1)
@@ -412,7 +412,7 @@ struct CatalogViewModelTests {
         repository.enqueue(page(21...40, total: 194, skip: 20))
 
         viewModel.retryPage()
-        viewModel.itemAppeared(id: 20)
+        viewModel.itemAppeared(id: 20, in: .browse)
         await viewModel.pageTask?.value
 
         #expect(repository.requests.count == 3, "page 1, the failed page 2 and the refresh only")
@@ -472,7 +472,7 @@ struct CatalogViewModelTests {
     /// them, so no request or event outlives the screen.
     @Test func releasingTheViewModelCancelsAPageLoad() async {
         var viewModel: CatalogViewModel? = await loadedViewModel()
-        viewModel?.itemAppeared(id: 20)
+        viewModel?.itemAppeared(id: 20, in: .browse)
         await repository.waitForPendingRequests(1)
         let task = viewModel?.pageTask
         weak var released = viewModel

@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S2 — Catalog browsing, networking and images (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/catalog-browse` (from `develop` at `30838a3`) |
-| Last completed stage | S1 — Analytics core and diagnostics (merged into `develop` with `--no-ff` at `30838a3`, 2026-11-13) |
-| Next authorized stage | S3 — Search and sort (authorized by the developer, 2026-11-13; starts after the S2 merge) |
-| Pending human action | Merge `feature/catalog-browse` into `develop` with `--no-ff` |
+| Current stage | S3 — Search and sort (`APPROVED`, awaiting merge into `develop`) |
+| Current branch | `feature/search-sort` (from `develop` at `59415a9`) |
+| Last completed stage | S2 — Catalog browsing, networking and images (merged into `develop` with `--no-ff` at `59415a9`, 2026-11-13) |
+| Next authorized stage | — (S4 — Product details — not yet authorized) |
+| Pending human action | Merge `feature/search-sort` into `develop` with `--no-ff` |
 | Open review findings | — |
 | Blockers | — |
 
@@ -23,8 +23,8 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 |---|---|---|---|---|---|
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
-| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | APPROVED | `cc2347f` + docs commits | Approved: Codex re-review + developer (2026-11-13) |
-| S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
+| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
+| S3 | Search & sort | `feature/search-sort` | APPROVED | `ad651e3` + docs commits | Approved: Codex re-review + developer (2026-11-13) |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
@@ -283,6 +283,15 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-41 | Pull-to-refresh sends only `catalog_refreshed`; it cancels an in-flight page load (dropped by generation) and pauses load-more and the page footer's Retry until it ends; a refresh failure shows a dismissible banner, cleared by the next refresh | Agent (S2) | One event per meaning; one page request in flight. The footer Retry was added after review finding 1. |
 | D-42 | DEBUG slow network adds `delay=2000` (ms) to every API request and is persisted in `UserDefaults` (DEBUG only) | Agent (S2) | The skeleton only shows on a first-page load; a persisted toggle makes it checkable at launch. |
 | D-43 | `URLError` codes outside Networking.md's table (e.g. `cannotFindHost`) map to `.unknown`; non-2xx other than 404/429 → `.server(status:)`; a non-HTTP response → `.unknown` | Agent (S2) | Follows the documented table without guessing which other codes mean "offline". |
+| D-44 | The sort control is a toolbar `Menu` with a `Picker`; `sort_options_opened` is removed from code and Analytics.md | Developer (S3 scope) | Agent recommendation. SwiftUI's `Menu` has no open signal: the iOS 26.0 SDK `SwiftUI.swiftinterface` declares only content/label/`primaryAction` initializers (checked 2026-11-13); `primaryAction` replaces the tap. Chosen over a button opening a confirmation dialog. |
+| D-45 | A sort change shows the skeleton until page 1 of the new order arrives; a failure shows the full-screen error. `has_visible_content` = products were on screen when the request started | Developer (S3 scope) | Agent recommendation, chosen over keeping the old order visible during the reload. The label and the order on screen never disagree. |
+| D-46 | Sort belongs to each list: a search starts with the sort on screen; a sort change while searching changes only the search; clearing restores browse with its own sort, without a request | Developer (S3 scope) | Agent recommendation (AC-S4), chosen over reloading browse with the newer sort. |
+| D-47 | The browse grid stays in the hierarchy, hidden and inert, under the search results; the Catalog title is inline and the search field always visible | Developer (S3 scope) | Agent recommendation, chosen over remembering a card and scrolling back. Exact scroll position on clear. With two scroll views a large title might track the hidden one (expected, not verified). |
+| D-48 | Search events use their own trigger (`typing`, `retry`, `sort_change`). A search pull-to-refresh sends only `catalog_refreshed` (`list_context: search`); search pages use `catalog_page_*` with `list_context: search`; their footer Retry is `failed_surface: catalog_page` | Agent (S3) | Same rules as browse (D-41). |
+| D-49 | `query_length` = characters of the trimmed query; `word_count` = whitespace-separated words; `had_results` = the search list on screen had ≥ 1 product; `search_started` / `search_cleared` fire when the trimmed query turns non-empty / empty | Agent (S3) | Defines what Analytics.md left open; whitespace alone is not a search. |
+| D-50 | During the 300 ms debounce the current list stays on screen; a committed query shows the skeleton; an edit that leaves the trimmed query unchanged sends nothing | Agent (S3) | A query's results never show under another query once they load. |
+| D-51 | A `+` in a query value is sent as `%2B` | Agent (S3) | The API decodes `+` as a space (Networking.md A13); `URLComponents` leaves `+` unencoded (checked with a Swift script, 2026-11-13). |
+| D-52 | Task handles per list: `firstPageTask` (browse page 1 from taps), `searchTask` (search page 1), one page ≥ 2 task per list; a hidden list's in-flight load finishes in the background; `itemAppeared(id:in:)` is ignored for the hidden list | Agent (S3) | One request per list at a time; the hidden browse layer can't trigger search pagination. |
 
 Decisions marked "Agent" are open to the developer's override during plan review.
 
@@ -460,3 +469,72 @@ The developer ran an independent Codex review and shared four findings. Each was
 
 - Codex re-review of the four fixes, run manually by the developer: **approved**. Developer's final approval: **approved**. No manual-check results were shared with the agent; open question 1 (offline error codes, D-43) stays open until check 4 is run.
 - Status → `APPROVED`. The developer merges `feature/catalog-browse` into `develop` with `--no-ff`. The developer also authorized S3; the S3 conversation records S2 `COMPLETED` once it confirms the merge.
+
+#### S2 merge (recorded by the S3 conversation, 2026-11-13)
+
+- The developer merged `feature/catalog-browse` into `develop` with `--no-ff`: merge commit `59415a9` (`git branch --merged develop` lists the branch). S2 → `COMPLETED`. S3 (authorized 2026-11-13) starts from `develop` at `59415a9` on `feature/search-sort`.
+
+### S3 — Search and sort · READY_FOR_REVIEW (2026-11-13)
+
+- **Branch:** `feature/search-sort` (from `develop` at `59415a9`). **Head:** the `docs: record S3 review gate` commit on top of `d914611`.
+- **Scope confirmed by the developer** (2026-11-13): as planned, with the agent's recommendation on all four open choices: toolbar `Menu` and `sort_options_opened` removed (D-44), skeleton during a sort reload (D-45), sort per list (D-46), browse grid kept alive under search results with an inline title (D-47). Agent decisions D-48 (search triggers and refresh events), D-49 (query metrics, `had_results`), D-50 (what shows during the debounce), D-51 (`+` sent as `%2B`), D-52 (task handles per list). Task plan: [plans/S3-search-sort.md](plans/S3-search-sort.md) (with deviations).
+- **Commits:** `0798d8c` S2 completed / S3 in progress · `1d7e230` task plan + D-44–D-52 · `d62fa52` `ProductsTarget.search` + `%2B` · `ef6d78d` repository search · `7cc7d1e` `SearchQuery` · `3ef52cb` `TestClock` sleeping · `c76d907` search and sort analytics events (5 → Active, `sort_options_opened` removed) · `4f603bf` refactor: list state per feed · `ecdd8fa` debounced search · `5c52a6d` server-side sort · `d914611` search field and sort menu · review-gate docs.
+- **Changed files:**
+  - App: `Shared/Products/Data/{ProductsTarget, LiveProductRepository}.swift`, `Shared/Products/Domain/ProductRepository.swift`, `Networking/URLSessionAPIClient.swift` (`%2B`), `Core/Analytics/AnalyticsEvent.swift`, `Features/Catalog/Domain/SearchQuery.swift` (new), `Features/Catalog/Presentation/{CatalogFeed (new), ProductSort+Title (new), CatalogViewModel, CatalogPhase, CatalogView}.swift`.
+  - Tests: new `Features/Catalog/{CatalogViewModelSearchTests, CatalogViewModelSortTests, SearchQueryTests, ProductSortTitleTests}`, `Core/Analytics/SearchAnalyticsEventTests`, `Support/TestClockTests`; additions to `ProductsTargetTests`, `URLSessionAPIClientTests`, `LiveProductRepositoryTests`; `CatalogViewModelTests` call sites (`itemAppeared(id:in:)`); `TestClock` (deterministic `sleep`, `waitForSleepers`), `FakeProductRepository` (query, `search`, `resumeNewest`).
+  - Docs: Analytics.md (5 events Active, `sort_options_opened` removed with the reason, D-45/D-48/D-49 notes), ProductSpecification § 4.1 states table and § 4.2, Networking.md A13 and § 2, Architecture § 2/5/8, README status, AILog, this file, the task plan.
+- **Build settings** (`xcodebuild -showBuildSettings`, 2026-11-13): unchanged (`SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`; no default actor isolation). No packages.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator): `** BUILD SUCCEEDED **`; result bundle **0 warnings**, 0 errors, 0 analyzer warnings (the raw log again has only the `appintentsmetadataprocessor` "Metadata extraction skipped" tool line). `xcodebuild … -configuration Release build`: succeeded; result bundle 0 warnings, 0 errors.
+- **Tests:** `xcodebuild … test`: **200 passed, 0 failed, 0 skipped** in 33 suites (result bundle summary). New suites: `CatalogViewModelSearchTests` 23, `CatalogViewModelSortTests` 9, `SearchQueryTests` 3, `TestClockTests` 4, `ProductSortTitleTests` 2, `SearchAnalyticsEventTests` 1 (9 cases); `ProductsTargetTests` grew from 2 to 4, `URLSessionAPIClientTests` from 10 to 12, `LiveProductRepositoryTests` from 2 to 3. Counts are test functions; parameterized ones run more cases.
+- **Red first:** every new suite failed on compilation first (missing types or members); `searchQueryIsPercentEncoded` also failed on its assertion before the `%2B` fix. Tests that passed when first run, because earlier S3 code already handled them (search pagination, refresh and teardown; the hidden-list guard), were mutation-checked: with the guarded line removed each failed. Details in the task plan's deviations.
+- **Manual Simulator checks for the developer** (the agent did not run the app):
+  1. Run the Debug build on an iOS 26 iPhone simulator. The Catalog tab has an inline "Catalog" title, the "Search products" field always visible under it, a sort control at the top left reading "Default" with an up-down arrow icon, and the Diagnostics button at the top right. The grid loads as in S2.
+  2. Fast typing (plan check 1): Diagnostics → Network → turn on "Slow network". Type "phone" quickly: the browse grid stays while typing; about 300 ms after the last key the skeleton appears. Console `network` shows exactly **one** search request, `GET https://dummyjson.com/products/search?q=<private>&limit=20&skip=0&delay=2000`. Then 20 results. Events: `search_started` (`sort: default_order`), `search_performed` (`trigger: typing`, `query_length: 5`, `word_count: 1`, `result_count: 20`, `total_count: 23`).
+  3. Stale responses (slow network on): type "pho", wait about 0.5 s (the request starts), then type "ne". The first request ends as cancelled in Console `network`, only "phone" results appear, and there is one `search_performed`, for the 5-character query.
+  4. Search "phone" with each sort (plan check 2): pick "Price: Low to High" in the sort menu: skeleton, then results in ascending price; the label reads "Lowest price". Scroll to the end: 23 results, still ascending across the page boundary, then "You've reached the end". Events: `sort_changed` (`from_sort: default_order`, `to_sort: price_asc`, `list_context: search`), `search_performed` (`trigger: sort_change`), `catalog_page_requested`/`catalog_page_loaded` with `list_context: search`. Repeat with "Price: High to Low" and "Rating: High to Low". Re-selecting the current option does nothing.
+  5. Clear (AC-S4): first scroll browse well down (40+ products loaded, a recognizable product at the top). Search "phone", change the sort, then clear with the field's clear button or Cancel. The browse grid is back **instantly at the same scroll position** with its thumbnails, the label reads "Default" again, and Console shows no request. Event: `search_cleared` (`query_length: 5`, `had_results: true`).
+  6. No results (AC-S5): search "zzzz": "No results", `No products match "zzzz"` (straight quotes) and Clear search. Tapping Clear search returns to browse and dismisses the search field and keyboard. Events: `search_performed` (`total_count: 0`), `search_cleared` (`had_results: false`).
+  7. Browse sort: in browse, pick "Rating: High to Low": skeleton, then the highest-rated products first, scrolled to the top. Event `catalog_load_completed` (`trigger: sort_change`, `sort: rating_desc`).
+  8. Search failure: network off, search "phone": full-screen "Couldn't search products" with the offline message and Retry; `search_failed` (`trigger: typing`, `query_length: 5`, `error_type: offline`). Network on, Retry: results; `retry_requested` (`failed_surface: search`), then `search_performed` (`trigger: retry`).
+  9. Pull to refresh while results are shown: content stays; `catalog_refreshed` (`list_context: search`), no `search_performed`.
+  10. `+` encoding (A13, D-51): "iphone charger" finds 1 product (Apple iPhone Charger); "iphone+charger" shows no results, because the `+` is sent literally.
+  11. Tabs: with results shown, switch to Saved and back: one `catalog_viewed` with `list_context: search`; results, search text and sort are kept.
+  12. Optional: VoiceOver reads the sort control as "Sort, Default"; browse cards can't be reached while results are shown. Dark mode and an iPad simulator.
+  13. ⌘U in Xcode: 200 tests pass.
+- **Known limitations:**
+  - The two-layer layout (exact scroll restore, inline title, the hidden layer inert to taps and VoiceOver) is expected SwiftUI behavior, checked manually (checks 1, 5, 12), not by unit tests.
+  - While results are shown, the browse cells that were on screen keep their thumbnails in memory (D-47). If browse page 1 finishes loading in the background while hidden, its first cells' thumbnails load although hidden (expected, not verified).
+  - A sort change while browse page 1 is still loading from `.task` can briefly leave two page-1 requests in flight: the structured load can't be cancelled from the view model, and its result is dropped by generation.
+  - A pull-to-refresh pauses load-more of both lists until it ends (one refresh flag).
+  - A sort change during the debounce of a first search applies to browse (still on screen); the search then starts in that sort.
+  - If an in-flight search is cancelled because the user types a new query, the skeleton stays until the new query starts (at most the 300 ms debounce).
+  - Opening the sort menu is not measured (D-44).
+- **Open questions:**
+  1. (From S2.) D-43 maps only `notConnectedToInternet`, `networkConnectionLost` and `dataNotAllowed` to "offline". Should other codes seen with the network off also count?
+  2. The toolbar label uses short names ("Default", "Lowest price", "Highest price", "Top rated"); the spec fixes only the menu titles. Are these OK?
+  3. The sort control sits at the toolbar's leading edge, so its label stays clear of the centered inline title and the DEBUG Diagnostics button. OK, or should it move to the trailing side?
+- **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S3 Codex review — findings and resolution (2026-11-13)
+
+The developer ran an independent Codex review and shared four findings. Each was checked against the code and accepted; each fix went in test-first on this branch, as its own commit.
+
+| # | Finding | Assessment | Fix | Tests |
+|---|---|---|---|---|
+| 1 | P1 — Cancel on the search field must clear the query, return to browse, cancel in-flight search work and send exactly one `search_cleared` | Accepted. The view relied on the system emptying the text binding on Cancel; nothing ended the search when the field was dismissed. | `ad651e3`: the view reports `isPresented` going from true to false as `searchDismissed()`, which clears the query like an empty text. If the system also empties the text, before or after, that change is a no-op. | `cancelEndsTheSearchOnce` (3 cases: dismissal only, then empty text, empty text first): failed on compilation first; the dismissal-only case was mutation-checked (with an empty `searchDismissed()` it failed with 5 issues). The view's `onChange` wiring is checked manually (check 14). |
+| 2 | P1 — every sort change must reload page 1 and show the list from the top, explicitly, in browse and search | Accepted. A new grid started at the top only because the skeleton replaced it for at least one frame; if both state changes were applied in one update, the old grid and its offset would stay. | `9ebaac0`: each page-1 load (sort change, new query, Retry, Reload) gives the list a new `listID`, and the view keys the grid by it (`.id(listID)`). A view with a new identity is a new view with fresh state, so its scroll view starts at the top, whether or not the skeleton frame was drawn. Load-more and refresh keep the `listID`, so the grid, its scroll position and the refresh control stay. | `sortChangeStartsANewBrowseList`, `sortChangeStartsANewSearchList`, `loadMoreAndRefreshKeepTheList`: compile failure first; the last was mutation-checked (with refresh also changing `listID` it failed). The scroll itself is checked manually (check 15). |
+| 3 | P2 — no-results copy must be exactly `No products match "<query>"` with straight quotes | Accepted. The view used typographic quotes. | `a48347c`: `CatalogCopy.noResultsMessage(for:)` holds the text; the view uses it. | `noResultsMessageMatchesTheSpec`: compile failure first, then pass. |
+| 4 | P2 — `ProductSort` should be `Identifiable` with a stable `id`, as planned | Accepted. The plan's Task 8 interface listed it; the menu used `id: \.self` instead. | `bf86ee2`: `extension ProductSort: Identifiable { var id: Self { self } }`; the menu's `ForEach` uses it. | `idIsTheSortItself`: compile failure first, then pass. |
+
+- **Re-verification:** `xcodebuild … clean build`: result bundle **0 warnings**, 0 errors, 0 analyzer warnings; Release build 0 warnings, 0 errors; `xcodebuild … test`: **206 passed, 0 failed, 0 skipped** in 34 suites (200 + 6 new test functions; new suite `CatalogCopyTests`).
+- **Added manual checks** (numbering continues the list above):
+  14. Cancel: search "phone" (results shown, or with slow network on while the request is in flight), tap the field's **Cancel**: browse is back instantly at its scroll position, the keyboard and Cancel button are gone, the field is empty, and Diagnostics shows exactly **one** `search_cleared`; Console `network` shows the in-flight request cancelled, if there was one. Also: with results shown, switch to Saved and back: the search stays (the field isn't dismissed by a tab switch; expected, please confirm).
+  15. Sort scroll: in browse, scroll well down, then pick another sort: the new order starts at the top. The same while searching (scroll the results to the end, change the sort).
+- **Known limitation added:** if the system ever dismissed the search field without the user's Cancel (e.g. on a tab switch or, in S4, a push to details), the search would be cleared. Not expected; check 14 covers the tab switch.
+- **Scope:** no change beyond the four findings. ProductSpecification § 4.2 now names Cancel; Architecture § 8 describes `listID`.
+
+#### S3 review result (2026-11-13)
+
+- Codex re-review of the four fixes, run manually by the developer: **approved**. Developer's final approval: **approved**. No manual-check results were shared with the agent; open questions 1–3 of the S3 review log (D-43 offline codes, the short sort labels, the sort control at the leading edge) stay open, and the S3 behavior they describe stays as built.
+- Status → `APPROVED`. The developer merges `feature/search-sort` into `develop` with `--no-ff`; the next stage's conversation records S3 `COMPLETED` once it confirms the merge.
+

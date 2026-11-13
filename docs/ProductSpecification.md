@@ -68,6 +68,7 @@ Category, brand, discount and availability are deliberately **not** on the card,
 | Load-more failed | Page ≥ 2 failed | Inline footer with message + **Retry** (content stays) |
 | Refreshing | Pull-to-refresh in flight | System refresh control; content stays |
 | Empty | Successful response, 0 items (browse) | Empty-state message + **Reload** |
+| No results | Successful search, 0 items | "No products match "…"" + **Clear search** |
 | Failed (no content) | First page failed | Full-screen error, reason-specific message (offline / timeout / server), **Retry** |
 
 **Acceptance criteria**
@@ -81,18 +82,20 @@ Category, brand, discount and availability are deliberately **not** on the card,
 ### 4.2 Search and sort
 
 **Search**
-- `.searchable` field at the top of the Catalog tab, prompt "Search products".
-- Requests start **300 ms after the last keystroke** (debounce). Leading/trailing whitespace is trimmed; an empty query returns to browse.
+- `.searchable` field at the top of the Catalog tab, prompt "Search products", always visible under an inline "Catalog" title (D-47).
+- Requests start **300 ms after the last keystroke** (debounce). Leading/trailing whitespace is trimmed; an empty query, or **Cancel** on the search field, returns to browse at once. An edit that leaves the trimmed query unchanged (e.g. a trailing space) sends nothing.
+- While the user types, the list on screen stays; once the request starts, the results area shows the skeleton until the results arrive (D-50).
 - A new query cancels the in-flight one; a response is applied **only if it belongs to the latest query** (stale-response protection, even if cancellation loses a race).
 - Search uses the server endpoint (`/products/search`) with the current sort and pagination — verified to work together, see [Networking.md § API facts](Networking.md#1-verified-api-facts).
 - No results: "No products match "…"" with a **Clear search** action.
-- Clearing search restores the previous browse list (pages, sort, scroll position) from memory without refetching.
+- Clearing search restores the previous browse list (pages, sort, scroll position) from memory without refetching: the browse grid stays loaded, hidden, under the search results (D-47).
+- A failed search shows the full-screen error with **Retry**; pull-to-refresh and loading more work as in browse.
 
 **Sort**
 - Options: **Default** (the API's default order, by product id — not a curated ranking), **Price: Low to High**, **Price: High to Low**, **Rating: High to Low**.
-- The current sort is always visible in the toolbar control's label.
-- Changing sort reloads page 1 server-side for the current mode (browse or search) and scrolls to top. The app **never sorts locally**, so ordering is always across the whole catalog/result set, never just the loaded page.
-- The sort choice is kept when entering/leaving search. It is not persisted across launches (deliberate: avoid surprising state on a new session).
+- The control is a menu at the toolbar's leading edge. Its label always shows the current sort in short form ("Default", "Lowest price", "Highest price", "Top rated"); the menu lists the options above and marks the current one (D-44).
+- Changing sort reloads page 1 server-side for the current mode (browse or search) and scrolls to top: the skeleton shows until the new order arrives, and a failure shows the full-screen error with Retry (D-45). The app **never sorts locally**, so ordering is always across the whole catalog/result set, never just the loaded page.
+- A search starts in the sort on screen. A sort change while searching applies to the search only; clearing returns to the browse list in its own sort (D-46, AC-S4). The sort is not persisted across launches (deliberate: avoid surprising state on a new session).
 
 **Acceptance criteria**
 - AC-S1 Typing "phone" quickly sends at most one request after typing stops.

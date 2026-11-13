@@ -8,6 +8,8 @@ import Testing
 @MainActor
 final class FakeProductRepository: ProductRepository {
     struct Request: Equatable {
+        /// `nil` for a catalog page, the query for a search.
+        var query: String? = nil
         let sort: ProductSort
         let skip: Int
         let limit: Int
@@ -34,7 +36,15 @@ final class FakeProductRepository: ProductRepository {
     }
 
     func products(sort: ProductSort, skip: Int, limit: Int) async throws -> ProductPage {
-        requests.append(Request(sort: sort, skip: skip, limit: limit))
+        try await answer(Request(sort: sort, skip: skip, limit: limit))
+    }
+
+    func search(query: String, sort: ProductSort, skip: Int, limit: Int) async throws -> ProductPage {
+        try await answer(Request(query: query, sort: sort, skip: skip, limit: limit))
+    }
+
+    private func answer(_ request: Request) async throws -> ProductPage {
+        requests.append(request)
         defer {
             if Task.isCancelled { cancelledRequestCount += 1 }
         }
@@ -55,6 +65,15 @@ final class FakeProductRepository: ProductRepository {
             return
         }
         pending.removeFirst().resume(with: result)
+    }
+
+    /// Answers the most recently suspended request, so a newer request can finish before an older one.
+    func resumeNewest(with result: Result<ProductPage, any Error>) {
+        guard !pending.isEmpty else {
+            Issue.record("FakeProductRepository: no suspended request to resume")
+            return
+        }
+        pending.removeLast().resume(with: result)
     }
 
     /// Returns once at least `count` requests are suspended.

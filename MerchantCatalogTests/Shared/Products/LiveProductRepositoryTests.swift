@@ -24,6 +24,25 @@ struct LiveProductRepositoryTests {
         #expect(page == expected)
     }
 
+    @Test func requestsSearchTargetAndMapsPage() async throws {
+        let client = FakeAPIClient()
+        client.responseJSON = Data(ProductJSON.page.utf8)
+
+        let page = try await LiveProductRepository(client: client).search(query: "phone", sort: .ratingDescending, skip: 40, limit: 20)
+
+        #expect(client.requests == [
+            FakeAPIClient.Request(path: "/products/search", queryItems: [
+                URLQueryItem(name: "q", value: "phone"),
+                URLQueryItem(name: "limit", value: "20"),
+                URLQueryItem(name: "skip", value: "40"),
+                URLQueryItem(name: "sortBy", value: "rating"),
+                URLQueryItem(name: "order", value: "desc"),
+            ]),
+        ])
+        let expected = try JSONDecoder().decode(ProductListResponseDTO.self, from: client.responseJSON).toDomain()
+        #expect(page == expected)
+    }
+
     @Test func propagatesClientErrors() async {
         let client = FakeAPIClient()
         client.error = AppError.offline

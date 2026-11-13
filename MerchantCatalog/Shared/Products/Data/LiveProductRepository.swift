@@ -15,4 +15,12 @@ struct LiveProductRepository: ProductRepository {
         )
         return response.toDomain()
     }
+
+    @concurrent
+    func search(query: String, sort: ProductSort, skip: Int, limit: Int) async throws -> ProductPage {
+        let response: ProductListResponseDTO = try await client.request(
+            ProductsTarget.search(query: query, skip: skip, limit: limit, sort: sort)
+        )
+        return response.toDomain()
+    }
 }

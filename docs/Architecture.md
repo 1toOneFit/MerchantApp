@@ -49,7 +49,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
   Shared/
     Products/
       Domain/      Product (+ ProductAvailability), ProductPage, ProductSort, ProductRepository (protocol),
-                   ProductQuery [S3], ProductInsights (facts builder) [S4]
+                   ProductInsights (facts builder) [S4]
       Data/        ProductsTarget, ProductDTO (+ mapping), LiveProductRepository
     Saved/
       Domain/      SavedProduct (snapshot), SavedProductsRepository (protocol)
@@ -57,9 +57,10 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
       SavedProductsStore.swift         # @MainActor @Observable source of truth shared by all screens
   Features/
     Catalog/
-      Domain/      CatalogListState (pure pagination/de-dup state), SearchDebouncer
-      Presentation/ CatalogView, CatalogViewModel, CatalogPhase (+ CatalogFooter), CatalogConfigurator,
-                    ProductCardView, ProductCardModel, SortMenu [S3]
+      Domain/      CatalogListState (pure pagination/de-dup state), SearchQuery (trimmed query) [S3]
+      Presentation/ CatalogView (+ sort menu), CatalogViewModel, CatalogFeed (one list's state) [S3],
+                    CatalogPhase (+ CatalogFooter, CatalogListContent), CatalogConfigurator,
+                    ProductCardView, ProductCardModel, ProductSort+Title [S3]
     ProductDetail/
       Presentation/ ProductDetailView, ProductDetailViewModel, ProductDetailConfigurator,
                     GalleryView, AtAGlanceView
@@ -87,6 +88,8 @@ MerchantCatalogTests/
 **What exists (S1):** `Core/Analytics` (everything listed above), `Core/Logging/LogStoreReader.swift`, `Features/Diagnostics/Presentation`, `App/AppPhase+ScenePhase.swift`, plus tests in `MerchantCatalogTests/Core/Analytics`, `Features/Diagnostics`, `Fakes` and `Support`.
 
 **What exists (S2):** `Networking/` (all files listed), `Core/Time`, `Shared/Products/{Domain,Data}` (without `ProductQuery`/`ProductInsights`), `Features/Catalog/{Domain,Presentation}` (without `SortMenu`/`SearchDebouncer`), `DesignSystem/Components/{ProductImageView, ErrorBanner}`, `Features/Diagnostics/Domain/SlowNetworkSetting`, plus tests in `MerchantCatalogTests/{Networking, Shared/Products, Features/Catalog, Core/Time}`. There is no `HTTPStatusCode` type: the status mapping is a small switch in `URLSessionAPIClient`. `DesignSystem/Theme` isn't needed yet (system styles only).
+
+**What exists (S3):** `Features/Catalog/Domain/SearchQuery`, `Features/Catalog/Presentation/{CatalogFeed, ProductSort+Title}` (the sort menu is a private view in `CatalogView.swift`), `ProductsTarget.search` and `ProductRepository.search`, plus tests in `MerchantCatalogTests/Features/Catalog/{CatalogViewModelSearchTests, CatalogViewModelSortTests, SearchQueryTests, ProductSortTitleTests}`, `Core/Analytics/SearchAnalyticsEventTests` and `Support/TestClockTests`. The target layout's `ProductQuery` and `SearchDebouncer` weren't needed: only the catalog uses the trimmed query, so `SearchQuery` lives in the feature, and the debounce is a sleep on the injected clock inside the view model's search task.
 
 ## 3. Layer rules
 
@@ -117,10 +120,10 @@ Rules: services are registered in the container **as their protocol type**; view
 - **Structured first.** Work starts from SwiftUI's `.task`/`.refreshable` or from async view-model intents, so cancellation follows the view lifecycle automatically. Unstructured `Task { }` is used only where a synchronous UI callback must start async work (e.g. a button tap or text change); the view model keeps the handle and cancels it on supersession or teardown.
 - **Explicit isolation.** `@MainActor` on UI-facing types only: view models, routers, `SavedProductsStore`, `ServiceContainer`, `ExposureTracker`, and the analytics stack (`AnalyticsTracking`, `AnalyticsProvider`, `AnalyticsService`, `SessionTracker`, `InstallationIDProvider`, `AppLifecycleTracker`; D-33). Analytics is main-actor and synchronous because every caller is main-actor UI code: event order and sequence numbers stay deterministic, with no unstructured tasks. A future vendor provider hands work to its SDK's own queue. The DEBUG `OSLogStoreReader` reads the log store in a `@concurrent` function, off the main actor. Domain models and DTOs are `Sendable` value types. `URLSessionAPIClient` and repositories are `Sendable` (immutable configuration). File writes go through an **actor**. No `@unchecked Sendable` or `nonisolated(unsafe)` without a justifying comment.
 - **Cancellation propagates.** `URLSession`'s async API cancels the network task when the Swift task is cancelled. `CancellationError` / `URLError.cancelled` means "no state change", never an error UI.
-- **Clock:** `CatalogViewModel` takes an injected `any Clock<Duration>` (`ContinuousClock` in the app, the hand-written `TestClock` in tests). Load durations (`duration_ms`) come from it (D-40), measured with `clock.stopwatch()`; S3's debounce will sleep on it, so timing tests stay deterministic. Sessions keep the wall clock (D-35).
+- **Clock:** `CatalogViewModel` takes an injected `any Clock<Duration>` (`ContinuousClock` in the app, the hand-written `TestClock` in tests). Load durations (`duration_ms`) come from it (D-40), measured with `clock.stopwatch()`; the search debounce sleeps on it (`searchDebounce`, 300 ms). `TestClock.sleep` suspends until a test advances the clock past the deadline and throws `CancellationError` when its task is cancelled; `waitForSleepers(_:)` lets a test advance only once the debounce is sleeping, so timing tests stay deterministic. Sessions keep the wall clock (D-35).
 - **Networking off the main actor:** `URLSessionAPIClient.request` and `LiveProductRepository.products` are `@concurrent`, so request building, decoding and DTO mapping never run on the main actor; the view model awaits the `Sendable` `ProductPage`. The DEBUG slow-network delay is a `RequestDelay` (`Mutex`), written on the main actor and read by the client.
-- **View-model tasks:** page 1 loads from the view's `.task` (cancelled with the view; the next appearance loads again). Retry, Reload and load-more start from synchronous callbacks, so the view model keeps their handles (`firstPageTask`, `pageTask`) and a refresh cancels `pageTask`. Each task runs the request through a static helper that doesn't reference the view model and applies the result through `[weak self]`, so a request never keeps the view model alive; its `isolated deinit` cancels both tasks, so no request or analytics event outlives the screen.
-- **Stale-response protection:** every list request carries a monotonically increasing generation number. A result whose generation isn't current is dropped even if cancellation lost the race.
+- **View-model tasks:** browse page 1 loads from the view's `.task` (cancelled with the view; the next appearance loads again). Everything else starts from synchronous callbacks, so the view model keeps the handles (D-52): `firstPageTask` (browse Retry, Reload, sort change), `searchTask` (search page 1: the debounce sleep, then the request; a keystroke, Retry or sort change replaces it) and one page ≥ 2 task per list. A new page 1 or a refresh cancels that list's page task. Each task runs the request through a static helper that doesn't reference the view model and applies the result through `[weak self]`, so a request never keeps the view model alive; its `isolated deinit` cancels all of them, so no request or analytics event outlives the screen. A hidden list's in-flight load finishes in the background and updates only that list.
+- **Stale-response protection:** every page-1 load stamps its list (`CatalogFeed`) with a new number from one monotonically increasing counter; page ≥ 2 loads carry the stamp they started with. A result whose list no longer has that stamp, or no longer exists (search cleared), is dropped even if cancellation lost the race. A new query gets a new list, so an earlier query's response can never land on it (AC-S2). After the debounce sleep, the task checks `Task.isCancelled`: a keystroke may cancel it after the sleep ended but before it ran.
 - Validated with an Xcode build and the test suite after every concurrency change.
 
 ## 6. Dependency injection
@@ -170,12 +173,15 @@ Each list screen uses an explicit state value rather than loose booleans:
 enum CatalogPhase: Equatable {
     case initialLoading
     case content(footer: CatalogFooter, refreshError: AppError?)
-    case empty
+    case empty                      // browse, 0 products
+    case noResults(query: String)   // search, 0 products (S3)
     case failed(AppError)
 }
 
 enum CatalogFooter: Equatable { case idle, loading, failed(AppError), end }
 ```
+
+**As built (S3):** the view model holds two `CatalogFeed` values, browse and (while a query is committed) search. A feed owns its `CatalogListState`, cards, sort, generation stamp, first-page and page-load status and refresh error, and maps them to its `CatalogPhase`; the view model runs the requests and analytics. `phase`, `cards`, `sort` and `listContext` describe the list on screen (search if present, else browse). `CatalogPhase` gains `noResults(query:)`. Each page-1 load (not a refresh) gives the list a new `listID`, and the view keys the grid by it, so a sort change or a new query shows the new list from the top (S3 review finding 2). The view renders `browseList` and `searchList` (`CatalogListContent`: phase + cards) as two layers; the browse layer stays in the hierarchy, invisible and inert, while search results show (D-47).
 
 `CatalogListState` (Domain) is a pure struct owning the items, the `id` set for de-duplication, `total`, the next `skip` (the raw count received, so dropped duplicates don't shift it), and `canLoadMore` (false after an empty page, so an inconsistent response can't loop). The view model maps it plus its first-page status, page-load status and refresh error to `CatalogPhase`. The system refresh control shows a pull-to-refresh, so "refreshing" isn't part of the phase. Browse and search each keep their own `CatalogListState` in memory for the current screen's lifetime, which is how clearing a search restores the browse list instantly. This is screen state, not a cache: it's never persisted or shared.
 

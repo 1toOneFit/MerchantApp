@@ -22,6 +22,7 @@ Method: `curl` against `https://dummyjson.com` on 2026-11-13. Re-verify if behav
 | A10 ✅ | Every product has `rating` (2.51–4.99) and exactly **3** reviews. 92 of 194 have no `brand`. Each has 1–6 images. `availabilityStatus` ∈ {In Stock, Low Stock, Out of Stock}. | `brand` is optional, reviews are labelled "Recent reviews", and the gallery handles a single image. |
 | A11 ✅ | Product JSON: `ETag` (weak) but **no** `Cache-Control`, `Expires` or `Last-Modified`. `If-None-Match` → `304`. | See § 3. |
 | A12 ✅ | Images (`cdn.dummyjson.com`, `.webp`, ~10 KB thumbnails): `Cache-Control: public, max-age=0, no-store`. | See § 3 and § 4. |
+| A13 ✅ | A `+` in the `q` value is decoded as a **space**: `q=iphone+charger` and `q=iphone%20charger` both → `total: 1`, `q=iphone%2Bcharger` → `total: 0` (curl, 2026-11-13). | The client sends `+` as `%2B` (D-51); `URLComponents` leaves `+` unencoded (checked with a Swift script, 2026-11-13). |
 
 ## 2. Network layer (protocol-first)
 
@@ -76,7 +77,7 @@ Codes and statuses outside this table (e.g. `URLError.cannotFindHost`, a 400, a 
 
 **Request logging** (`network` category): method, URL with the `q` value redacted (`q=<private>`), a short request id, status, latency, response size, cancellation and errors. Errors are logged as a code or category (`URLError -1009`, `DecodingError.typeMismatch at price`), never as their description, which can include the request URL.
 
-**As built (S2):** `URLSessionAPIClient.makeRequest(for:delay:)` builds the request (base URL + path + query items, method, headers, timeout, `.reloadIgnoringLocalCacheData`) and appends `delay=<ms>` when the DEBUG slow-network toggle is on: a `RequestDelay` shared with `SlowNetworkSetting` and read on every request (D-42). `request(_:)` is `@concurrent`. `URLSessionAPIClientTests` cover each row of the table with `StubURLProtocol`, plus the no-cache configuration and cancellation. `ProductsTarget` has `.list` only; S3 adds `.search`, S4/S5 `.detail`.
+**As built (S2):** `URLSessionAPIClient.makeRequest(for:delay:)` builds the request (base URL + path + query items, method, headers, timeout, `.reloadIgnoringLocalCacheData`) and appends `delay=<ms>` when the DEBUG slow-network toggle is on: a `RequestDelay` shared with `SlowNetworkSetting` and read on every request (D-42). `request(_:)` is `@concurrent`. `URLSessionAPIClientTests` cover each row of the table with `StubURLProtocol`, plus the no-cache configuration and cancellation. `ProductsTarget` has `.list` and (S3) `.search`; S4/S5 add `.detail`. **S3:** after setting the query items, `makeRequest` replaces `+` with `%2B` in the percent-encoded query (A13, D-51); `buildsSearchRequestWithSortAndPage` and `searchQueryIsPercentEncoded` cover it.
 
 ## 3. Caching — deliberately not implemented
 

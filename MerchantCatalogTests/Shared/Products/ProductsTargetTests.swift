@@ -29,4 +29,27 @@ struct ProductsTargetTests {
         #expect(target.timeout == 15)
         #expect(target.headers == [:])
     }
+
+    @Test(arguments: [
+        (ProductSort.defaultOrder, [URLQueryItem]()),
+        (.priceAscending, [URLQueryItem(name: "sortBy", value: "price"), URLQueryItem(name: "order", value: "asc")]),
+        (.priceDescending, [URLQueryItem(name: "sortBy", value: "price"), URLQueryItem(name: "order", value: "desc")]),
+        (.ratingDescending, [URLQueryItem(name: "sortBy", value: "rating"), URLQueryItem(name: "order", value: "desc")]),
+    ])
+    func searchQueryItems(sort: ProductSort, sortItems: [URLQueryItem]) {
+        let target = ProductsTarget.search(query: "phone", skip: 20, limit: 20, sort: sort)
+
+        #expect(target.queryItems == [
+            URLQueryItem(name: "q", value: "phone"),
+            URLQueryItem(name: "limit", value: "20"),
+            URLQueryItem(name: "skip", value: "20"),
+        ] + sortItems)
+    }
+
+    @Test func searchPath() {
+        let target = ProductsTarget.search(query: "phone", skip: 0, limit: 20, sort: .defaultOrder)
+
+        #expect(target.path == "/products/search")
+        #expect(target.method == .get)
+    }
 }

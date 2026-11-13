@@ -1,14 +1,19 @@
 import SwiftUI
 
-/// The catalog browse screen: renders `CatalogViewModel.phase` and forwards intents
-/// (ProductSpecification § 4.1). It owns its view model; `AppTabView` hosts it in the Catalog tab's
-/// navigation stack and passes only whether the Catalog tab is selected.
+/// The catalog screen: the browse grid, the search field and the sort menu (ProductSpecification
+/// § 4.1, § 4.2). It renders the view model's lists and forwards intents. It owns its view model;
+/// `AppTabView` hosts it in the Catalog tab's navigation stack and passes only whether the Catalog
+/// tab is selected.
+///
+/// While a search is shown, the browse list stays in the hierarchy underneath, invisible and inert,
+/// so clearing the search shows it at the same scroll position with its thumbnails loaded (D-47).
 struct CatalogView: View {
     /// Drives `catalog_viewed` (D-39): true at the first display and on each switch back to the tab.
     /// Popping back from details doesn't change it.
     let isTabSelected: Bool
 
     @State private var viewModel: CatalogViewModel
+    @State private var isSearchPresented = false
 
     init(viewModel: CatalogViewModel, isTabSelected: Bool) {
         _viewModel = State(initialValue: viewModel)
@@ -16,39 +21,128 @@ struct CatalogView: View {
     }
 
     var body: some View {
+        let isShowingSearch = viewModel.searchList != nil
         ZStack {
-            switch viewModel.phase {
-            case .initialLoading:
-                CatalogSkeletonGrid()
-            case .content(let footer, let refreshError):
-                CatalogGrid(viewModel: viewModel, footer: footer, refreshError: refreshError)
-            case .empty:
-                ContentUnavailableView {
-                    Label("No products", systemImage: "shippingbox")
-                } description: {
-                    Text("The catalog has no products right now.")
-                } actions: {
-                    Button("Reload") { viewModel.reload() }
-                        .buttonStyle(.borderedProminent)
-                }
-            case .failed(let error):
-                ContentUnavailableView {
-                    Label("Couldn't load products", systemImage: error == .offline ? "wifi.slash" : "exclamationmark.triangle")
-                } description: {
-                    Text(error.userMessage)
-                } actions: {
-                    Button("Retry") { viewModel.retry() }
-                        .buttonStyle(.borderedProminent)
-                }
+            CatalogListView(content: viewModel.browseList, context: .browse, viewModel: viewModel, clearSearch: clearSearch)
+                .opacity(isShowingSearch ? 0 : 1)
+                .allowsHitTesting(!isShowingSearch)
+                .accessibilityHidden(isShowingSearch)
+            if let searchList = viewModel.searchList {
+                CatalogListView(content: searchList, context: .search, viewModel: viewModel, clearSearch: clearSearch)
             }
         }
         .navigationTitle("Catalog")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(
+            text: searchText,
+            isPresented: $isSearchPresented,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search products"
+        )
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                CatalogSortMenu(sort: viewModel.sort) { viewModel.sortSelected($0) }
+            }
+        }
+        .onChange(of: isSearchPresented) { wasPresented, isPresented in
+            // Cancel ends the search explicitly, without relying on the system emptying the text.
+            if wasPresented, !isPresented {
+                viewModel.searchDismissed()
+            }
+        }
         .task { await viewModel.start() }
         .onChange(of: isTabSelected, initial: true) { _, isSelected in
             if isSelected {
                 viewModel.catalogBecameVisible()
             }
         }
+    }
+
+    /// The field shows the text as typed; the view model decides what to search (D-49, D-50).
+    private var searchText: Binding<String> {
+        Binding(
+            get: { viewModel.searchText },
+            set: { viewModel.searchTextChanged(to: $0) }
+        )
+    }
+
+    /// The no-results state's Clear search: back to browse, and the search field is dismissed.
+    private func clearSearch() {
+        viewModel.clearSearch()
+        isSearchPresented = false
+    }
+}
+
+/// One list (browse, or search results) in its current phase.
+private struct CatalogListView: View {
+    let content: CatalogListContent
+    let context: ListContext
+    let viewModel: CatalogViewModel
+    let clearSearch: () -> Void
+
+    var body: some View {
+        switch content.phase {
+        case .initialLoading:
+            CatalogSkeletonGrid()
+        case .content(let footer, let refreshError):
+            // A new list (sort change, new query, Retry, Reload) gets a new grid, and a new scroll
+            // view starts at the top. A page 1 shows the skeleton in between, which replaces the
+            // grid too; the identity makes the reset independent of that frame being drawn.
+            CatalogGrid(cards: content.cards, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel)
+                .id(content.listID)
+        case .empty:
+            ContentUnavailableView {
+                Label("No products", systemImage: "shippingbox")
+            } description: {
+                Text("The catalog has no products right now.")
+            } actions: {
+                Button("Reload") { viewModel.reload() }
+                    .buttonStyle(.borderedProminent)
+            }
+        case .noResults(let query):
+            ContentUnavailableView {
+                Label("No results", systemImage: "magnifyingglass")
+            } description: {
+                Text(CatalogCopy.noResultsMessage(for: query))
+            } actions: {
+                Button("Clear search", action: clearSearch)
+                    .buttonStyle(.borderedProminent)
+            }
+        case .failed(let error):
+            ContentUnavailableView {
+                Label(
+                    context == .search ? "Couldn't search products" : "Couldn't load products",
+                    systemImage: error == .offline ? "wifi.slash" : "exclamationmark.triangle"
+                )
+            } description: {
+                Text(error.userMessage)
+            } actions: {
+                Button("Retry") { viewModel.retry() }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+    }
+}
+
+/// The toolbar's sort control: its label always shows the current sort; the menu marks it with a
+/// checkmark (ProductSpecification § 4.2, D-44).
+private struct CatalogSortMenu: View {
+    let sort: ProductSort
+    let select: (ProductSort) -> Void
+
+    var body: some View {
+        Menu {
+            Picker("Sort", selection: Binding(get: { sort }, set: { select($0) })) {
+                ForEach(ProductSort.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+        } label: {
+            Label(sort.shortTitle, systemImage: "arrow.up.arrow.down")
+                .labelStyle(.titleAndIcon)
+        }
+        .accessibilityLabel("Sort")
+        .accessibilityValue(sort.title)
     }
 }
 
@@ -62,16 +156,18 @@ private enum CatalogLayout {
 }
 
 private struct CatalogGrid: View {
-    let viewModel: CatalogViewModel
+    let cards: [ProductCardModel]
+    let context: ListContext
     let footer: CatalogFooter
     let refreshError: AppError?
+    let viewModel: CatalogViewModel
 
     var body: some View {
         ScrollView {
             LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
-                ForEach(viewModel.cards) { card in
+                ForEach(cards) { card in
                     ProductCardView(card: card)
-                        .onAppear { viewModel.itemAppeared(id: card.id) }
+                        .onAppear { viewModel.itemAppeared(id: card.id, in: context) }
                 }
             }
             .padding(.horizontal)

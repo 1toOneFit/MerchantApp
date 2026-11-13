@@ -123,6 +123,27 @@ struct URLSessionAPIClientTests {
         #expect(request.cachePolicy == .reloadIgnoringLocalCacheData)
     }
 
+    /// AC-S3: search, sort and pagination travel together in one request (Networking.md A3).
+    @Test func buildsSearchRequestWithSortAndPage() throws {
+        let request = try URLSessionAPIClient.makeRequest(
+            for: ProductsTarget.search(query: "phone", skip: 20, limit: 20, sort: .priceDescending),
+            delay: nil
+        )
+
+        #expect(request.url?.absoluteString == "https://dummyjson.com/products/search?q=phone&limit=20&skip=20&sortBy=price&order=desc")
+    }
+
+    /// The API decodes `+` as a space (A13) and `URLComponents` leaves it unencoded, so `+` is sent
+    /// as `%2B`; `&`, `=` and spaces must not split or end the value either (D-51).
+    @Test func searchQueryIsPercentEncoded() throws {
+        let request = try URLSessionAPIClient.makeRequest(
+            for: ProductsTarget.search(query: "a+b & c=d", skip: 0, limit: 20, sort: .defaultOrder),
+            delay: nil
+        )
+
+        #expect(request.url?.absoluteString == "https://dummyjson.com/products/search?q=a%2Bb%20%26%20c%3Dd&limit=20&skip=0")
+    }
+
     @Test func slowNetworkDelayAddsQueryItem() throws {
         let request = try URLSessionAPIClient.makeRequest(
             for: ProductsTarget.list(skip: 0, limit: 20, sort: .defaultOrder),
