@@ -53,6 +53,8 @@ struct DiagnosticsView: View {
 
     private var experimentSection: some View {
         Section {
+            LabeledContent("Experiment ID", value: Experiment.productCardDensity.rawValue)
+                .font(.callout.monospaced())
             LabeledContent(
                 "This launch",
                 value: "\(viewModel.cardAssignment.variant.rawValue) (\(viewModel.cardAssignment.source.rawValue))"
@@ -63,8 +65,7 @@ struct DiagnosticsView: View {
                 Text("Treatment").tag(ExperimentVariant?.some(.treatment))
             }
         } header: {
-            Text(Experiment.productCardDensity.rawValue)
-                .textCase(nil)
+            Text("Experiment")
         } footer: {
             Text("Changes apply at the next launch. Auto uses the installation's hashed variant; Reset installation ID re-buckets at the next launch and keeps the override.")
         }
