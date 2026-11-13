@@ -72,7 +72,11 @@ protocol TargetType: Sendable {
 
 The client does no automatic retries. Retries are user-initiated, which keeps the user in control and respects the rate limit. Cancelling the calling Swift task cancels the underlying `URLSession` task (async API behavior).
 
+Codes and statuses outside this table (e.g. `URLError.cannotFindHost`, a 400, a non-HTTP response) map to `.unknown` / `.server(status:)` (D-43).
+
 **Request logging** (`network` category): method, URL with the `q` value redacted (`q=<private>`), a short request id, status, latency, response size, cancellation and errors.
+
+**As built (S2):** `URLSessionAPIClient.makeRequest(for:delay:)` builds the request (base URL + path + query items, method, headers, timeout, `.reloadIgnoringLocalCacheData`) and appends `delay=<ms>` when the DEBUG slow-network toggle is on: a `RequestDelay` shared with `SlowNetworkSetting` and read on every request (D-42). `request(_:)` is `@concurrent`. `URLSessionAPIClientTests` cover each row of the table with `StubURLProtocol`, plus the no-cache configuration and cancellation. `ProductsTarget` has `.list` only; S3 adds `.search`, S4/S5 `.detail`.
 
 ## 3. Caching — deliberately not implemented
 
@@ -127,6 +131,7 @@ struct ProductImageView: View {
 
 - 🔍 **Expectation:** removing an `AsyncImage` from the hierarchy cancels its in-flight request. Apple documents automatic cancellation for `.task`, but not explicitly for `AsyncImage`, so this is verified manually by the developer, not asserted.
   - **Manual check:** slow image downloads with macOS Network Link Conditioner (e.g. the "3G" profile); the DEBUG `delay` toggle affects only API requests. Scroll fast through the grid and watch a proxy (Proxyman/Charles) or Instruments' network template: requests for cells that left the screen should end as cancelled. Record the date, method and result here.
+  - **Status:** `ProductImageView` is implemented as designed above (S2). The manual check is pending (handed to the developer at the S2 review gate); no result is claimed yet.
 - Unit tests cover what is controllable: card and gallery presentation models expose the right URLs (thumbnail for cards, full images for the gallery, `nil` → placeholder only). `AsyncImage`'s network lifecycle can't be proven in unit tests and isn't claimed to be.
 
 ### Known limitations (accepted)

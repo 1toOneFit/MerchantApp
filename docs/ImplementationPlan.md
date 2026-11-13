@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S2 — Catalog browsing, networking and images (`IN_PROGRESS`) |
+| Current stage | S2 — Catalog browsing, networking and images (`READY_FOR_REVIEW`) |
 | Current branch | `feature/catalog-browse` (from `develop` at `30838a3`) |
 | Last completed stage | S1 — Analytics core and diagnostics (merged into `develop` with `--no-ff` at `30838a3`, 2026-11-13) |
 | Next authorized stage | S2 (authorized by the developer, 2026-11-13) |
-| Pending human action | — |
+| Pending human action | Manual Simulator checks and an independent Codex review of `feature/catalog-browse` (see the S2 review log entry) |
 | Open review findings | — |
 | Blockers | — |
 
@@ -23,7 +23,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 |---|---|---|---|---|---|
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
-| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | IN_PROGRESS | — | Authorized by the developer (2026-11-13) |
+| S2 | Catalog browsing, networking & images | `feature/catalog-browse` | READY_FOR_REVIEW | `e25b889` + review-gate docs | Awaiting the developer's Codex review |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
@@ -392,3 +392,42 @@ Decisions marked "Agent" are open to the developer's override during plan review
 
 - `git branch --merged develop` lists `feature/analytics-core`; the developer merged it with `--no-ff` (merge commit `30838a3`) and wants `--no-ff` merges for later stages too. Status → `COMPLETED`.
 - The developer authorized S2 on 2026-11-13.
+
+### S2 — Catalog browsing, networking and images · READY_FOR_REVIEW (2026-11-13)
+
+- **Branch:** `feature/catalog-browse` (from `develop` at `30838a3`). **Head:** the `docs: record S2 review gate` commit on top of `e25b889`.
+- **Scope confirmed by the developer** (2026-11-13): as planned; S2 maps only the fields it uses (D-37); the empty state's Reload uses `trigger: reload` (D-38); `catalog_viewed` on tab visibility only (D-39). Agent decisions D-40 (monotonic clock for durations), D-41 (refresh rules), D-42 (persisted 2 s slow network), D-43 (unlisted errors → `.unknown`).
+- **Commits:** `8e41c9e` S1 completed / S2 in progress · `30bb25a` task plan + D-37–D-43 · `986c55e` TargetType + ProductsTarget · `b002d47` URLSessionAPIClient · `0f6dc83` product DTO + LiveProductRepository · `b3dc0b5` CatalogListState · `c29167a` catalog analytics events (8 events → Active) · `6b978d8` view model first page · `072a961` pagination · `02be2f7` pull-to-refresh · `973e3cc` catalog grid UI + composition · `e25b889` DEBUG slow-network toggle · review-gate docs.
+- **Changed files:**
+  - App: `Networking/{APIClientType, APIConfig, AppError, HTTPMethod, NetworkLogger, RequestDelay, TargetType, URLSessionAPIClient}.swift`; `Core/Time/{Clock+Stopwatch, Duration+Milliseconds}.swift`; `Shared/Products/Domain/{Product, ProductPage, ProductRepository, ProductSort}.swift`, `Shared/Products/Data/{ProductDTO, ProductsTarget, LiveProductRepository}.swift`; `Features/Catalog/Domain/CatalogListState.swift`, `Features/Catalog/Presentation/{CatalogView, CatalogViewModel, CatalogPhase, CatalogConfigurator, ProductCardView, ProductCardModel}.swift`; `DesignSystem/Components/{ProductImageView, ErrorBanner}.swift`; `Features/Diagnostics/Domain/SlowNetworkSetting.swift` and the Diagnostics view model, view and Configurator (DEBUG); `Core/Analytics/AnalyticsEvent.swift`; `App/{AppContext, AppTabView}.swift`.
+  - Tests: `Networking/{URLSessionAPIClientTests, AppErrorTests, NetworkLoggerTests}`, `Shared/Products/{ProductsTargetTests, ProductDTOTests, LiveProductRepositoryTests}`, `Features/Catalog/{CatalogListStateTests, CatalogViewModelTests, ProductCardModelTests}`, `Features/Diagnostics/SlowNetworkSettingTests`, `Core/Time/ClockStopwatchTests`, `Core/Analytics/CatalogAnalyticsEventTests`; additions to `AppContextRegistrationTests` and `DiagnosticsViewModelTests`; `Fakes/{StubURLProtocol, FakeAPIClient, FakeProductRepository, ProductFixtures}`, `Support/{TestClock, ProductJSON}`, `SpyAnalytics.reset()`.
+  - Docs: `docs/plans/S2-catalog-browse.md` (with deviations), Analytics.md (8 events Active; `reload` trigger; D-39/D-41 notes), Architecture § 2/5/6/8/10, Networking.md § 2 (as built, D-43) and § 4 (check pending), README status, AILog, this file.
+- **Build settings** (`xcodebuild -showBuildSettings`, 2026-11-13): unchanged (`SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`; no default actor isolation). No packages.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator) succeeded. Result bundle: **0 warnings**, 0 errors, 0 analyzer warnings (the raw log again has only the `appintentsmetadataprocessor` "Metadata extraction skipped" tool line). `xcodebuild … -configuration Release build` succeeded with 0 warnings and 0 errors in its result bundle, so the DEBUG-only slow-network code compiles out cleanly.
+- **Tests:** `xcodebuild … test`: **146 passed, 0 failed, 0 skipped** in 27 suites (result bundle summary). New suites: `URLSessionAPIClientTests` 10, `AppErrorTests` 3, `NetworkLoggerTests` 2, `ProductsTargetTests` 2, `ProductDTOTests` 8, `LiveProductRepositoryTests` 2, `CatalogListStateTests` 6, `CatalogViewModelTests` 29, `ProductCardModelTests` 3, `CatalogAnalyticsEventTests` 3, `ClockStopwatchTests` 3, `SlowNetworkSettingTests` 3; `AppContextRegistrationTests` grew from 5 to 8, `DiagnosticsViewModelTests` from 6 to 8. Counts are test functions; parameterized ones run more cases.
+- **Red first:** every new suite failed on compilation first (missing types or members). `AppContextRegistrationTests.networkServicesAreRegistered` and `catalogDependenciesResolve` failed on assertions before `AppContext` registered the services. The no-cache tests were mutation-checked (with the three cache settings removed, `requestUsesNoCache` and `buildsRequestFromTarget` failed). Passed when first run, because the code already existed: `ClockStopwatchTests.wholeMilliseconds` (helper written in the client task) and `slowNetworkSettingReachesTheAPIClient` (a wiring guard added after the wiring). Within a suite, tests added in the same batch were seen failing together on compilation, not one by one on assertions.
+- **Manual Simulator checks for the developer** (the agent did not run the app):
+  1. Run the Debug build on an iOS 26 iPhone simulator. The Catalog tab shows a grey skeleton grid briefly, then 20 products in 2 columns: square image, title (up to 2 lines), price in USD. The Diagnostics button is still at the top right.
+  2. Open Diagnostics. Events (newest first): `catalog_load_completed` (`trigger: initial`, `sort: default_order`, `result_count: 20`, `total_count: 194`, `duration_ms`), `catalog_viewed` (`sort: default_order`, `list_context: browse`) and `session_started #1` (cold). There must be exactly **one** `session_started`: `catalog_viewed` can now be tracked before the scene reports `.active` (the D-36 early-event path, unit-tested only until now). Please record the order you see.
+  3. Scroll slowly to the end: a spinner footer appears while each page loads; the list ends with "You've reached the end" after **194** products with no duplicates (e.g. the last products are ids 191–194 in API order). Events `catalog_page_requested` / `catalog_page_loaded` run `page_index` 2…10; the last `catalog_page_loaded` has `has_more: false`. Scrolling further makes no request (Console `network`).
+  4. Offline launch: turn the Mac's network off (or Network Link Conditioner 100 % loss), terminate and relaunch. Expect the full-screen error with Retry: "You're offline…" with the network off, or "This is taking too long…" after 15 s with 100 % loss. Restore the network, tap Retry: the grid loads; events `retry_requested` (`failed_surface: catalog`) then `catalog_load_completed` (`trigger: retry`). If the network-off case shows "Something went wrong. Try again." instead, please note the error code from the `network` log (see open question 1).
+  5. Page error: load page 1, turn the network off, scroll to the bottom: the footer shows the error message and Retry, page 1 stays. Restore, tap Retry: the next page appends (`retry_requested` with `failed_surface: catalog_page`, then `catalog_page_requested` with `is_retry: true`).
+  6. Pull to refresh with the network on: the grid never blanks; `catalog_refreshed` (`result: success`). With the network off: content stays, a banner with the message and a close button appears over the grid; `catalog_refreshed` (`result: failure`, `error_type`). The close button hides it; the next pull also clears it.
+  7. Slow network: Diagnostics → Network → turn on "Slow network", terminate and relaunch: the skeleton stays about 2 s. Scroll to the end of the loaded page: the spinner footer stays about 2 s. The Console `network` lines show `delay=2000`. Turn it off afterwards (it persists).
+  8. Tabs: switch to Saved and back: one new `catalog_viewed` per switch back, the scroll position is kept, no reload. Opening and closing Diagnostics sends no `catalog_viewed`.
+  9. Image cancellation check from [Networking.md § 4](Networking.md#verification) (Network Link Conditioner "3G", a proxy or Instruments; scroll fast): requests for cells that left the screen should end as cancelled. Please record the date, method and result there.
+  10. Console.app, subsystem `com.example.MerchantCatalog`, category `network`, debug messages included: lines like `[a1b2c3d4] GET https://dummyjson.com/products?limit=20&skip=0` and `[a1b2c3d4] 200 in 312 ms, 48213 bytes`. Category `performance`: `catalog first page (initial) in … ms`.
+  11. Optional: dark mode and an iPad simulator: the skeleton, cards and banner stay readable; the grid has 2 columns on iPad too (iPad-specific layouts are excluded).
+  12. ⌘U in Xcode: 146 tests pass.
+- **Known limitations:**
+  - `AsyncImage` cancellation on disappear is expected, not verified (check 9). The tab-visibility signal, `.task` cancellation on tab switch and the scroll-position retention are expected SwiftUI behavior, checked manually (checks 2, 8), not by unit tests.
+  - Load-more fires from the `onAppear` of the last 5 cards. If those cards are already on screen when load-more becomes possible again (e.g. right after a refresh), the next page loads once the user scrolls. There is no automatic retry after a page failure; the footer's Retry is the way back (by design).
+  - `has_visible_content` is always `false` in S2: page-1 loads only happen without visible content. It becomes meaningful with S3's sort change.
+  - Cards read as "title, price" in VoiceOver; the saved state and save action arrive in S5/S7, the 1-column grid at accessibility text sizes in S7.
+  - The refresh banner stays until it is closed or the next refresh starts.
+  - `TestClock.sleep` records an issue and throws; S3's debounce implements it.
+  - No caching (D-10): scrolling back re-downloads thumbnails, and the catalog needs a connection.
+- **Open questions:**
+  1. D-43 maps only `notConnectedToInternet`, `networkConnectionLost` and `dataNotAllowed` to "offline". If check 4 shows another code with the network off (e.g. `cannotFindHost` or `cannotConnectToHost`), should those also count as offline?
+  2. Task 9 deviated from the plan: `AppTabView` owns the catalog view model (built by `CatalogConfigurator.makeViewModel(from:)`) and reports tab visibility from its root `onChange`, instead of passing `isTabSelected` into `CatalogView`. OK to keep?
+- **Findings and resolution:** awaiting the developer's Codex review.
