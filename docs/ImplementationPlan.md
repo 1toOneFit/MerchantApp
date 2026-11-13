@@ -371,7 +371,7 @@ Decisions marked "Agent" are open to the developer's override during plan review
   - The in-memory event log keeps the latest 500 events and is empty after relaunch. The reset doesn't clear experiment assignments yet (S6).
   - Sessions use the wall clock (D-35). Changing the device clock can shorten or lengthen a measured gap; negative gaps count as 0.
   - Nothing tracks before the first `.active` yet, so the early-event path of D-36 is covered by unit tests only.
-- **Open questions:**
-  1. S0 was merged fast-forward, while the git-flow section suggests `--no-ff`. Which do you want for S1?
-  2. `app_version` reports `MARKETING_VERSION` as is (`1.0`). Keep it, or set `MARKETING_VERSION = 1.0.0` to match the semantic-version example the spec had?
+- **Open questions** (answered by the developer, 2026-11-13):
+  1. Merge style: S1 is merged into `develop` with `--no-ff`, as the git-flow section says. S0 stays fast-forward (no history rewrite).
+  2. `app_version`: keep `MARKETING_VERSION = 1.0`; no build-setting change.
 - **Findings and resolution:** awaiting the developer's Codex review.
