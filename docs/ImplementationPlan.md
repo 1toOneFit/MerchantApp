@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S5 — Saved products (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/saved-products` (from `develop` at `46b8e6d`) |
-| Last completed stage | S4 — Product details (merged into `develop` with `--no-ff` at `46b8e6d`, 2026-11-13) |
-| Next authorized stage | S5 — Saved products (authorized by the developer, 2026-11-13) |
-| Pending human action | Merge `feature/saved-products` into `develop` with `--no-ff` |
+| Current stage | S6 — Card rating experiment (`IN_PROGRESS`) |
+| Current branch | `feature/card-rating-experiment` (from `develop` at `dc04338`) |
+| Last completed stage | S5 — Saved products (merged into `develop` with `--no-ff` at `dc04338`, 2026-11-13) |
+| Next authorized stage | S6 — Card rating experiment (authorized by the developer, 2026-11-13) |
+| Pending human action | — |
 | Open review findings | — |
 | Blockers | — |
 
@@ -26,8 +26,8 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
 | S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
-| S5 | Saved products | `feature/saved-products` | APPROVED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13) |
-| S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
+| S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
+| S6 | Card rating experiment | `feature/card-rating-experiment` | IN_PROGRESS | — | — |
 | S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
 
 The stages run strictly in order, S0 → S7. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
@@ -660,3 +660,7 @@ The developer ran the independent Codex review and asked for all three fixes on 
 
 - Codex re-review of the three fixes, run manually by the developer: **no findings**. Developer's final approval: **approved**. No manual-check results were shared with the agent; the S5 open questions (D-43 offline codes, the S3 sort labels and position, category display names, a "Price when saved" label on the snapshot's price row) stay open, and the behavior they describe stays as built.
 - Status → `APPROVED`. The developer merges `feature/saved-products` into `develop` with `--no-ff`; the next stage's conversation records S5 `COMPLETED` once it confirms the merge. S6 is not yet authorized.
+
+#### S5 merge (recorded by the S6 conversation, 2026-11-13)
+
+- The developer merged `feature/saved-products` into `develop` with `--no-ff`: merge commit `dc04338` (parents `46b8e6d` and `e2d4f0c`; `git branch --merged develop` lists the branch). S5 → `COMPLETED`. S6 (authorized 2026-11-13) starts from `develop` at `dc04338` on `feature/card-rating-experiment`.
