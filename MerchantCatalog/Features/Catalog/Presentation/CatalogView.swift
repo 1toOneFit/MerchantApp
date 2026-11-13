@@ -31,6 +31,15 @@ struct CatalogView: View {
                     Button("Reload") { viewModel.reload() }
                         .buttonStyle(.borderedProminent)
                 }
+            case .noResults(let query):
+                ContentUnavailableView {
+                    Label("No results", systemImage: "magnifyingglass")
+                } description: {
+                    Text("No products match \u{201C}\(query)\u{201D}")
+                } actions: {
+                    Button("Clear search") { viewModel.clearSearch() }
+                        .buttonStyle(.borderedProminent)
+                }
             case .failed(let error):
                 ContentUnavailableView {
                     Label("Couldn't load products", systemImage: error == .offline ? "wifi.slash" : "exclamationmark.triangle")

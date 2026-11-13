@@ -1,8 +1,10 @@
-/// One list on the catalog screen and its loading state. `CatalogViewModel` owns the values and runs
-/// the requests; this type only keeps the list, its cards and its statuses consistent.
+/// One list on the catalog screen and its loading state: the browse list, or the results of one
+/// search query. `CatalogViewModel` owns the values and runs the requests; this type only keeps the
+/// list, its cards and its statuses consistent.
 ///
-/// `generation` stamps the list's latest page-1 load (initial, retry, reload, refresh). A result
-/// stamped with another generation is stale and dropped (Architecture § 5).
+/// `generation` stamps the list's latest page-1 load (initial, retry, reload, sort change, refresh).
+/// A result stamped with another generation is stale and dropped (Architecture § 5). A new query
+/// gets a new feed, so its stamp differs from every earlier query's.
 struct CatalogFeed {
     enum FirstPageStatus: Equatable {
         case notLoaded
@@ -17,6 +19,8 @@ struct CatalogFeed {
         case failed(AppError)
     }
 
+    /// `nil` for the browse list.
+    let query: SearchQuery?
     var sort: ProductSort
     private(set) var generation = 0
     private(set) var list = CatalogListState()
@@ -26,8 +30,17 @@ struct CatalogFeed {
     var pageLoad: PageLoadStatus = .idle
     var refreshError: AppError?
 
-    init(sort: ProductSort) {
+    init(query: SearchQuery?, sort: ProductSort) {
+        self.query = query
         self.sort = sort
+    }
+
+    var context: ListContext {
+        query == nil ? .browse : .search
+    }
+
+    var content: CatalogListContent {
+        CatalogListContent(phase: phase, cards: cards)
     }
 
     /// Products are on screen.
@@ -41,8 +54,10 @@ struct CatalogFeed {
             .initialLoading
         case .failed(let error):
             .failed(error)
+        case .loaded where list.isEmpty:
+            query.map { .noResults(query: $0.text) } ?? .empty
         case .loaded:
-            list.isEmpty ? .empty : .content(footer: footer, refreshError: refreshError)
+            .content(footer: footer, refreshError: refreshError)
         }
     }
 
