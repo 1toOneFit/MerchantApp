@@ -66,21 +66,21 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 ### Lifecycle
 
 #### `session_started`
-- **Status:** Planned (S1)
+- **Status:** Active
 - **Meaning:** a new analytics session began.
 - **Trigger:** cold launch, or foreground after ≥ 30 min in background (fires before `app_foregrounded`).
 - **Properties:** `is_first_session` Bool; `launch_kind` `cold` | `resume`.
 - **Screen:** app. **Dedup:** once per session by definition. **Privacy:** none.
 
 #### `app_foregrounded`
-- **Status:** Planned (S1)
+- **Status:** Active
 - **Meaning:** the app became active after being in the background.
 - **Trigger:** scene phase `background → active` (not on cold launch).
 - **Properties:** `background_duration_s` Int.
 - **Screen:** app. **Dedup:** once per transition. **Privacy:** none.
 
 #### `app_backgrounded`
-- **Status:** Planned (S1)
+- **Status:** Active
 - **Meaning:** the user left the app.
 - **Trigger:** scene phase `→ background`.
 - **Properties:** `foreground_duration_s` Int.
