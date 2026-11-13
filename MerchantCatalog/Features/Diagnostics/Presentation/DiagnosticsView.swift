@@ -1,8 +1,8 @@
 #if DEBUG
 import SwiftUI
 
-/// DEBUG-only Diagnostics sheet: installation and session ids, the slow-network toggle, user
-/// properties, the analytics event log, and recent log entries. `AppTabView` presents it inside a navigation stack.
+/// DEBUG-only Diagnostics sheet: installation and session ids, the slow-network toggle, the
+/// experiment override, user properties, the analytics event log, and recent log entries. `AppTabView` presents it inside a navigation stack.
 struct DiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: DiagnosticsViewModel
@@ -15,6 +15,7 @@ struct DiagnosticsView: View {
         List {
             installationSection
             networkSection
+            experimentSection
             userPropertiesSection
             eventsSection
             logsSection
@@ -47,6 +48,25 @@ struct DiagnosticsView: View {
             Text("Network")
         } footer: {
             Text("Adds a 2-second server delay to every API request, to check loading states. Images aren't affected. Stays on after relaunch.")
+        }
+    }
+
+    private var experimentSection: some View {
+        Section {
+            LabeledContent(
+                "This launch",
+                value: "\(viewModel.cardAssignment.variant.rawValue) (\(viewModel.cardAssignment.source.rawValue))"
+            )
+            Picker("Override", selection: $viewModel.cardOverride) {
+                Text("Auto").tag(ExperimentVariant?.none)
+                Text("Control").tag(ExperimentVariant?.some(.control))
+                Text("Treatment").tag(ExperimentVariant?.some(.treatment))
+            }
+        } header: {
+            Text(Experiment.productCardDensity.rawValue)
+                .textCase(nil)
+        } footer: {
+            Text("Changes apply at the next launch. Auto uses the installation's hashed variant; Reset installation ID re-buckets at the next launch and keeps the override.")
         }
     }
 

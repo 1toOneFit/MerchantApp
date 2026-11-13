@@ -21,7 +21,8 @@ struct DiagnosticsEvent: Identifiable, Equatable {
 }
 
 /// DEBUG Diagnostics: shows the in-memory event log, the current user properties and recent log
-/// entries, resets the installation id, and toggles the slow network.
+/// entries, resets the installation id, toggles the slow network, and overrides the card
+/// experiment's variant (applied at the next launch, D-69).
 @MainActor
 @Observable
 final class DiagnosticsViewModel {
@@ -39,6 +40,13 @@ final class DiagnosticsViewModel {
     var isSlowNetworkEnabled: Bool {
         didSet { slowNetwork.isEnabled = isSlowNetworkEnabled }
     }
+    /// `product_card_density_v1` as this launch shows it.
+    let cardAssignment: ExperimentAssignment
+    /// The persisted override; `nil` is Auto. Stored so the picker redraws; forwarded to the
+    /// service, which keeps it for the next launch.
+    var cardOverride: ExperimentVariant? {
+        didSet { overrides.setOverride(cardOverride, for: .productCardDensity) }
+    }
 
     private let eventLog: InMemoryAnalyticsProvider
     private let installation: InstallationIDProvider
@@ -46,6 +54,7 @@ final class DiagnosticsViewModel {
     private let analytics: any AnalyticsTracking
     private let logReader: any LogReading
     private let slowNetwork: SlowNetworkSetting
+    private let overrides: any ExperimentOverrides
     private let now: () -> Date
 
     init(
@@ -55,6 +64,8 @@ final class DiagnosticsViewModel {
         analytics: any AnalyticsTracking,
         logReader: any LogReading,
         slowNetwork: SlowNetworkSetting,
+        experiments: any ExperimentService,
+        overrides: any ExperimentOverrides,
         now: @escaping () -> Date = Date.init
     ) {
         self.eventLog = eventLog
@@ -63,9 +74,12 @@ final class DiagnosticsViewModel {
         self.analytics = analytics
         self.logReader = logReader
         self.slowNetwork = slowNetwork
+        self.overrides = overrides
         self.now = now
         installationID = installation.installationID.uuidString
         isSlowNetworkEnabled = slowNetwork.isEnabled
+        cardAssignment = experiments.assignment(for: .productCardDensity)
+        cardOverride = overrides.override(for: .productCardDensity)
     }
 
     /// Newest first.
@@ -101,9 +115,11 @@ final class DiagnosticsViewModel {
     }
 
     /// Simulates a reinstall (D-34): a new installation id and first-seen date, and a new first
-    /// session that starts at once. S6 also clears the stored experiment assignments here.
+    /// session that starts at once. Stored experiment assignments are cleared, so the next launch
+    /// buckets the new id; the override stays (D-72).
     func resetInstallationID() {
         installation.reset()
+        overrides.clearStoredAssignments()
         sessions.resetForNewInstallation()
         analytics.track(sessions.startSession(kind: .cold, at: now()))
         analytics.setUserProperty(.firstSeenDate(installation.firstSeenDate))
