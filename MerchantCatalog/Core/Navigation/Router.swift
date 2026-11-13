@@ -15,7 +15,12 @@ final class Router {
     func push(_ route: Route) {
         path.append(route)
         let depth = path.count
-        Log.navigation.debug("push \(String(describing: route), privacy: .public), depth \(depth, privacy: .public)")
+        Log.navigation.debug("push \(route.logDescription, privacy: .public), depth \(depth, privacy: .public)")
+    }
+
+    /// Opens product details on this tab's stack.
+    func showProductDetail(_ route: ProductDetailRoute) {
+        push(.productDetail(route))
     }
 
     /// Removes the top route; does nothing at the root.

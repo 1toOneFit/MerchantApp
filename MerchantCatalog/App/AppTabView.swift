@@ -71,8 +71,8 @@ struct AppTabView: View {
     @ViewBuilder
     private func destination(for route: Route) -> some View {
         switch route {
-        case .productDetail(let productID):
-            Text("Product \(productID)")
+        case .productDetail(let route):
+            Text("Product \(route.product.id)")
         }
     }
 }

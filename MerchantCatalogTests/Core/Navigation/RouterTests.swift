@@ -2,7 +2,7 @@ import Testing
 @testable import MerchantCatalog
 
 private func detail(_ id: Int) -> Route {
-    .productDetail(productID: id)
+    .productDetail(ProductDetailRoute(product: product(id), source: .catalog))
 }
 
 @MainActor
@@ -18,6 +18,15 @@ struct RouterTests {
         router.push(detail(2))
 
         #expect(router.path == [detail(1), detail(2)])
+    }
+
+    @Test func showProductDetailPushesTheRoute() {
+        let router = Router(path: [detail(1)])
+        let route = ProductDetailRoute(product: product(2), source: .search)
+
+        router.showProductDetail(route)
+
+        #expect(router.path == [detail(1), .productDetail(route)])
     }
 
     @Test func popRemovesLastRoute() {
