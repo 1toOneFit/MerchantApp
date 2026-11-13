@@ -14,10 +14,14 @@ final class AppContext {
     let container: any ServiceContainerType
     /// Receives scene-phase changes from `MerchantCatalogApp`.
     let lifecycle: AppLifecycleTracker
+    /// The saved products every screen and the tab badge read; `MerchantCatalogApp` loads it once at
+    /// launch. Also registered in the container.
+    let savedProducts: SavedProductsStore
 
-    private init(container: any ServiceContainerType, lifecycle: AppLifecycleTracker) {
+    private init(container: any ServiceContainerType, lifecycle: AppLifecycleTracker, savedProducts: SavedProductsStore) {
         self.container = container
         self.lifecycle = lifecycle
+        self.savedProducts = savedProducts
     }
 
     /// - Parameters:
@@ -68,6 +72,6 @@ final class AppContext {
         }
 
         let lifecycle = AppLifecycleTracker(analytics: analytics, sessions: sessions)
-        return AppContext(container: container, lifecycle: lifecycle)
+        return AppContext(container: container, lifecycle: lifecycle, savedProducts: savedProducts)
     }
 }

@@ -15,7 +15,9 @@ struct MerchantCatalogApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppTabView(container: context.container)
+            AppTabView(container: context.container, savedProducts: context.savedProducts)
+                // Reads the saved list once, off the main actor (Architecture § 9).
+                .task { await context.savedProducts.load() }
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
             context.lifecycle.handle(AppPhase(phase))

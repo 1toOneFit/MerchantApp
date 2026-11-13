@@ -56,6 +56,17 @@ struct AppContextRegistrationTests {
         #expect(CatalogConfigurator.resolveDependencies(from: configure().container) != nil)
     }
 
+    @Test func savedDependenciesResolve() {
+        #expect(SavedConfigurator.resolveDependencies(from: configure().container) != nil)
+    }
+
+    /// Every screen and the tab badge read one store (AC-V1).
+    @Test func savedStoreIsShared() {
+        let context = configure()
+
+        #expect(context.container.resolve() as SavedProductsStore? === context.savedProducts)
+    }
+
     @Test func productDetailDependenciesResolve() {
         #expect(ProductDetailConfigurator.resolveDependencies(from: configure().container) != nil)
     }

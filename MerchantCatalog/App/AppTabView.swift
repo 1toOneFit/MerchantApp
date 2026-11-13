@@ -8,11 +8,15 @@ import SwiftUI
 /// destinations come from scene Configurators.
 ///
 /// It owns only the tab selection (`TabSelection`, D-61), the routers and the Diagnostics sheet
-/// flag; each tab's screen owns its own view model. The Catalog screen gets `isTabSelected` for `catalog_viewed` (D-39).
+/// flag; each tab's screen owns its own view model. Each tab's screen gets `isTabSelected` for
+/// `catalog_viewed` / `saved_products_viewed` (D-39); the Saved screen also gets the tab selection
+/// for Browse catalog. The Saved tab's badge shows the saved count (ProductSpecification § 3).
 ///
 /// DEBUG builds add a Diagnostics toolbar button on the Catalog tab (ProductSpecification § 3).
 struct AppTabView: View {
     let container: any ServiceContainerType
+    /// Read for the Saved tab's badge.
+    let savedProducts: SavedProductsStore
 
     @State private var tabs = TabSelection()
     @State private var catalogRouter = Router()
@@ -43,17 +47,13 @@ struct AppTabView: View {
 
             Tab("Saved", systemImage: "bookmark", value: AppTab.saved) {
                 NavigationStack(path: $savedRouter.path) {
-                    ContentUnavailableView(
-                        "Saved",
-                        systemImage: "bookmark",
-                        description: Text("Saved products will appear here.")
-                    )
-                    .navigationTitle("Saved")
-                    .navigationDestination(for: Route.self) { route in
-                        destination(for: route)
-                    }
+                    SavedConfigurator.make(from: container, router: savedRouter, tabs: tabs, isTabSelected: tabs.selected == .saved)
+                        .navigationDestination(for: Route.self) { route in
+                            destination(for: route)
+                        }
                 }
             }
+            .badge(savedProducts.count)
         }
         .onChange(of: tabs.selected) { _, tab in
             Log.navigation.debug("tab \(String(describing: tab), privacy: .public)")
@@ -78,5 +78,6 @@ struct AppTabView: View {
 }
 
 #Preview {
-    AppTabView(container: AppContext.configure().container)
+    let context = AppContext.configure()
+    AppTabView(container: context.container, savedProducts: context.savedProducts)
 }
