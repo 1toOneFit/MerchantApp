@@ -58,10 +58,11 @@ final class AppContext {
         let client = URLSessionAPIClient(delay: requestDelay)
         container.register(client as any APIClientType)
         container.register(LiveProductRepository(client: client) as any ProductRepository)
-        let savedProducts = SavedProductsStore(
-            repository: FileSavedProductsRepository(directory: savedProductsDirectory),
-            analytics: analytics
-        )
+        let savedRepository: any SavedProductsRepository = FileSavedProductsRepository(directory: savedProductsDirectory)
+        // `as any` keeps the key the protocol: an existential passed to a generic parameter is
+        // otherwise opened, and the service would be registered under the concrete type.
+        container.register(savedRepository as any SavedProductsRepository)
+        let savedProducts = SavedProductsStore(repository: savedRepository, analytics: analytics)
         container.register(savedProducts)
         #if DEBUG
         container.register(SlowNetworkSetting(defaults: defaults, requestDelay: requestDelay))
