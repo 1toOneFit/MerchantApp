@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S1 — Analytics core and diagnostics (`READY_FOR_REVIEW`) |
+| Current stage | S1 — Analytics core and diagnostics (`APPROVED`, awaiting merge into `develop`) |
 | Current branch | `feature/analytics-core` (from `develop` at `ee150e0`) |
 | Last completed stage | S0 — Project foundation (merged into `develop` at `ee150e0`, 2026-11-13) |
 | Next authorized stage | — (S2 needs the developer's authorization after S1 is approved and merged) |
-| Pending human action | Manual Simulator checks and an independent Codex review of `feature/analytics-core` (see the S1 review log) |
+| Pending human action | Merge `feature/analytics-core` into `develop` with `--no-ff`, then authorize S2 and start a new conversation for it |
 | Open review findings | — |
 | Blockers | — |
 
@@ -22,7 +22,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | ID | Stage | Branch | Status | Head commit | Review |
 |---|---|---|---|---|---|
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
-| S1 | Analytics core & diagnostics | `feature/analytics-core` | READY_FOR_REVIEW | `93e36b3` + docs commit | Awaiting Codex + developer review |
+| S1 | Analytics core & diagnostics | `feature/analytics-core` | APPROVED | `93e36b3` + docs commits | Approved by the developer (2026-11-13) |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | PLANNED | — | — |
 | S3 | Search & sort | `feature/search-sort` | PLANNED | — | — |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
@@ -375,3 +375,8 @@ Decisions marked "Agent" are open to the developer's override during plan review
   1. Merge style: S1 is merged into `develop` with `--no-ff`, as the git-flow section says. S0 stays fast-forward (no history rewrite).
   2. `app_version`: keep `MARKETING_VERSION = 1.0`; no build-setting change.
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S1 review result (2026-11-13)
+
+- The developer reported S1 **approved**. No Codex findings or manual-check results were shared with the agent.
+- Status → `APPROVED`. The developer merges `feature/analytics-core` into `develop` with `--no-ff`; the next stage's conversation records `COMPLETED` once it confirms the merge. S2 is not authorized yet.
