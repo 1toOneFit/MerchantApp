@@ -17,11 +17,20 @@ final class AppContext {
     /// The saved products every screen and the tab badge read; `MerchantCatalogApp` loads it once at
     /// launch. Also registered in the container.
     let savedProducts: SavedProductsStore
+    /// The loader `MerchantCatalogApp` puts into the SwiftUI environment for `ProductImageView`
+    /// (D-78). Also registered in the container as `any ImageLoading`.
+    let imageLoader: any ImageLoading
 
-    private init(container: any ServiceContainerType, lifecycle: AppLifecycleTracker, savedProducts: SavedProductsStore) {
+    private init(
+        container: any ServiceContainerType,
+        lifecycle: AppLifecycleTracker,
+        savedProducts: SavedProductsStore,
+        imageLoader: any ImageLoading
+    ) {
         self.container = container
         self.lifecycle = lifecycle
         self.savedProducts = savedProducts
+        self.imageLoader = imageLoader
     }
 
     /// - Parameters:
@@ -58,6 +67,8 @@ final class AppContext {
         let client = URLSessionAPIClient(delay: requestDelay)
         container.register(client as any APIClientType)
         container.register(LiveProductRepository(client: client) as any ProductRepository)
+        let imageLoader: any ImageLoading = URLSessionImageLoader()
+        container.register(imageLoader as any ImageLoading)
         let savedRepository: any SavedProductsRepository = FileSavedProductsRepository(directory: savedProductsDirectory)
         // `as any` keeps the key the protocol: an existential passed to a generic parameter is
         // otherwise opened, and the service would be registered under the concrete type.
@@ -85,6 +96,6 @@ final class AppContext {
         container.register(ExposureTracker(analytics: analytics, sessions: sessions))
 
         let lifecycle = AppLifecycleTracker(analytics: analytics, sessions: sessions)
-        return AppContext(container: container, lifecycle: lifecycle, savedProducts: savedProducts)
+        return AppContext(container: container, lifecycle: lifecycle, savedProducts: savedProducts, imageLoader: imageLoader)
     }
 }

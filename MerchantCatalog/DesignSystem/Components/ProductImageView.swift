@@ -1,44 +1,38 @@
 import SwiftUI
 
-/// A product image that loads only while it is on screen (Networking.md § 4, D-23).
+/// A product image that loads only while it is on screen and cancels an in-flight download when it
+/// leaves (Networking.md § 4, D-78).
 ///
-/// Lazy grids may keep an off-screen cell's view alive, so `AsyncImage` alone wouldn't stop its
-/// work when a cell scrolls away. Here `AsyncImage` exists only between `onAppear` and
-/// `onDisappear`: appearing inserts it (the load starts), disappearing removes it (an in-flight load
-/// is torn down, expected to cancel its request; verified manually, see Networking.md § 4). The
+/// `.task(id: url)` starts the load when the view appears (or its URL changes) and SwiftUI cancels
+/// it when the view disappears; the cancellation reaches the `URLSession` request through the
+/// environment's `ImageLoading`. On disappear the model also releases a loaded image. The
 /// placeholder is always present, so the layout never jumps. There is no cache: a reappearing image
 /// downloads again (D-10).
 struct ProductImageView: View {
     let url: URL?
 
-    @State private var isVisible = false
+    @Environment(\.imageLoader) private var loader
+    @State private var model = ProductImageModel()
 
     var body: some View {
         ZStack {
             Rectangle()
                 .fill(.fill.tertiary)
-            if isVisible, let url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                    case .failure:
-                        Image(systemName: "photo")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                    case .empty:
-                        Color.clear
-                    @unknown default:
-                        Color.clear
-                    }
-                }
-                .id(url)
+            switch model.phase {
+            case .loaded(let image):
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+            case .failed:
+                Image(systemName: "photo")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+            case .empty:
+                EmptyView()
             }
         }
-        .onAppear { isVisible = true }
-        .onDisappear { isVisible = false }
+        .task(id: url) { await model.load(url, using: loader) }
+        .onDisappear { model.reset() }
         .accessibilityHidden(true)
     }
 }
