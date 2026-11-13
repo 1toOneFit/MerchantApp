@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S5 — Saved products (`READY_FOR_REVIEW`, review fixes applied) |
+| Current stage | S5 — Saved products (`APPROVED`, awaiting merge into `develop`) |
 | Current branch | `feature/saved-products` (from `develop` at `46b8e6d`) |
 | Last completed stage | S4 — Product details (merged into `develop` with `--no-ff` at `46b8e6d`, 2026-11-13) |
 | Next authorized stage | S5 — Saved products (authorized by the developer, 2026-11-13) |
-| Pending human action | Codex re-review of the S5 review fixes and the manual Simulator checks in the S5 review log |
+| Pending human action | Merge `feature/saved-products` into `develop` with `--no-ff` |
 | Open review findings | — |
 | Blockers | — |
 
@@ -26,7 +26,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
 | S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
-| S5 | Saved products | `feature/saved-products` | READY_FOR_REVIEW | `be7c92b` + docs commit | Codex review: 3 findings, all fixed; awaiting re-review |
+| S5 | Saved products | `feature/saved-products` | APPROVED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13) |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
 | S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
 
@@ -655,3 +655,8 @@ The developer ran the independent Codex review and asked for all three fixes on 
 
 - **Re-verification** (2026-11-13): `git diff --check` clean (working tree and `46b8e6d..HEAD`). `xcodebuild … clean build` (Debug): succeeded, result bundle 0 warnings / 0 errors / 0 analyzer warnings. Release build: succeeded, 0 warnings / 0 errors. `xcodebuild … test`: **319 passed, 0 failed, 0 skipped** in 52 suites (+7: `ProductDetailSavedTests` 14 → 16, `AppContextRegistrationTests` 11 → 13, new `ProductCardAccessibilityTests` 3); the test log has no compiler warnings.
 - **Remaining limitations:** VoiceOver's element and actions are SwiftUI behavior checked manually (check 11), not by unit tests; with the card as one element, Voice Control can't name the bookmark separately ("Tap Save"), only the card. The rating part of the label is tested but unused until S6.
+
+#### S5 review result (2026-11-13)
+
+- Codex re-review of the three fixes, run manually by the developer: **no findings**. Developer's final approval: **approved**. No manual-check results were shared with the agent; the S5 open questions (D-43 offline codes, the S3 sort labels and position, category display names, a "Price when saved" label on the snapshot's price row) stay open, and the behavior they describe stays as built.
+- Status → `APPROVED`. The developer merges `feature/saved-products` into `develop` with `--no-ff`; the next stage's conversation records S5 `COMPLETED` once it confirms the merge. S6 is not yet authorized.
