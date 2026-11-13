@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S5 — Saved products (`READY_FOR_REVIEW`) |
+| Current stage | S5 — Saved products (`READY_FOR_REVIEW`, review fixes applied) |
 | Current branch | `feature/saved-products` (from `develop` at `46b8e6d`) |
 | Last completed stage | S4 — Product details (merged into `develop` with `--no-ff` at `46b8e6d`, 2026-11-13) |
 | Next authorized stage | S5 — Saved products (authorized by the developer, 2026-11-13) |
-| Pending human action | Independent Codex review of `feature/saved-products` and the manual Simulator checks in the S5 review log |
+| Pending human action | Codex re-review of the S5 review fixes and the manual Simulator checks in the S5 review log |
 | Open review findings | — |
 | Blockers | — |
 
@@ -26,7 +26,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
 | S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
-| S5 | Saved products | `feature/saved-products` | READY_FOR_REVIEW | `f82bbd3` + docs commit | Awaiting the developer's Codex review |
+| S5 | Saved products | `feature/saved-products` | READY_FOR_REVIEW | `be7c92b` + docs commit | Codex review: 3 findings, all fixed; awaiting re-review |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
 | S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
 
@@ -225,7 +225,7 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 
 - **Objective / user value:** a coherent, accessible, honestly documented 1.0.
 - **In scope:**
-  - Accessibility pass: VoiceOver card labels with a save custom action, Dynamic Type with a 1-column grid at accessibility sizes, 44 pt targets, dark mode.
+  - Accessibility pass: VoiceOver card labels with a save custom action (done in S5, review finding 3; S6 adds the rating to the label), Dynamic Type with a 1-column grid at accessibility sizes, 44 pt targets, dark mode.
   - Final taxonomy reconciliation: every event Active or explicitly removed.
   - README finalized to about one page with the Documentation Index.
   - [AILog.md](AILog.md) completed with real entries; all docs reconciled with the code.
@@ -299,7 +299,7 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-57 | `ProductDetailRoute` = the list's `Product` + `source`; `Product` is `Hashable`. No `ProductsTarget.detail`, details Retry or `FailedSurface.details` in S4 | Agent (S4) | Details from a list need no request (A7); the fetch, its Retry and the saved snapshot arrive with S5, which extends the route. |
 | D-58 | Numbers are shown as the API gives them: rating and discount with up to 2 fraction digits ("4.94", "−7.17%"); weight and dimensions without units | Agent (S4) | The API gives no units (A14); a whole-percent discount would show "−0%" for 0.04 %. |
 | D-59 | `product_details_viewed` fires at the details view's first appearance, once per view model (one per push); `product_gallery_interacted` at the first page change away from the shown image, once per view model. `category` = the API slug; `availability` omitted when unknown | Agent (S4) | Tab switches and re-appearances don't re-send; a new push builds a new view model. |
-| D-60 | The card's save button is a sibling overlay at the thumbnail's top-trailing corner (`ZStack` with the card `Button`), not nested in the card `Button` | Developer (S5 scope) | Agent recommendation, chosen over a button inside the card label (nested buttons don't take taps reliably) and a context menu only. VoiceOver sees two elements per card until S7 merges them with a custom action. |
+| D-60 | The card's save button is a sibling overlay at the thumbnail's top-trailing corner (`ZStack` with the card `Button`), not nested in the card `Button` | Developer (S5 scope) | Agent recommendation, chosen over a button inside the card label (nested buttons don't take taps reliably) and a context menu only. VoiceOver sees two elements per card until S7 merges them with a custom action. **Updated at the S5 review** (finding 3): each card is already one VoiceOver element with a save custom action; the visible button stays a separate touch target. |
 | D-61 | Tab switching goes through `TabSelection` (`@MainActor @Observable`), owned by `AppTabView` and injected into `SavedViewModel` through `SavedConfigurator`; `AppTab` moves to `Core/Navigation` | Developer (S5 scope) | Agent recommendation, chosen over a closure. Same pattern as the router (D-53). |
 | D-62 | `ProductDetailRoute` is an enum: `.list(Product, source:)` (catalog, search) or `.saved(SavedProduct)` | Developer (S5 scope) | Agent recommendation, chosen over a struct with optional product and snapshot, which allows invalid combinations. |
 | D-63 | Details opened from Saved send `product_details_viewed` at the first appearance (D-59) with `content_origin: snapshot`; `availability`, `has_discount` and `image_count` are omitted (the snapshot lacks them); the `network` value is removed | Developer (S5 scope) | Agent recommendation, chosen over waiting for `/products/{id}`. `network` can't occur: list items render the list's product (A7), Saved renders the snapshot first. |
@@ -629,10 +629,9 @@ The developer ran an independent Codex review and shared four findings. Each was
   8. **Swipe to remove (AC-V4):** swipe a row left: it disappears, `product_unsaved` (`surface: saved_list`); back on Catalog the card's icon is empty. Remove all: the empty state with **Browse catalog**, which switches to the Catalog tab.
   9. **No longer available / price changed** (not reachable with live data: every saved id exists and prices don't change). Optional, by editing the saved file: `xcrun simctl get_app_container booted com.example.MerchantCatalog data`, then edit `Library/Application Support/saved-products.json` with the app stopped: set an item's `"id"` to `99999` → its details show the snapshot with "This product is no longer available." and no Retry (`error_type: not_found`); or change an item's `"price"` to `"1.00"` → after the refresh, Pricing shows "Price changed since you saved it" and "Price when saved: $1.00".
   10. **Corrupt file:** with the app stopped, replace the file's contents with `not json` and launch: the Saved tab is empty, no crash; the folder holds `saved-products.corrupt-<timestamp>.json`; Console `persistence` has an error line.
-  11. Optional: VoiceOver on a card reads the card, then a separate "Save" / "Remove from Saved" button (merged with a custom action in S7, D-60); dark mode for the card's bookmark circle.
+  11. VoiceOver on a card (after the review fix): one element, e.g. "Essence Mascara Lash Princess, $9.99, not saved, button"; double-tap opens details; swipe up/down offers the action "Save" ("Remove from Saved" once saved), which toggles the bookmark and the badge without leaving the grid. The save button itself is not a separate VoiceOver stop. Without VoiceOver, the bookmark still takes taps on its own and the card still opens details. Optional: dark mode for the card's bookmark circle.
   12. ⌘U in Xcode: 312 tests pass.
 - **Known limitations:**
-  - VoiceOver sees two elements per card (card + save button) until S7 (D-60).
   - Details from Saved have no gallery until the fresh data arrives, so the layout grows when it does (D-67).
   - `saved_products_viewed` relies on the Saved view receiving the tab change while hidden, as `catalog_viewed` does (D-39); checked manually (check 3).
   - A saved-products file with an unknown version is overwritten by the next save (D-65, the developer's choice).
@@ -645,3 +644,14 @@ The developer ran an independent Codex review and shared four findings. Each was
   3. (From S4.) Category names shown as the slug in words ("Mens Shirts").
   4. Details from Saved price the snapshot under "Price" with the "Saved information · Saved …" note above; would you rather label that row "Price when saved" until the refresh?
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S5 Codex review — findings and resolution (2026-11-13)
+
+The developer ran the independent Codex review and asked for all three fixes on the branch. Each was checked against the code, confirmed and fixed test-first.
+
+1. **A cancelled Saved-details refresh could still apply its response.** `start()` and the Retry task applied whatever the repository returned; if the response arrived before the cancellation reached the request (the fake answers with success after `cancel()`), the fresh product replaced the snapshot after the user had left. Both now treat a result from a cancelled task as `CancellationError` (existing path: back to `idle`, snapshot kept, no event). Tests `cancellationWinsOverALateSuccess` and `cancelledRetryIgnoresALateSuccess` failed first (state `refreshed`, fresh product applied). Commit `0ba9adb`.
+2. **The saved repository wasn't registered by its protocol** (Architecture § 4). `AppContext` now builds one `FileSavedProductsRepository`, registers it as `any SavedProductsRepository` and injects that instance into `SavedProductsStore`. `savedRepositoryIsRegisteredByProtocol` failed first; a first fix still failed because passing an `any` value to the generic `register<T>` opens the existential and registers the concrete type, so the call uses `as any SavedProductsRepository` like the other registrations (commented). `savedStoreUsesTheRegisteredRepository` writes through the resolved repository (temporary directory) and loads it through the store. Commit `c90bae6`.
+3. **Catalog cards weren't one VoiceOver element** (ProductSpecification § 4.5). The card and its save button now form one element: label "Title, price[, rated n of 5], saved/not saved" (`ProductCardAccessibility`; the rating is `nil` until S6's treatment arm), the button trait and default action open details, and a custom action "Save" / "Remove from Saved" toggles the store. The visible bookmark stays a separate 44 pt touch target, not nested in the card's button. `ProductCardAccessibilityTests` (3) failed first on compilation. The action name comes from `SaveButton.title(isSaved:)` (`nonisolated`, so the composer can call it outside the main actor). This takes the card part of S7's accessibility pass forward (D-60 updated). Commit `be7c92b`.
+
+- **Re-verification** (2026-11-13): `git diff --check` clean (working tree and `46b8e6d..HEAD`). `xcodebuild … clean build` (Debug): succeeded, result bundle 0 warnings / 0 errors / 0 analyzer warnings. Release build: succeeded, 0 warnings / 0 errors. `xcodebuild … test`: **319 passed, 0 failed, 0 skipped** in 52 suites (+7: `ProductDetailSavedTests` 14 → 16, `AppContextRegistrationTests` 11 → 13, new `ProductCardAccessibilityTests` 3); the test log has no compiler warnings.
+- **Remaining limitations:** VoiceOver's element and actions are SwiftUI behavior checked manually (check 11), not by unit tests; with the card as one element, Voice Control can't name the bookmark separately ("Tap Save"), only the card. The rating part of the label is tested but unused until S6.
