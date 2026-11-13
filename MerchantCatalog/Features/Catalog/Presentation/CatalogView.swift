@@ -169,8 +169,11 @@ private struct CatalogGrid: View {
         ScrollView {
             LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
                 ForEach(cards) { card in
+                    let isSaved = viewModel.isSaved(card.id)
                     // The save button is a sibling over the thumbnail's corner, not nested in the
-                    // card's button, so each takes its own taps (D-60).
+                    // card's button, so each takes its own taps (D-60). VoiceOver reads the pair as
+                    // one element that opens details, with a custom action to save or unsave
+                    // (ProductSpecification § 4.5).
                     ZStack(alignment: .topTrailing) {
                         Button {
                             viewModel.cardSelected(id: card.id, in: context)
@@ -178,9 +181,19 @@ private struct CatalogGrid: View {
                             ProductCardView(card: card)
                         }
                         .buttonStyle(.plain)
-                        CardSaveButton(isSaved: viewModel.isSaved(card.id)) {
+                        CardSaveButton(isSaved: isSaved) {
                             viewModel.saveToggled(id: card.id, in: context)
                         }
+                    }
+                    .accessibilityElement(children: .ignore)
+                    // S6 passes the rating in the treatment arm.
+                    .accessibilityLabel(ProductCardAccessibility.label(title: card.title, price: card.price, rating: nil, isSaved: isSaved))
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction {
+                        viewModel.cardSelected(id: card.id, in: context)
+                    }
+                    .accessibilityAction(named: ProductCardAccessibility.saveActionName(isSaved: isSaved)) {
+                        viewModel.saveToggled(id: card.id, in: context)
                     }
                     .onAppear { viewModel.itemAppeared(id: card.id, in: context) }
                 }
