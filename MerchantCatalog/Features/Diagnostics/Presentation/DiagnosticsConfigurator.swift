@@ -9,6 +9,7 @@ enum DiagnosticsConfigurator {
         let sessions: SessionTracker
         let analytics: any AnalyticsTracking
         let logReader: any LogReading
+        let slowNetwork: SlowNetworkSetting
     }
 
     static func resolveDependencies(from container: any ServiceContainerType) -> Dependencies? {
@@ -17,7 +18,8 @@ enum DiagnosticsConfigurator {
             let installation: InstallationIDProvider = container.resolve(),
             let sessions: SessionTracker = container.resolve(),
             let analytics: any AnalyticsTracking = container.resolve(),
-            let logReader: any LogReading = container.resolve()
+            let logReader: any LogReading = container.resolve(),
+            let slowNetwork: SlowNetworkSetting = container.resolve()
         else {
             return nil
         }
@@ -26,7 +28,8 @@ enum DiagnosticsConfigurator {
             installation: installation,
             sessions: sessions,
             analytics: analytics,
-            logReader: logReader
+            logReader: logReader,
+            slowNetwork: slowNetwork
         )
     }
 
@@ -39,7 +42,8 @@ enum DiagnosticsConfigurator {
             installation: dependencies.installation,
             sessions: dependencies.sessions,
             analytics: dependencies.analytics,
-            logReader: dependencies.logReader
+            logReader: dependencies.logReader,
+            slowNetwork: dependencies.slowNetwork
         )
         return DiagnosticsView(viewModel: viewModel)
     }

@@ -60,7 +60,7 @@ No name, email, location, IP, advertising identifier, or free text is collected.
 | `source` (where a product was opened from) | `catalog`, `search`, `saved` |
 | `surface` (where a save/unsave happened) | `catalog_card`, `search_card`, `details`, `saved_list` |
 | `error_type` | `offline`, `timeout`, `not_found`, `rate_limited`, `server`, `decoding`, `unknown` |
-| `trigger` (why a first page loaded) | `initial`, `retry`, `sort_change`, `typing` (search only) |
+| `trigger` (why a first page loaded) | `initial`, `retry` (full-screen Retry), `reload` (the empty state's Reload, D-38), `sort_change`, `typing` (search only) |
 | `availability` | `in_stock`, `low_stock`, `out_of_stock` |
 
 ## 3. Events
@@ -93,49 +93,50 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 ### Catalog
 
 #### `catalog_viewed`
-- **Status:** Planned (S2)
+- **Status:** Active
 - **Meaning:** the catalog became the screen the user is looking at.
-- **Trigger:** Catalog tab first displayed in a session, and each switch to it from another tab. **Not** re-sent when popping back from details.
+- **Trigger:** the Catalog tab's first display after launch, and each switch to it from another tab (driven by the tab selection, D-39). **Not** re-sent when popping back from details or when the app returns from the background, even if that starts a new session.
 - **Properties:** `sort`; `list_context`.
 - **Screen:** Catalog. **Dedup:** once per tab visibility. **Privacy:** none.
 
 #### `catalog_load_completed`
-- **Status:** Planned (S2)
+- **Status:** Active
 - **Meaning:** the first page of the browse list was received and shown.
 - **Trigger:** page-1 browse request succeeds and is applied (not stale).
-- **Properties:** `trigger` (`initial` | `retry` | `sort_change`); `sort`; `result_count` Int; `total_count` Int; `duration_ms` Int.
+- **Properties:** `trigger` (`initial` | `retry` | `reload` | `sort_change`); `sort`; `result_count` Int; `total_count` Int; `duration_ms` Int (request start to response, monotonic clock, D-40).
+- **Note:** a pull-to-refresh sends `catalog_refreshed` instead (D-41).
 - **Screen:** Catalog. **Dedup:** once per applied response. **Privacy:** none.
 
 #### `catalog_load_failed`
-- **Status:** Planned (S2)
+- **Status:** Active
 - **Meaning:** the first page of the browse list could not be loaded.
-- **Trigger:** page-1 browse request fails (cancellations excluded).
-- **Properties:** `trigger`; `sort`; `error_type`; `http_status` Int (optional); `has_visible_content` Bool.
+- **Trigger:** page-1 browse request fails (cancellations excluded). A failed pull-to-refresh sends `catalog_refreshed` with `result: failure` instead (D-41).
+- **Properties:** `trigger`; `sort`; `error_type`; `http_status` Int (only for HTTP failures: 404, 429, other non-2xx); `has_visible_content` Bool.
 - **Screen:** Catalog. **Dedup:** once per failed request. **Privacy:** none.
 
 #### `catalog_refreshed`
-- **Status:** Planned (S2)
+- **Status:** Active
 - **Meaning:** a user-initiated pull-to-refresh finished.
-- **Trigger:** refresh completes (success or failure).
+- **Trigger:** refresh completes (success or failure); a cancelled refresh sends nothing. A refresh cancels an in-flight page request; load-more and the page footer's Retry wait until it ends (D-41).
 - **Properties:** `list_context`; `result` `success` | `failure`; `error_type` (failure only); `duration_ms` Int.
 - **Screen:** Catalog. **Dedup:** once per pull. **Privacy:** none.
 
 #### `catalog_page_requested`
-- **Status:** Planned (S2)
+- **Status:** Active
 - **Meaning:** the user scrolled far enough (or tapped the footer Retry) to need another page.
 - **Trigger:** a request for page ≥ 2 starts.
 - **Properties:** `list_context`; `page_index` Int (1-based, so the first value sent is 2); `sort`; `is_retry` Bool.
 - **Screen:** Catalog. **Dedup:** once per request; never while another page request is in flight. **Privacy:** none.
 
 #### `catalog_page_loaded`
-- **Status:** Planned (S2)
+- **Status:** Active
 - **Meaning:** an additional page was appended.
 - **Trigger:** a page ≥ 2 request succeeds and is applied.
 - **Properties:** `list_context`; `page_index` Int; `item_count` Int (new unique items); `has_more` Bool; `duration_ms` Int.
 - **Screen:** Catalog. **Dedup:** once per applied response. **Privacy:** none.
 
 #### `catalog_page_failed`
-- **Status:** Planned (S2)
+- **Status:** Active
 - **Meaning:** an additional page could not be loaded.
 - **Trigger:** a page ≥ 2 request fails (cancellations excluded).
 - **Properties:** `list_context`; `page_index` Int; `error_type`.
@@ -251,7 +252,7 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 ### Reliability
 
 #### `retry_requested`
-- **Status:** Planned (S2)
+- **Status:** Active
 - **Meaning:** the user asked to try again after a failure.
 - **Trigger:** tap on any Retry control.
 - **Properties:** `failed_surface` `catalog` | `catalog_page` | `search` | `details`; `error_type` (of the failure being retried).

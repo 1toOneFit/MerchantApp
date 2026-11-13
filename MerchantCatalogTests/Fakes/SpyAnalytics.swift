@@ -13,4 +13,10 @@ final class SpyAnalytics: AnalyticsTracking {
     func setUserProperty(_ property: UserProperty) {
         userProperties.append(property)
     }
+
+    /// Forgets everything recorded so far, so a test can assert only what follows its setup.
+    func reset() {
+        events = []
+        userProperties = []
+    }
 }

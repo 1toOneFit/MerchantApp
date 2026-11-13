@@ -1,8 +1,8 @@
 #if DEBUG
 import SwiftUI
 
-/// DEBUG-only Diagnostics sheet: installation and session ids, user properties, the analytics
-/// event log, and recent log entries. `AppTabView` presents it inside a navigation stack.
+/// DEBUG-only Diagnostics sheet: installation and session ids, the slow-network toggle, user
+/// properties, the analytics event log, and recent log entries. `AppTabView` presents it inside a navigation stack.
 struct DiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: DiagnosticsViewModel
@@ -14,6 +14,7 @@ struct DiagnosticsView: View {
     var body: some View {
         List {
             installationSection
+            networkSection
             userPropertiesSection
             eventsSection
             logsSection
@@ -36,6 +37,16 @@ struct DiagnosticsView: View {
             Button("Reset installation ID", role: .destructive) {
                 viewModel.resetInstallationID()
             }
+        }
+    }
+
+    private var networkSection: some View {
+        Section {
+            Toggle("Slow network", isOn: $viewModel.isSlowNetworkEnabled)
+        } header: {
+            Text("Network")
+        } footer: {
+            Text("Adds a 2-second server delay to every API request, to check loading states. Images aren't affected. Stays on after relaunch.")
         }
     }
 

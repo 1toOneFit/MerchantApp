@@ -34,6 +34,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
     DI/            ServiceContainerType.swift, ServiceContainer.swift
     Navigation/    Router.swift, Route.swift
     Logging/       Log.swift (Logger categories), LogStoreReader.swift (OSLogStore reader [DEBUG])
+    Time/          Clock+Stopwatch.swift (elapsed time on an injected clock), Duration+Milliseconds.swift
     Analytics/     AnalyticsTracking.swift (protocol), AnalyticsProvider.swift (protocol),
                    AnalyticsEvent.swift, AnalyticsValue.swift, AnalyticsEnvelope.swift,
                    AnalyticsService.swift (AnalyticsTracking impl, fans out),
@@ -44,11 +45,11 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
     Persistence/   JSONFileStore.swift (atomic write, corrupt-file quarantine)
   Networking/
     APIClientType.swift (protocol), URLSessionAPIClient.swift, TargetType.swift, HTTPMethod.swift,
-    APIConfig.swift, AppError.swift, HTTPStatusCode.swift, NetworkLogger.swift
+    APIConfig.swift, AppError.swift, RequestDelay.swift (DEBUG slow-network delay, Mutex), NetworkLogger.swift
   Shared/
     Products/
-      Domain/      Product, ProductPage, ProductQuery, ProductSort, ProductRepository (protocol),
-                   ProductInsights (facts builder)
+      Domain/      Product (+ ProductAvailability), ProductPage, ProductSort, ProductRepository (protocol),
+                   ProductQuery [S3], ProductInsights (facts builder) [S4]
       Data/        ProductsTarget, ProductDTO (+ mapping), LiveProductRepository
     Saved/
       Domain/      SavedProduct (snapshot), SavedProductsRepository (protocol)
@@ -57,24 +58,25 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
   Features/
     Catalog/
       Domain/      CatalogListState (pure pagination/de-dup state), SearchDebouncer
-      Presentation/ CatalogView, CatalogViewModel, CatalogConfigurator, ProductCardView, SortMenu
+      Presentation/ CatalogView, CatalogViewModel, CatalogPhase (+ CatalogFooter), CatalogConfigurator,
+                    ProductCardView, ProductCardModel, SortMenu [S3]
     ProductDetail/
       Presentation/ ProductDetailView, ProductDetailViewModel, ProductDetailConfigurator,
                     GalleryView, AtAGlanceView
     Saved/
       Presentation/ SavedView, SavedViewModel, SavedConfigurator
     Diagnostics/                        # compiled in DEBUG only
+      Domain/      SlowNetworkSetting (persisted toggle → RequestDelay)
       Presentation/ DiagnosticsView, DiagnosticsViewModel, DiagnosticsConfigurator (events, user
                     properties, experiment override [S6], slow network [S2], logs, reset installation ID)
   DesignSystem/
     Theme/         Spacing, Typography (system styles only)
-    Components/    ProductImageView (visibility-gated AsyncImage), StateViews (Loading/Empty/Error),
-                   ErrorBanner, SaveButton
+    Components/    ProductImageView (visibility-gated AsyncImage), ErrorBanner, SaveButton [S5]
   Assets.xcassets                       # AppIcon (drawn by scripts/make-app-icon.swift), AccentColor
 MerchantCatalogTests/
-  Fakes/           FakeAPIClient, StubURLProtocol, FakeProductRepository, TestClock,
-                   InMemorySavedRepository, SpyAnalytics, SpyAnalyticsProvider, FakeLogReader, …
-  Support/         RepositoryFiles (source scans), IsolatedDefaults, TestNow, TestUUIDs
+  Fakes/           FakeAPIClient, StubURLProtocol, FakeProductRepository, ProductFixtures,
+                   InMemorySavedRepository [S5], SpyAnalytics, SpyAnalyticsProvider, FakeLogReader, …
+  Support/         RepositoryFiles (source scans), IsolatedDefaults, TestNow, TestUUIDs, TestClock, ProductJSON
   …Tests.swift     mirror the app folders
 ```
 
@@ -83,6 +85,8 @@ MerchantCatalogTests/
 **What exists (S0):** the tree above is the target layout. S0 created `App/` (`MerchantCatalogApp`, `AppContext`, `AppTab`, `AppTabView`), `Core/DI`, `Core/Navigation`, `Core/Logging` and `Assets.xcassets`, the repo-level `scripts/make-app-icon.swift` (not part of the app target), plus tests in `MerchantCatalogTests/App` and `MerchantCatalogTests/Core/{DI,Navigation}`. Every other folder is created together with its first file: git doesn't track empty folders, and a placeholder file inside a file-system-synchronized folder would be copied into the app bundle.
 
 **What exists (S1):** `Core/Analytics` (everything listed above), `Core/Logging/LogStoreReader.swift`, `Features/Diagnostics/Presentation`, `App/AppPhase+ScenePhase.swift`, plus tests in `MerchantCatalogTests/Core/Analytics`, `Features/Diagnostics`, `Fakes` and `Support`.
+
+**What exists (S2):** `Networking/` (all files listed), `Core/Time`, `Shared/Products/{Domain,Data}` (without `ProductQuery`/`ProductInsights`), `Features/Catalog/{Domain,Presentation}` (without `SortMenu`/`SearchDebouncer`), `DesignSystem/Components/{ProductImageView, ErrorBanner}`, `Features/Diagnostics/Domain/SlowNetworkSetting`, plus tests in `MerchantCatalogTests/{Networking, Shared/Products, Features/Catalog, Core/Time}`. There is no `HTTPStatusCode` type: the status mapping is a small switch in `URLSessionAPIClient`. `DesignSystem/Theme` isn't needed yet (system styles only).
 
 ## 3. Layer rules
 
@@ -113,7 +117,9 @@ Rules: services are registered in the container **as their protocol type**; view
 - **Structured first.** Work starts from SwiftUI's `.task`/`.refreshable` or from async view-model intents, so cancellation follows the view lifecycle automatically. Unstructured `Task { }` is used only where a synchronous UI callback must start async work (e.g. a button tap or text change); the view model keeps the handle and cancels it on supersession or teardown.
 - **Explicit isolation.** `@MainActor` on UI-facing types only: view models, routers, `SavedProductsStore`, `ServiceContainer`, `ExposureTracker`, and the analytics stack (`AnalyticsTracking`, `AnalyticsProvider`, `AnalyticsService`, `SessionTracker`, `InstallationIDProvider`, `AppLifecycleTracker`; D-33). Analytics is main-actor and synchronous because every caller is main-actor UI code: event order and sequence numbers stay deterministic, with no unstructured tasks. A future vendor provider hands work to its SDK's own queue. The DEBUG `OSLogStoreReader` reads the log store in a `@concurrent` function, off the main actor. Domain models and DTOs are `Sendable` value types. `URLSessionAPIClient` and repositories are `Sendable` (immutable configuration). File writes go through an **actor**. No `@unchecked Sendable` or `nonisolated(unsafe)` without a justifying comment.
 - **Cancellation propagates.** `URLSession`'s async API cancels the network task when the Swift task is cancelled. `CancellationError` / `URLError.cancelled` means "no state change", never an error UI.
-- **Debounce** uses an injected `any Clock<Duration>`: `ContinuousClock` in the app and a hand-written `TestClock` in tests, so timing tests are deterministic.
+- **Clock:** `CatalogViewModel` takes an injected `any Clock<Duration>` (`ContinuousClock` in the app, the hand-written `TestClock` in tests). Load durations (`duration_ms`) come from it (D-40), measured with `clock.stopwatch()`; S3's debounce will sleep on it, so timing tests stay deterministic. Sessions keep the wall clock (D-35).
+- **Networking off the main actor:** `URLSessionAPIClient.request` and `LiveProductRepository.products` are `@concurrent`, so request building, decoding and DTO mapping never run on the main actor; the view model awaits the `Sendable` `ProductPage`. The DEBUG slow-network delay is a `RequestDelay` (`Mutex`), written on the main actor and read by the client.
+- **View-model tasks:** page 1 loads from the view's `.task` (cancelled with the view; the next appearance loads again). Retry, Reload and load-more start from synchronous callbacks, so the view model keeps their handles (`firstPageTask`, `pageTask`) and a refresh cancels `pageTask`. Each task runs the request through a static helper that doesn't reference the view model and applies the result through `[weak self]`, so a request never keeps the view model alive; its `isolated deinit` cancels both tasks, so no request or analytics event outlives the screen.
 - **Stale-response protection:** every list request carries a monotonically increasing generation number. A result whose generation isn't current is dropped even if cancellation lost the race.
 - Validated with an Xcode build and the test suite after every concurrency change.
 
@@ -132,8 +138,8 @@ protocol ServiceContainerType: AnyObject {
 
 - `AppContext.configure(defaults:appInfo:)` runs once at launch and registers, by protocol: `APIClientType`, `ProductRepository`, `SavedProductsRepository`, `AnalyticsTracking`, `ExperimentService`, plus `SavedProductsStore`, `SessionTracker`, `InstallationIDProvider`, and in DEBUG `InMemoryAnalyticsProvider` and `LogReading`. **S1 state:** the analytics services are registered; it also sets the launch user properties and exposes `lifecycle` (`AppLifecycleTracker`), which `MerchantCatalogApp` feeds with `scenePhase` changes (`onChange(of:initial: true)`, app-wide phase). Tests pass an isolated `UserDefaults` suite. Each call returns a new `AppContext` with a new container; the app keeps the one built at launch. There is no global singleton, and every test gets an isolated container.
 - `ServiceContainer` keys services by `ObjectIdentifier(T.self)`, the exact registered type. `String(describing:)` keys collide for same-named types in different scopes; an S0 test showed this.
-- Each scene has a **Configurator** (`CatalogConfigurator.make(router:)`) that resolves services and builds the view model with **init injection**. View models never touch the container, so unit tests construct them directly with fakes.
-- **Registration guard** (developer's choice, 2026-11-13): each Configurator resolves its services in `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`, which returns `nil` if anything is missing, and its `make(...)` uses the same function. `AppContextRegistrationTests` calls every Configurator's `resolveDependencies(from:)` against `AppContext.configure().container`, so a missing registration fails a test instead of crashing in `forceResolve`. The first real case is `DiagnosticsConfigurator` (S1, DEBUG).
+- Each scene has a **Configurator** that resolves services and builds the view model with **init injection**. View models never touch the container, so unit tests construct them directly with fakes. `make(...)` returns the screen, which owns its view model in `@State` (`CatalogConfigurator.make(from:isTabSelected:)`, `DiagnosticsConfigurator.make(from:)`). `AppTabView` owns only the tab selection, the routers and the sheet flag, never a feature's view model; it passes the Catalog screen `isTabSelected` for `catalog_viewed` (D-39). Its body re-runs the Configurator on each update; `@State` keeps the first view model, and the extra ones are discarded unused (view-model initializers have no side effects).
+- **Registration guard** (developer's choice, 2026-11-13): each Configurator resolves its services in `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`, which returns `nil` if anything is missing, and its `make(...)` uses the same function. `AppContextRegistrationTests` calls every Configurator's `resolveDependencies(from:)` against `AppContext.configure().container`, so a missing registration fails a test instead of crashing in `forceResolve`. Cases: `DiagnosticsConfigurator` (S1, DEBUG) and `CatalogConfigurator` (S2). **S2 state:** `AppContext` also registers `URLSessionAPIClient` as `any APIClientType`, `LiveProductRepository` as `any ProductRepository`, and in DEBUG `SlowNetworkSetting`, which shares the client's `RequestDelay`.
 
 ## 7. Navigation
 
@@ -163,13 +169,15 @@ Each list screen uses an explicit state value rather than loose booleans:
 ```swift
 enum CatalogPhase: Equatable {
     case initialLoading
-    case content(isLoadingMore: Bool, isRefreshing: Bool, pageError: AppError?)
+    case content(footer: CatalogFooter, refreshError: AppError?)
     case empty
     case failed(AppError)
 }
+
+enum CatalogFooter: Equatable { case idle, loading, failed(AppError), end }
 ```
 
-`CatalogListState` (Domain) is a pure struct owning the items, the `id` set for de-duplication, `total`, the next `skip`, and `canLoadMore`. The view model maps it plus in-flight flags to `CatalogPhase`. Browse and search each keep their own `CatalogListState` in memory for the current screen's lifetime, which is how clearing a search restores the browse list instantly. This is screen state, not a cache: it's never persisted or shared.
+`CatalogListState` (Domain) is a pure struct owning the items, the `id` set for de-duplication, `total`, the next `skip` (the raw count received, so dropped duplicates don't shift it), and `canLoadMore` (false after an empty page, so an inconsistent response can't loop). The view model maps it plus its first-page status, page-load status and refresh error to `CatalogPhase`. The system refresh control shows a pull-to-refresh, so "refreshing" isn't part of the phase. Browse and search each keep their own `CatalogListState` in memory for the current screen's lifetime, which is how clearing a search restores the browse list instantly. This is screen state, not a cache: it's never persisted or shared.
 
 ## 9. Persistence
 
@@ -196,6 +204,8 @@ enum CatalogPhase: Equatable {
 Analytics events are logged at debug level by `LoggingAnalyticsProvider` (`event <name> #<sequence> session <id> {properties}`; user properties as `old → new`), visible in Console.app with debug messages included.
 
 There is no `cache` category (no caching) and no `image` category: `AsyncImage` exposes no load lifecycle hooks, so image start and cancel are verified manually ([Networking.md § 4](Networking.md#4-image-loading)).
+
+`NetworkLogger` writes one line when a request starts (`[<id>] GET <url>`) and one when it ends (`[<id>] 200 in 312 ms, 48213 bytes`, an error, or `cancelled after … ms`). The `q` value is replaced by `<private>` before logging, so the URL itself is logged as public. Errors are logged only as a summary (`URLError -1009`, `DecodingError.typeMismatch at products.0.price`, or a type name), never as their description, which can contain the full request URL. `CatalogViewModel` logs first-page latency to `performance` (info).
 
 Rules: search terms and product titles are interpolated with `privacy: .private` (redacted outside a debugger); status codes, ids and durations are `.public`. No tokens or full payloads are logged. `debug` messages aren't persisted by the system by default, which keeps production noise low. The DEBUG Diagnostics panel reads `OSLogStore(scope: .currentProcessIdentifier)` to show the app subsystem's entries from the last hour (newest 200). Expected, not verified by a test: debug-level entries are normally not kept, so `analytics` and `navigation` lines may be missing there; the Diagnostics event log (from `InMemoryAnalyticsProvider`) and Console.app show them.
 

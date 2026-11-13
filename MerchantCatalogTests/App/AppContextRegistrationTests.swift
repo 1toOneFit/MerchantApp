@@ -45,9 +45,31 @@ struct AppContextRegistrationTests {
         #expect(container.resolve() as SessionTracker? != nil)
     }
 
+    @Test func networkServicesAreRegistered() {
+        let container = configure().container
+
+        #expect(container.resolve() as (any APIClientType)? != nil)
+        #expect(container.resolve() as (any ProductRepository)? != nil)
+    }
+
+    @Test func catalogDependenciesResolve() {
+        #expect(CatalogConfigurator.resolveDependencies(from: configure().container) != nil)
+    }
+
     #if DEBUG
     @Test func diagnosticsDependenciesResolve() {
         #expect(DiagnosticsConfigurator.resolveDependencies(from: configure().container) != nil)
+    }
+
+    /// The toggle and the registered client share one `RequestDelay` (D-42).
+    @Test func slowNetworkSettingReachesTheAPIClient() throws {
+        let container = configure().container
+        let setting = try #require(container.resolve() as SlowNetworkSetting?)
+        let client = try #require(container.resolve() as (any APIClientType)? as? URLSessionAPIClient)
+
+        setting.isEnabled = true
+
+        #expect(client.delay.value == SlowNetworkSetting.delay)
     }
 
     @Test func launchUserPropertiesReachTheEventLog() throws {

@@ -7,7 +7,7 @@ A running, factual record of how AI tools were used and where the developer acce
 | Tool | Used for |
 |---|---|
 | ChatGPT | Drafting the initial master specification with the developer ([MasterSpecification.md](MasterSpecification.md)) |
-| Claude Code (with superpowers skills: brainstorming, writing-plans, test-driven-development, verification-before-completion; Swift skills: swift-concurrency, swift-testing, swiftui-patterns, swift-architecture) | Requirement analysis, API verification, planning docs, implementation, tests |
+| Claude Code (with superpowers skills: brainstorming, writing-plans, test-driven-development, verification-before-completion; Swift skills: swift-concurrency, swift-testing, swiftui-patterns, swift-architecture, ios-networking) | Requirement analysis, API verification, planning docs, implementation, tests |
 | Codex | Independent code review of each stage, run manually by the developer |
 
 ## Log
@@ -32,3 +32,7 @@ A running, factual record of how AI tools were used and where the developer acce
 | 2026-11-13 | S0 | The developer considered reusing the icon of their previous app; Claude recommended against it (another product's brand) and drew a neutral icon with a dependency-free Core Graphics script. | Accepted — generated neutral icon. | Keeps the app's identity neutral. |
 | 2026-11-13 | S0 | Claude keyed `ServiceContainer` by `ObjectIdentifier` instead of the previous app's type-name string, after a test showed same-named types colliding. | Accepted. | Same API, no collisions. |
 | 2026-11-13 | S1 | Claude recommended a `@MainActor`, synchronous analytics stack instead of a lock-guarded `Sendable` service, and a DEBUG reset that simulates a reinstall (new id, new `first_seen_date`, a new first session). | Accepted both (D-33, D-34). | All analytics callers are main-actor UI code; the reset should behave like the reinstall it stands for. |
+| 2026-11-13 | S2 | Claude recommended mapping only the fields S2 needs (D-37), a separate `reload` trigger for the empty state's Reload instead of reusing `retry` (D-38), and `catalog_viewed` on tab visibility only, not on returning from the background (D-39). | Accepted all three. | Smaller decode surface; retry outcomes stay paired with `retry_requested`; one meaning per event. |
+| 2026-11-13 | S2 | Claude moved the catalog view model into `AppTabView`, which reported tab visibility from its root `onChange`, instead of the planned `isTabSelected` flag, unsure whether SwiftUI updates a hidden tab's view. | **Rejected** — `CatalogView` owns its view model; `AppTabView` passes only `isTabSelected`. | The root view must not own a feature's view model; the hidden-tab concern was unverified. |
+| 2026-11-13 | S2 | Asked whether to switch to one `NavigationStack` for the whole app (the developer's previous app), Claude compared both and recommended keeping per-tab stacks. | Accepted — D-8 kept. | Tab bar stays visible on push; each tab keeps its own back stack. |
+| 2026-11-13 | S2 | Codex (run by the developer) found four issues in Claude's S2 code: page Retry during a refresh, error descriptions with URLs in the network log, image URLs without a host, and view-model tasks that outlived the screen. | Accepted all four; Claude fixed each test-first. | Each was a real defect confirmed by a failing test. |

@@ -4,8 +4,11 @@ import SwiftUI
 /// visible on push and each tab keeps its own back stack.
 ///
 /// Navigation rule (enforced by `NavigationRuleTests`): this is the only file that uses
-/// `NavigationStack` or `navigationDestination`. Destinations are built here; from S2 on, tab roots
-/// and destinations come from scene Configurators.
+/// `NavigationStack` or `navigationDestination`. Destinations are built here; tab roots and
+/// destinations come from scene Configurators.
+///
+/// It owns only the tab selection, the routers and the Diagnostics sheet flag; each tab's screen owns
+/// its own view model. The Catalog screen gets `isTabSelected` for `catalog_viewed` (D-39).
 ///
 /// DEBUG builds add a Diagnostics toolbar button on the Catalog tab (ProductSpecification § 3).
 struct AppTabView: View {
@@ -22,12 +25,7 @@ struct AppTabView: View {
         TabView(selection: $selection) {
             Tab("Catalog", systemImage: "square.grid.2x2", value: AppTab.catalog) {
                 NavigationStack(path: $catalogRouter.path) {
-                    ContentUnavailableView(
-                        "Catalog",
-                        systemImage: "square.grid.2x2",
-                        description: Text("Products will appear here.")
-                    )
-                    .navigationTitle("Catalog")
+                    CatalogConfigurator.make(from: container, isTabSelected: selection == .catalog)
                     #if DEBUG
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
