@@ -1,6 +1,6 @@
 # Analytics — Event Taxonomy and User Properties
 
-**Status:** Approved by the developer (2026-11-13). This file is the **single authoritative taxonomy**. Code and this file must match: `TaxonomyDocumentationTests` fails if an `AnalyticsEvent` case has no matching level-4 heading ``#### `event_name` `` here, or such a heading has no case in code. Each event has a `Status` line: **Planned (S<n>)** until the stage that implements it switches it to **Active** in the same commit as the code; the test compares only Active events with code.
+**Status:** Approved by the developer (2026-11-13). This file is the **single authoritative taxonomy**. Code and this file must match: `TaxonomyDocumentationTests` fails if an `AnalyticsEvent` case has no matching level-4 heading ``#### `event_name` `` here, or such a heading has no case in code. Each event has a `Status` line: during development it was **Planned (S<n>)** until the stage that implemented it switched it to **Active** in the same commit as the code. **As of release 1.0 (S7) the taxonomy is final: every event in § 3 is Active**, and candidates that were not implemented are recorded in § 4 (`sort_options_opened` as removed). The test also fails if an event is not Active or a removed event appears in code.
 
 ## 1. Principles
 
