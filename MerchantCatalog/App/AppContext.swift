@@ -42,6 +42,13 @@ final class AppContext {
         container.register(installation)
         container.register(sessions)
 
+        // One delay shared by the client (reads it per request) and, in DEBUG, the slow-network
+        // toggle (writes it).
+        let requestDelay = RequestDelay()
+        let client = URLSessionAPIClient(delay: requestDelay)
+        container.register(client as any APIClientType)
+        container.register(LiveProductRepository(client: client) as any ProductRepository)
+
         for property in UserProperty.launchProperties(app: appInfo, firstSeenDate: installation.firstSeenDate) {
             analytics.setUserProperty(property)
         }

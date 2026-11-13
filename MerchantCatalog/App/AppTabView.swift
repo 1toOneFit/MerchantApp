@@ -4,8 +4,11 @@ import SwiftUI
 /// visible on push and each tab keeps its own back stack.
 ///
 /// Navigation rule (enforced by `NavigationRuleTests`): this is the only file that uses
-/// `NavigationStack` or `navigationDestination`. Destinations are built here; from S2 on, tab roots
-/// and destinations come from scene Configurators.
+/// `NavigationStack` or `navigationDestination`. Destinations are built here; tab roots and
+/// destinations come from scene Configurators.
+///
+/// It owns the catalog's view model and tells it when the Catalog tab becomes visible: at launch
+/// and on each switch back, not when popping back from details (D-39).
 ///
 /// DEBUG builds add a Diagnostics toolbar button on the Catalog tab (ProductSpecification § 3).
 struct AppTabView: View {
@@ -14,20 +17,21 @@ struct AppTabView: View {
     @State private var selection: AppTab = .catalog
     @State private var catalogRouter = Router()
     @State private var savedRouter = Router()
+    @State private var catalogViewModel: CatalogViewModel
     #if DEBUG
     @State private var isShowingDiagnostics = false
     #endif
+
+    init(container: any ServiceContainerType) {
+        self.container = container
+        _catalogViewModel = State(initialValue: CatalogConfigurator.makeViewModel(from: container))
+    }
 
     var body: some View {
         TabView(selection: $selection) {
             Tab("Catalog", systemImage: "square.grid.2x2", value: AppTab.catalog) {
                 NavigationStack(path: $catalogRouter.path) {
-                    ContentUnavailableView(
-                        "Catalog",
-                        systemImage: "square.grid.2x2",
-                        description: Text("Products will appear here.")
-                    )
-                    .navigationTitle("Catalog")
+                    CatalogView(viewModel: catalogViewModel)
                     #if DEBUG
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
@@ -57,8 +61,11 @@ struct AppTabView: View {
                 }
             }
         }
-        .onChange(of: selection) { _, tab in
+        .onChange(of: selection, initial: true) { _, tab in
             Log.navigation.debug("tab \(String(describing: tab), privacy: .public)")
+            if tab == .catalog {
+                catalogViewModel.catalogBecameVisible()
+            }
         }
         #if DEBUG
         .sheet(isPresented: $isShowingDiagnostics) {

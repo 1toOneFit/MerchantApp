@@ -45,6 +45,17 @@ struct AppContextRegistrationTests {
         #expect(container.resolve() as SessionTracker? != nil)
     }
 
+    @Test func networkServicesAreRegistered() {
+        let container = configure().container
+
+        #expect(container.resolve() as (any APIClientType)? != nil)
+        #expect(container.resolve() as (any ProductRepository)? != nil)
+    }
+
+    @Test func catalogDependenciesResolve() {
+        #expect(CatalogConfigurator.resolveDependencies(from: configure().container) != nil)
+    }
+
     #if DEBUG
     @Test func diagnosticsDependenciesResolve() {
         #expect(DiagnosticsConfigurator.resolveDependencies(from: configure().container) != nil)
