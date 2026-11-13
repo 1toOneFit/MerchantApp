@@ -44,9 +44,15 @@ struct ProductDTO: Decodable, Sendable {
         }
     }
 
-    /// An absolute `http(s)` URL, or `nil`.
+    /// An absolute `http(s)` URL with a host, or `nil` (`https:foo`, `https://` are rejected).
     private static func webURL(_ string: String) -> URL? {
-        guard let url = URL(string: string), let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) else {
+        guard
+            let url = URL(string: string),
+            let scheme = url.scheme?.lowercased(),
+            ["http", "https"].contains(scheme),
+            let host = url.host(),
+            !host.isEmpty
+        else {
             return nil
         }
         return url

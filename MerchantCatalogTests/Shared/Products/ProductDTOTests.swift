@@ -64,6 +64,18 @@ struct ProductDTOTests {
         #expect(product.thumbnailURL == nil)
     }
 
+    /// Review finding 3: an `http(s)` scheme alone isn't enough; the URL needs a host.
+    @Test(arguments: ["https:foo", "http:/x", "https://", "https:///products/1.webp", "ftp://cdn.dummyjson.com/1.webp"])
+    func urlsWithoutAWebHostAreDropped(value: String) throws {
+        let product = try Self.product {
+            $0["images"] = [value, "https://cdn.dummyjson.com/products/1/1.webp"]
+            $0["thumbnail"] = value
+        }
+
+        #expect(product.imageURLs.map(\.absoluteString) == ["https://cdn.dummyjson.com/products/1/1.webp"])
+        #expect(product.thumbnailURL == nil)
+    }
+
     @Test func missingImagesAndThumbnail() throws {
         let product = try Self.product {
             $0["images"] = nil
