@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S7 — Release readiness (`IN_PROGRESS`) |
+| Current stage | S7 — Release readiness (`READY_FOR_REVIEW`) |
 | Current branch | `feature/release-readiness` (from `develop` at `efc5c89`) |
 | Last completed stage | S6 — Card rating experiment (merged into `develop` with `--no-ff` at `efc5c89`, 2026-11-13) |
 | Next authorized stage | S7 — Release readiness (authorized by the developer, 2026-11-13) |
-| Pending human action | — |
+| Pending human action | Independent Codex review of S7 and the manual Simulator smoke checklist (S7 review log); after approval, merge into `develop`, then `develop` → `main` |
 | Open review findings | — |
 | Blockers | — |
 
@@ -28,7 +28,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | COMPLETED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13); merged into `develop` with `--no-ff` at `efc5c89` |
-| S7 | Release readiness | `feature/release-readiness` | IN_PROGRESS | — | — |
+| S7 | Release readiness | `feature/release-readiness` | READY_FOR_REVIEW | `d337dce` + docs commits | Awaiting the developer's Codex review |
 
 The stages run strictly in order, S0 → S7. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
 
@@ -731,3 +731,46 @@ The developer shared two remaining findings and asked for both fixes on the bran
 #### S6 merge (recorded by the S7 conversation, 2026-11-13)
 
 - The developer merged `feature/card-rating-experiment` into `develop` with `--no-ff`: merge commit `efc5c89` (parents `dc04338` and `a4f670b`; `git branch --merged develop` lists the branch). S6 → `COMPLETED`. S7 (authorized 2026-11-13, "merged, start S7") starts from `develop` at `efc5c89` on `feature/release-readiness`.
+
+### S7 — Release readiness · READY_FOR_REVIEW (2026-11-13)
+
+- **Branch:** `feature/release-readiness` (from `develop` at `efc5c89`). **Head:** the `docs: record S7 review gate` commit on top of `838283a`.
+- **Scope confirmed by the developer** (2026-11-13): agent recommendations accepted for one grid column at every accessibility size (D-75), card-label tests over all combinations plus the 44 pt fixes with dark mode audited only, a README "Release status" table, and closing the four carried-over open questions as built (D-77). Agent decision D-76 (how the 44 pt targets are sized). Task plan: [plans/S7-release-readiness.md](plans/S7-release-readiness.md) (with deviations).
+- **Commits:** `5ebbeae` S6 completed / S7 in progress · `32e367c` task plan · `a1c0c94` card label combinations · `8fb1119` one grid column at accessibility sizes (+ D-75) · `f8f523f` 44 pt buttons (+ D-76) · `d337dce` final taxonomy test + Analytics.md header · `838283a` README, Architecture, ProductSpecification § 4.5, AILog, D-77 · review-gate docs.
+- **Changed files:**
+  - App: new `Features/Catalog/Presentation/CatalogLayout.swift`; changed `Features/Catalog/Presentation/CatalogView.swift` (layout moved out, Dynamic Type columns, large buttons), `Features/Saved/Presentation/SavedView.swift`, `Features/ProductDetail/Presentation/ProductDetailView.swift`, `DesignSystem/Components/ErrorBanner.swift`.
+  - Tests: new `Features/Catalog/CatalogLayoutTests` (3); `ProductCardAccessibilityTests` (3: one parameterized over 4 combinations, a locale test, the action name); `TaxonomyDocumentationTests` 3 → 5.
+  - Docs: README (final, Release status, Documentation Index with `docs/plans/`), Architecture (§ 2 tree as built, § 7 route, § 11), ProductSpecification § 4.5 as built, Analytics.md header, AILog (S6 and S7 entries), this file, the task plan.
+- **Build settings** (`xcodebuild -showBuildSettings`, 2026-11-13): unchanged (`SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`; no default actor isolation). No packages.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator): succeeded; result bundle **0 warnings**, 0 errors, 0 analyzer warnings. `xcodebuild … -configuration Release build`: succeeded; 0 warnings, 0 errors. The test action's log has no compiler warnings (only the `appintentsmetadataprocessor` "Metadata extraction skipped" tool line). `git diff --check develop..HEAD` clean.
+- **Tests:** `xcodebuild … test`: **361 passed, 0 failed, 0 skipped** in 57 suites (result bundle summary; +5 since S6). New suite `CatalogLayoutTests` 3; `TaxonomyDocumentationTests` 3 → 5; `ProductCardAccessibilityTests` stays 3 (two single cases became one parameterized test, plus a locale test). Counts are test functions.
+- **Red first / mutation checks:** `CatalogLayoutTests` failed on compilation first. The label and taxonomy tests lock existing behavior, so they passed at once and were mutation-checked (details in the task plan's deviations). The 44 pt changes are view code without unit tests.
+- **Release criteria** (MasterSpecification § 1): assessed in README § Release status. Not met: the current stable Xcode (D-1). Pending the developer: the Simulator smoke checklist below and the `AsyncImage` cancellation check (Networking.md § 4).
+- **Manual Simulator checks for the developer — 1.0 smoke checklist** (the agent did not run the app). Events and user properties are in Diagnostics (newest first).
+  1. **Launch and browse (AC-C1):** skeleton, then a 2-column grid of 20 products; `session_started`, `catalog_viewed`, `catalog_load_completed`, one `experiment_exposed`.
+  2. **Paginate (AC-C2):** scroll to the end: spinner footer per page, 194 products, no duplicates, "You've reached the end", no further `catalog_page_requested`.
+  3. **Refresh (AC-C5):** pull to refresh: the grid never blanks; `catalog_refreshed`. With the network off: the content stays and the dismissible banner shows; its close button takes taps across its whole 44 pt square.
+  4. **Offline launch (AC-C3):** Mac network off, launch: full-screen offline error with Retry; network on, Retry: the grid; `retry_requested` then `catalog_load_completed` (`trigger: retry`). Page failure (AC-C4): turn the network off after page 1, scroll: the footer error with Retry; network on, Retry appends the page.
+  5. **Search (AC-S1, S2, S5):** with DEBUG slow network on, type "phone" fast: one request in the `network` log; results replace the skeleton; a nonsense query shows "No results" with Clear search; Cancel returns to browse at the same scroll position (AC-S4).
+  6. **Sort (AC-S3):** each option in browse and in a search: skeleton, then page 1 in the new order from the top; scroll on: the order continues across pages; the label shows the sort.
+  7. **Details (AC-D1, D2, C6):** open products with 1 and several images, with and without brand: no spinner, no empty sections; go back: same scroll position, search and sort.
+  8. **Save / unsave (AC-D3, V1, V4):** save from a card's bookmark and from the details toolbar: icons, Saved list and badge update everywhere; swipe to remove in Saved updates the card.
+  9. **Relaunch (AC-V2):** stop and run again: the same saved items in the same order, badge and filled icons.
+  10. **Saved offline (AC-V3, D4):** network off: the Saved tab lists every row; opening one shows the snapshot plus "Couldn't refresh — showing saved info" and Retry; network on, Retry refreshes.
+  11. **Experiment overrides:** Diagnostics → Override Treatment, relaunch: "★ 4.9"-style ratings, `assignment_source: override`; Control, relaunch: no rating, same card height; Auto, relaunch: hashed variant.
+  12. **Diagnostics:** event log, user properties (`experiment_assignments`, `saved_products_count`), recent logs, slow-network toggle, reset installation ID (new `session_started`).
+  13. **VoiceOver:** a card is one element ("Title, $price[, rated n of 5], saved/not saved, button"); double-tap opens details; the rotor's actions offer "Save" / "Remove from Saved". Buttons on the empty, error and Saved empty states read their titles.
+  14. **Largest Dynamic Type (D-75):** Settings → Accessibility → Display & Text Size → Larger Text, largest size (AX5): the catalog and the skeleton show **one column**; titles wrap at two lines; prices and ratings stay readable; the sort menu, search field and buttons stay usable. At the largest non-AX size (xxxLarge) the grid keeps two columns. Check Saved rows and details too.
+  15. **44 pt targets (D-76):** with Accessibility Inspector (Xcode → Open Developer Tool), the Retry, Reload, Clear search, Browse catalog and details-banner Retry buttons are at least 44 pt tall; the card bookmark and the refresh banner's close button have a 44 × 44 pt frame.
+  16. **Dark mode:** switch the Simulator to dark (Features → Toggle Appearance): every screen (grid, skeleton, cards with ratings, bookmark circle, banners, details, Saved, Diagnostics) is legible with no fixed light backgrounds.
+  17. **Image cancellation** (Networking.md § 4, pending since S2): Network Link Conditioner "3G", fast scroll, a proxy or Instruments shows requests for cells that left the screen ending as cancelled. Record the result there.
+  18. **Release build:** Edit Scheme → Run → Release: the app runs without Diagnostics.
+  19. ⌘U in Xcode: 361 tests pass.
+- **Known limitations:**
+  - Rendering at each text size, hit areas, VoiceOver focus and dark mode are SwiftUI behavior checked manually (checks 13–16), not by unit tests (no snapshot tests).
+  - Saved rows keep their horizontal layout at accessibility sizes (out of S7 scope by the developer's choice).
+  - The behaviors behind the closed open questions stay as built (D-77): other `URLError` codes count as unknown, short sort labels, slug category names, "Price" on the snapshot row.
+  - `AsyncImage` cancellation is expected, not verified (check 17).
+  - Built with Xcode 26.0, not the current 27.2 (D-1).
+- **Open questions:** none.
+- **Findings and resolution:** awaiting the developer's Codex review.

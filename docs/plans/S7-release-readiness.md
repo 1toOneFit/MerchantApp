@@ -87,4 +87,8 @@ No unit test: views have no unit tests in this project and SwiftUI hit areas are
 
 ## Deviations found during implementation
 
-*(filled in as they happen)*
+- **Task 1:** the tests passed on the first run, as expected (the label exists since S5). Mutation-checked twice: a label that always says "not saved" failed the two saved cases; dropping `.locale(locale)` failed the locale test.
+- **Task 2:** red on compilation (`CatalogLayout` was private to `CatalogView.swift`). Mutation `size >= .accessibility2` failed the `.accessibility1` cases of both tests.
+- **Task 3:** as planned, plus the details banner's Retry lost its outer `.frame(minHeight: 44)`, which grew the layout but not the hit area (D-76). Verified only by build and the full test run; hit areas are a manual check.
+- **Task 4:** the new tests passed on the first run (expected). Mutation-checked by editing Analytics.md: `search_cleared` set to `Planned (S7)` failed `everyDocumentedEventIsActive` (and the existing Active/Planned tests); the removed row renamed to `search_failed` failed both expectations of `removedEventsStayOutOfCode`. The planned mutation of adding a `sort_options_opened` case in code wasn't used: a new enum case would first break the exhaustive switches, a compile error rather than this test's failure.
+- **Task 5:** the README's "Runs" row says the agent never ran the app and points to the manual checks, rather than claiming they were done: no manual-check results have been shared with the agent.
