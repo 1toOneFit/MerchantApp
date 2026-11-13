@@ -28,7 +28,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | COMPLETED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13); merged into `develop` with `--no-ff` at `efc5c89` |
-| S7 | Release readiness | `feature/release-readiness` | READY_FOR_REVIEW | `d337dce` + docs commits | Awaiting the developer's Codex review |
+| S7 | Release readiness | `feature/release-readiness` | READY_FOR_REVIEW | `3c09319` + docs commits | Awaiting the developer's Codex review (incl. the D-78 image-cancellation change) |
 
 The stages run strictly in order, S0 → S7. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
 
@@ -764,7 +764,7 @@ The developer shared two remaining findings and asked for both fixes on the bran
   14. **Largest Dynamic Type (D-75):** Settings → Accessibility → Display & Text Size → Larger Text, largest size (AX5): the catalog and the skeleton show **one column**; titles wrap at two lines; prices and ratings stay readable; the sort menu, search field and buttons stay usable. At the largest non-AX size (xxxLarge) the grid keeps two columns. Check Saved rows and details too.
   15. **44 pt targets (D-76):** with Accessibility Inspector (Xcode → Open Developer Tool), the Retry, Reload, Clear search, Browse catalog and details-banner Retry buttons are at least 44 pt tall; the card bookmark and the refresh banner's close button have a 44 × 44 pt frame.
   16. **Dark mode:** switch the Simulator to dark (Features → Toggle Appearance): every screen (grid, skeleton, cards with ratings, bookmark circle, banners, details, Saved, Diagnostics) is legible with no fixed light backgrounds.
-  17. **Image cancellation** (Networking.md § 4, pending since S2): Network Link Conditioner "3G", fast scroll, a proxy or Instruments shows requests for cells that left the screen ending as cancelled. Record the result there.
+  17. **Image cancellation** (Networking.md § 4; superseded by the D-78 change below, see its check 1).
   18. **Release build:** Edit Scheme → Run → Release: the app runs without Diagnostics.
   19. ⌘U in Xcode: 361 tests pass.
 - **Known limitations:**
@@ -775,3 +775,19 @@ The developer shared two remaining findings and asked for both fixes on the bran
   - Built with Xcode 26.0, not the current 27.2 (D-1).
 - **Open questions:** none.
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S7 developer change request — image cancellation (2026-11-13)
+
+The developer asked at the gate why image cancellation wasn't working and to implement it: when a cell disappears during fast scrolling while its image is still loading, the load must be cancelled. Assessment: there was no evidence either way. `AsyncImage` offers no API to cancel or observe its request and Apple doesn't document that removing it cancels the download, so the S2 design could only expect it (Networking.md § 4 had the check pending since S2); it also loaded through `URLSession.shared`. The developer accepted the agent's design (D-78; `.task(id:)` trigger and environment injection, over scroll visibility and passing the loader through models).
+
+- **Commits:** `fe0b79f` `ImageLoading` + `URLSessionImageLoader` (own session, no cache, `@concurrent`, `network` log; `URLSessionAPIClient`'s error mapping made internal to share it) · `3c09319` `ProductImageModel`, `ProductImageView` on `.task(id: url)`, `\.imageLoader` environment, registration in `AppContext`, injection in `MerchantCatalogApp` · `e655c6b` docs (Networking § 4, Architecture, ProductSpecification, CLAUDE.md, README, D-78, D-23 superseded, AILog).
+- **Tests first:** `URLSessionImageLoaderTests` (4, one parameterized over 5 failures) and `ProductImageModelTests` (8) failed on compilation first; `imageLoaderIsRegisteredByProtocolAndExposed` failed on compilation (`AppContext.imageLoader`). Mutation checks: the request moved into a detached task → `cancellationStopsTheRequest` hit its 1-minute time limit; removing the model's cancellation guards and the initial reset → the late-image, late-failure and new-URL tests failed; registering the loader without `as any ImageLoading` → the registration test failed. `StubURLProtocol` now records `stopLoading` (`waitForStop()`), which proves the `URLSession` load stopped. New fake: `FakeImageLoader` (queued answers: image, failure, until cancelled, held past cancellation).
+- **Re-verification** (2026-11-13): `xcodebuild … clean build` (Debug): succeeded, result bundle 0 warnings / 0 errors / 0 analyzer warnings. Release build: 0 warnings / 0 errors. `xcodebuild … test`: **374 passed, 0 failed, 0 skipped** in 59 suites (+13: `URLSessionImageLoaderTests` 4, `ProductImageModelTests` 8, `AppContextRegistrationTests` 15 → 16); the test log has no compiler warnings. `git diff --check` clean.
+- **Manual Simulator checks for the developer** (the agent did not run the app):
+  1. **Cancellation on fast scroll:** Console.app, filter subsystem `com.example.MerchantCatalog`, category `network`, Action → Include Debug Messages. Turn on macOS Network Link Conditioner "3G" (or "Very Bad Network"). Launch, then fling the catalog grid to the bottom: thumbnail requests (`[<id>] GET https://cdn.dummyjson.com/…/thumbnail.webp`) of cells that scrolled away end with `[<id>] cancelled after … ms`; thumbnails of cells still on screen end with `200 in … ms`. Scroll back: those thumbnails download again (no cache). Please record the date and result in Networking.md § 4.
+  2. **No stale image on reuse:** scroll fast up and down: a cell never shows another product's thumbnail, even briefly; placeholders fill in as images arrive.
+  3. **Gallery:** open a product with several images and swipe quickly through the pages: only the pages you stop on load; a page you swiped past mid-load logs `cancelled`.
+  4. **Saved tab and details from Saved:** thumbnails and the gallery still load; offline, rows show the placeholder icon (failure) and load when the network returns and the row reappears.
+  5. **Failure icon:** with the network off, scroll to new cells: the neutral photo icon; network on, scroll away and back: the image loads.
+- **Remaining limitation:** that SwiftUI cancels `.task` on disappear is Apple-documented behavior, not proven by a unit test; in a lazy grid "disappear" happens when the cell leaves the grid's render window, slightly past the visible edge.
+- Status stays `READY_FOR_REVIEW`, awaiting the developer's Codex review of S7 including this change.
