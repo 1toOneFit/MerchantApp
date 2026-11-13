@@ -465,4 +465,42 @@ struct CatalogViewModelTests {
 
         #expect(viewModel.phase == .empty)
     }
+
+    // MARK: - Teardown
+
+    /// Review finding 4: the view model's own tasks don't keep it alive, and releasing it cancels
+    /// them, so no request or event outlives the screen.
+    @Test func releasingTheViewModelCancelsAPageLoad() async {
+        var viewModel: CatalogViewModel? = await loadedViewModel()
+        viewModel?.itemAppeared(id: 20)
+        await repository.waitForPendingRequests(1)
+        let task = viewModel?.pageTask
+        weak var released = viewModel
+
+        viewModel = nil
+
+        #expect(released == nil)
+        repository.resumeNext(with: .success(page(21...40, total: 194, skip: 20)))
+        await task?.value
+        #expect(repository.cancelledRequestCount == 1)
+        #expect(analytics.events.map(\.name) == [.catalogPageRequested])
+    }
+
+    @Test func releasingTheViewModelCancelsARetry() async {
+        repository.enqueue(failure: AppError.offline)
+        var viewModel: CatalogViewModel? = makeViewModel()
+        await viewModel?.start()
+        viewModel?.retry()
+        await repository.waitForPendingRequests(1)
+        let task = viewModel?.firstPageTask
+        weak var released = viewModel
+
+        viewModel = nil
+
+        #expect(released == nil)
+        repository.resumeNext(with: .success(page(1...20, total: 194, skip: 0)))
+        await task?.value
+        #expect(repository.cancelledRequestCount == 1)
+        #expect(!analytics.events.contains { $0.name == .catalogLoadCompleted })
+    }
 }

@@ -14,6 +14,8 @@ final class FakeProductRepository: ProductRepository {
     }
 
     private(set) var requests: [Request] = []
+    /// Requests whose calling task was cancelled by the time they returned.
+    private(set) var cancelledRequestCount = 0
     /// Runs as each request arrives, before it is answered (e.g. to advance a `TestClock`).
     var onRequest: (() -> Void)?
 
@@ -33,6 +35,9 @@ final class FakeProductRepository: ProductRepository {
 
     func products(sort: ProductSort, skip: Int, limit: Int) async throws -> ProductPage {
         requests.append(Request(sort: sort, skip: skip, limit: limit))
+        defer {
+            if Task.isCancelled { cancelledRequestCount += 1 }
+        }
         onRequest?()
         if !queued.isEmpty {
             return try queued.removeFirst().get()

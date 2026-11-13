@@ -3,8 +3,10 @@ import Observation
 
 /// The catalog browse screen's state and intents (ProductSpecification § 4.1).
 ///
-/// - Page 1 loads from the view's `.task` (`start()`), so it is cancelled with the view; Retry and
-///   Reload start a task the view model owns (`firstPageTask`).
+/// - Page 1 loads from the view's `.task` (`start()`), so it is cancelled with the view. Retry,
+///   Reload and load-more come from taps and scrolling, so the view model owns those tasks
+///   (`firstPageTask`, `pageTask`). They hold the view model weakly, also across the request, and
+///   `deinit` cancels them: no request or event outlives the screen.
 /// - Every page-1 request takes a new `generation`; a result whose generation is no longer
 ///   current is dropped (Architecture § 5).
 /// - Cancellation is never an error: no state change, no event.
@@ -23,9 +25,9 @@ final class CatalogViewModel {
     /// One card per loaded product, in server order.
     private(set) var cards: [ProductCardModel] = []
     /// The page-1 load started by `retry()` or `reload()`; tests await it.
-    private(set) var firstPageTask: Task<Void, Never>?
+    @ObservationIgnored private(set) var firstPageTask: Task<Void, Never>?
     /// The latest page ≥ 2 load; tests await it.
-    private(set) var pageTask: Task<Void, Never>?
+    @ObservationIgnored private(set) var pageTask: Task<Void, Never>?
 
     private var list = CatalogListState()
     private var firstPage: FirstPageStatus = .notLoaded
@@ -51,10 +53,34 @@ final class CatalogViewModel {
         case failed(AppError)
     }
 
+    /// A page-1 request in flight: what finishing it needs.
+    private struct FirstPageLoad {
+        let trigger: CatalogLoadTrigger
+        let generation: Int
+        /// Restored if the request is cancelled.
+        let previous: FirstPageStatus
+        let hadVisibleContent: Bool
+        let elapsed: () -> Duration
+    }
+
+    /// A page ≥ 2 request in flight.
+    private struct PageLoad {
+        let index: Int
+        let skip: Int
+        let generation: Int
+        let elapsed: () -> Duration
+    }
+
     init(repository: any ProductRepository, analytics: any AnalyticsTracking, clock: any Clock<Duration> = ContinuousClock()) {
         self.repository = repository
         self.analytics = analytics
         self.clock = clock
+    }
+
+    /// Cancels the tasks the view model owns when the screen goes away.
+    isolated deinit {
+        firstPageTask?.cancel()
+        pageTask?.cancel()
     }
 
     var phase: CatalogPhase {
@@ -166,82 +192,111 @@ final class CatalogViewModel {
 
     // MARK: - Loading
 
+    /// Page 1 from `start()`: structured, cancelled with the view's `.task`.
+    private func loadFirstPage(trigger: CatalogLoadTrigger) async {
+        let load = beginFirstPage(trigger: trigger)
+        let result = await Self.fetch(from: repository, sort: sort, skip: 0)
+        finishFirstPage(load, result: result)
+    }
+
+    /// Page 1 from a tap. The task captures the view model weakly and doesn't touch it during the
+    /// request, so releasing the view model releases it and `deinit` cancels the request.
     private func startFirstPageTask(trigger: CatalogLoadTrigger) {
+        let load = beginFirstPage(trigger: trigger)
+        let repository = repository
+        let sort = sort
         firstPageTask = Task { [weak self] in
-            await self?.loadFirstPage(trigger: trigger)
+            let result = await Self.fetch(from: repository, sort: sort, skip: 0)
+            self?.finishFirstPage(load, result: result)
         }
     }
 
-    private func loadFirstPage(trigger: CatalogLoadTrigger) async {
+    private func beginFirstPage(trigger: CatalogLoadTrigger) -> FirstPageLoad {
         generation += 1
-        let generation = generation
-        let previous = firstPage
-        let hadVisibleContent = previous == .loaded && !list.isEmpty
+        let load = FirstPageLoad(
+            trigger: trigger,
+            generation: generation,
+            previous: firstPage,
+            hadVisibleContent: firstPage == .loaded && !list.isEmpty,
+            elapsed: clock.stopwatch()
+        )
         firstPage = .loading
-        let elapsed = clock.stopwatch()
+        return load
+    }
 
-        do {
-            let page = try await repository.products(sort: sort, skip: 0, limit: Self.pageSize)
-            guard generation == self.generation else { return }
+    private func finishFirstPage(_ load: FirstPageLoad, result: Result<ProductPage, any Error>) {
+        guard load.generation == generation else { return }
+        switch result {
+        case .success(let page):
             list.replace(with: page)
             cards = list.items.map { ProductCardModel(product: $0) }
             firstPage = .loaded
             pageLoad = .idle
-            let durationMs = elapsed().wholeMilliseconds
-            Log.performance.info("catalog first page (\(trigger.rawValue, privacy: .public)) in \(durationMs, privacy: .public) ms")
+            let durationMs = load.elapsed().wholeMilliseconds
+            Log.performance.info("catalog first page (\(load.trigger.rawValue, privacy: .public)) in \(durationMs, privacy: .public) ms")
             analytics.track(.catalogLoadCompleted(
-                trigger: trigger,
+                trigger: load.trigger,
                 sort: sort,
                 resultCount: list.items.count,
                 totalCount: page.total,
                 durationMs: durationMs
             ))
-        } catch is CancellationError {
-            guard generation == self.generation else { return }
-            firstPage = previous
-        } catch {
-            guard generation == self.generation else { return }
+        case .failure(let error) where error is CancellationError:
+            firstPage = load.previous
+        case .failure(let error):
             let appError = error as? AppError ?? .unknown
             firstPage = .failed(appError)
-            analytics.track(.catalogLoadFailed(trigger: trigger, sort: sort, error: appError, hasVisibleContent: hadVisibleContent))
+            analytics.track(.catalogLoadFailed(trigger: load.trigger, sort: sort, error: appError, hasVisibleContent: load.hadVisibleContent))
         }
     }
 
-    /// Starts loading the next page; `catalog_page_requested` marks the request's start.
+    /// Starts loading the next page; `catalog_page_requested` marks the request's start. Like
+    /// `startFirstPageTask`, the task doesn't keep the view model alive.
     private func startPageTask(isRetry: Bool) {
         pageLoad = .loading
-        let pageIndex = list.pagesLoaded + 1
-        let skip = list.nextSkip
-        let generation = generation
-        analytics.track(.catalogPageRequested(listContext: .browse, pageIndex: pageIndex, sort: sort, isRetry: isRetry))
+        let load = PageLoad(index: list.pagesLoaded + 1, skip: list.nextSkip, generation: generation, elapsed: clock.stopwatch())
+        analytics.track(.catalogPageRequested(listContext: .browse, pageIndex: load.index, sort: sort, isRetry: isRetry))
+        let repository = repository
+        let sort = sort
         pageTask = Task { [weak self] in
-            await self?.loadPage(index: pageIndex, skip: skip, generation: generation)
+            let result = await Self.fetch(from: repository, sort: sort, skip: load.skip)
+            self?.finishPage(load, result: result)
         }
     }
 
-    private func loadPage(index: Int, skip: Int, generation: Int) async {
-        let elapsed = clock.stopwatch()
-        do {
-            let page = try await repository.products(sort: sort, skip: skip, limit: Self.pageSize)
-            guard generation == self.generation else { return }
+    private func finishPage(_ load: PageLoad, result: Result<ProductPage, any Error>) {
+        guard load.generation == generation else { return }
+        switch result {
+        case .success(let page):
             let added = list.append(page)
             cards += list.items.suffix(added).map { ProductCardModel(product: $0) }
             pageLoad = .idle
             analytics.track(.catalogPageLoaded(
                 listContext: .browse,
-                pageIndex: index,
+                pageIndex: load.index,
                 itemCount: added,
                 hasMore: list.canLoadMore,
-                durationMs: elapsed().wholeMilliseconds
+                durationMs: load.elapsed().wholeMilliseconds
             ))
-        } catch is CancellationError {
-            guard generation == self.generation else { return }
+        case .failure(let error) where error is CancellationError:
             pageLoad = .idle
-        } catch {
-            guard generation == self.generation else { return }
+        case .failure(let error):
             let appError = error as? AppError ?? .unknown
             pageLoad = .failed(appError)
-            analytics.track(.catalogPageFailed(listContext: .browse, pageIndex: index, error: appError))
+            analytics.track(.catalogPageFailed(listContext: .browse, pageIndex: load.index, error: appError))
+        }
+    }
+
+    /// One page request, without referencing the view model.
+    private static func fetch(
+        from repository: any ProductRepository,
+        sort: ProductSort,
+        skip: Int
+    ) async -> Result<ProductPage, any Error> {
+        do {
+            return .success(try await repository.products(sort: sort, skip: skip, limit: pageSize))
+        } catch {
+            return .failure(error)
         }
     }
 }
