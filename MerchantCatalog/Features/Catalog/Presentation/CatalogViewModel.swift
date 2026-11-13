@@ -24,9 +24,12 @@ final class CatalogViewModel {
     private(set) var cards: [ProductCardModel] = []
     /// The page-1 load started by `retry()` or `reload()`; tests await it.
     private(set) var firstPageTask: Task<Void, Never>?
+    /// The latest page ≥ 2 load; tests await it.
+    private(set) var pageTask: Task<Void, Never>?
 
     private var list = CatalogListState()
     private var firstPage: FirstPageStatus = .notLoaded
+    private var pageLoad: PageLoadStatus = .idle
     private var generation = 0
 
     @ObservationIgnored private let repository: any ProductRepository
@@ -37,6 +40,12 @@ final class CatalogViewModel {
         case notLoaded
         case loading
         case loaded
+        case failed(AppError)
+    }
+
+    private enum PageLoadStatus: Equatable {
+        case idle
+        case loading
         case failed(AppError)
     }
 
@@ -58,7 +67,11 @@ final class CatalogViewModel {
     }
 
     private var footer: CatalogFooter {
-        list.canLoadMore ? .idle : .end
+        switch pageLoad {
+        case .loading: .loading
+        case .failed(let error): .failed(error)
+        case .idle: list.canLoadMore ? .idle : .end
+        }
     }
 
     // MARK: - Intents
@@ -88,6 +101,27 @@ final class CatalogViewModel {
         startFirstPageTask(trigger: .reload)
     }
 
+    /// A card appeared on screen. Near the end of the list this loads the next page: one page
+    /// request at a time, none past the end, and no automatic retry after a page failure.
+    func itemAppeared(id: Product.ID) {
+        guard
+            firstPage == .loaded,
+            pageLoad == .idle,
+            list.canLoadMore,
+            cards.suffix(Self.prefetchDistance).contains(where: { $0.id == id })
+        else {
+            return
+        }
+        startPageTask(isRetry: false)
+    }
+
+    /// The footer's Retry after a failed page.
+    func retryPage() {
+        guard case .failed(let error) = pageLoad else { return }
+        analytics.track(.retryRequested(failedSurface: .catalogPage, error: error))
+        startPageTask(isRetry: true)
+    }
+
     // MARK: - Loading
 
     private func startFirstPageTask(trigger: CatalogLoadTrigger) {
@@ -110,6 +144,7 @@ final class CatalogViewModel {
             list.replace(with: page)
             cards = list.items.map { ProductCardModel(product: $0) }
             firstPage = .loaded
+            pageLoad = .idle
             let durationMs = elapsed().wholeMilliseconds
             Log.performance.info("catalog first page (\(trigger.rawValue, privacy: .public)) in \(durationMs, privacy: .public) ms")
             analytics.track(.catalogLoadCompleted(
@@ -127,6 +162,44 @@ final class CatalogViewModel {
             let appError = error as? AppError ?? .unknown
             firstPage = .failed(appError)
             analytics.track(.catalogLoadFailed(trigger: trigger, sort: sort, error: appError, hasVisibleContent: hadVisibleContent))
+        }
+    }
+
+    /// Starts loading the next page; `catalog_page_requested` marks the request's start.
+    private func startPageTask(isRetry: Bool) {
+        pageLoad = .loading
+        let pageIndex = list.pagesLoaded + 1
+        let skip = list.nextSkip
+        let generation = generation
+        analytics.track(.catalogPageRequested(listContext: .browse, pageIndex: pageIndex, sort: sort, isRetry: isRetry))
+        pageTask = Task { [weak self] in
+            await self?.loadPage(index: pageIndex, skip: skip, generation: generation)
+        }
+    }
+
+    private func loadPage(index: Int, skip: Int, generation: Int) async {
+        let elapsed = clock.stopwatch()
+        do {
+            let page = try await repository.products(sort: sort, skip: skip, limit: Self.pageSize)
+            guard generation == self.generation else { return }
+            let added = list.append(page)
+            cards += list.items.suffix(added).map { ProductCardModel(product: $0) }
+            pageLoad = .idle
+            analytics.track(.catalogPageLoaded(
+                listContext: .browse,
+                pageIndex: index,
+                itemCount: added,
+                hasMore: list.canLoadMore,
+                durationMs: elapsed().wholeMilliseconds
+            ))
+        } catch is CancellationError {
+            guard generation == self.generation else { return }
+            pageLoad = .idle
+        } catch {
+            guard generation == self.generation else { return }
+            let appError = error as? AppError ?? .unknown
+            pageLoad = .failed(appError)
+            analytics.track(.catalogPageFailed(listContext: .browse, pageIndex: index, error: appError))
         }
     }
 }
