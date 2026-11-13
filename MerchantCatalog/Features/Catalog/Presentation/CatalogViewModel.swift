@@ -61,6 +61,8 @@ final class CatalogViewModel {
     @ObservationIgnored private let clock: any Clock<Duration>
     /// The Catalog tab's router (D-53).
     @ObservationIgnored private let router: Router
+    /// Shared with every screen; observed, so the cards' save state follows it (AC-V1).
+    @ObservationIgnored private let savedProducts: SavedProductsStore
 
     /// Why a page 1 loads, and for which list.
     private enum FirstPageTrigger {
@@ -106,11 +108,13 @@ final class CatalogViewModel {
         repository: any ProductRepository,
         analytics: any AnalyticsTracking,
         router: Router,
+        savedProducts: SavedProductsStore,
         clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.repository = repository
         self.analytics = analytics
         self.router = router
+        self.savedProducts = savedProducts
         self.clock = clock
     }
 
@@ -243,6 +247,29 @@ final class CatalogViewModel {
         let source: ProductSource = context == .search ? .search : .catalog
         analytics.track(.productSelected(productID: id, source: source, position: position, sort: feed.sort))
         router.showProductDetail(.list(product, source: source))
+    }
+
+    /// Whether the card's product is saved.
+    func isSaved(_ id: Product.ID) -> Bool {
+        savedProducts.isSaved(id)
+    }
+
+    /// A card's save button in the `context` list: saves or removes the product and reports it from
+    /// the list on screen (surface and position). Buttons of a hidden list are ignored (D-47).
+    func saveToggled(id: Product.ID, in context: ListContext) {
+        guard
+            context == listContext,
+            let feed = feed(for: context),
+            let position = feed.list.items.firstIndex(where: { $0.id == id })
+        else {
+            return
+        }
+        let change = savedProducts.isSaved(id)
+            ? savedProducts.remove(id: id)
+            : savedProducts.save(feed.list.items[position])
+        guard let change else { return }
+        let surface: SaveSurface = context == .search ? .searchCard : .catalogCard
+        analytics.track(change.event(surface: surface, position: position))
     }
 
     /// The footer's Retry after a failed page. Ignored while a refresh is in flight: the refresh

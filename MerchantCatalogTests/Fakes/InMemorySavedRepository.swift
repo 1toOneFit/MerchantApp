@@ -1,3 +1,4 @@
+import Foundation
 @testable import MerchantCatalog
 
 /// A controllable `SavedProductsRepository`. `stored` answers `load()`; with `holdsLoad`, a load
@@ -58,4 +59,17 @@ final class InMemorySavedRepository: SavedProductsRepository {
         pendingWrites = []
         writes.reversed().forEach { $0.resume() }
     }
+}
+
+/// A store over an `InMemorySavedRepository` holding `items`, already loaded, so changes are
+/// persisted and counted as in the running app.
+@MainActor
+func loadedSavedStore(
+    _ items: [SavedProduct] = [],
+    analytics: any AnalyticsTracking = SpyAnalytics(),
+    now: @escaping () -> Date = { date("2026-11-13T10:00:00Z") }
+) async -> SavedProductsStore {
+    let store = SavedProductsStore(repository: InMemorySavedRepository(stored: items), analytics: analytics, now: now)
+    await store.load()
+    return store
 }

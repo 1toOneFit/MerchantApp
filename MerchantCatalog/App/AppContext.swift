@@ -24,7 +24,13 @@ final class AppContext {
     ///   - defaults: where the installation id and session bookkeeping live; tests pass an
     ///     isolated suite.
     ///   - appInfo: the launch user properties' source.
-    static func configure(defaults: UserDefaults = .standard, appInfo: AppInfo = .current()) -> AppContext {
+    ///   - savedProductsDirectory: holds the saved-products file (Architecture § 9); nothing is read
+    ///     until the store's `load()`.
+    static func configure(
+        defaults: UserDefaults = .standard,
+        appInfo: AppInfo = .current(),
+        savedProductsDirectory: URL = .applicationSupportDirectory
+    ) -> AppContext {
         let container = ServiceContainer()
 
         let installation = InstallationIDProvider(defaults: defaults)
@@ -48,6 +54,11 @@ final class AppContext {
         let client = URLSessionAPIClient(delay: requestDelay)
         container.register(client as any APIClientType)
         container.register(LiveProductRepository(client: client) as any ProductRepository)
+        let savedProducts = SavedProductsStore(
+            repository: FileSavedProductsRepository(directory: savedProductsDirectory),
+            analytics: analytics
+        )
+        container.register(savedProducts)
         #if DEBUG
         container.register(SlowNetworkSetting(defaults: defaults, requestDelay: requestDelay))
         #endif
