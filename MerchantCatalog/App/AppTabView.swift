@@ -7,8 +7,8 @@ import SwiftUI
 /// `NavigationStack` or `navigationDestination`. Destinations are built here; tab roots and
 /// destinations come from scene Configurators.
 ///
-/// It owns the catalog's view model and tells it when the Catalog tab becomes visible: at launch
-/// and on each switch back, not when popping back from details (D-39).
+/// It owns only the tab selection, the routers and the Diagnostics sheet flag; each tab's screen owns
+/// its own view model. The Catalog screen gets `isTabSelected` for `catalog_viewed` (D-39).
 ///
 /// DEBUG builds add a Diagnostics toolbar button on the Catalog tab (ProductSpecification § 3).
 struct AppTabView: View {
@@ -17,21 +17,15 @@ struct AppTabView: View {
     @State private var selection: AppTab = .catalog
     @State private var catalogRouter = Router()
     @State private var savedRouter = Router()
-    @State private var catalogViewModel: CatalogViewModel
     #if DEBUG
     @State private var isShowingDiagnostics = false
     #endif
-
-    init(container: any ServiceContainerType) {
-        self.container = container
-        _catalogViewModel = State(initialValue: CatalogConfigurator.makeViewModel(from: container))
-    }
 
     var body: some View {
         TabView(selection: $selection) {
             Tab("Catalog", systemImage: "square.grid.2x2", value: AppTab.catalog) {
                 NavigationStack(path: $catalogRouter.path) {
-                    CatalogView(viewModel: catalogViewModel)
+                    CatalogConfigurator.make(from: container, isTabSelected: selection == .catalog)
                     #if DEBUG
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
@@ -61,11 +55,8 @@ struct AppTabView: View {
                 }
             }
         }
-        .onChange(of: selection, initial: true) { _, tab in
+        .onChange(of: selection) { _, tab in
             Log.navigation.debug("tab \(String(describing: tab), privacy: .public)")
-            if tab == .catalog {
-                catalogViewModel.catalogBecameVisible()
-            }
         }
         #if DEBUG
         .sheet(isPresented: $isShowingDiagnostics) {

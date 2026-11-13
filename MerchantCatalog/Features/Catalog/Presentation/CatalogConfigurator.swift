@@ -1,8 +1,5 @@
-/// Builds the catalog's view model from the container. `resolveDependencies(from:)` is the
-/// registration guard that `AppContextRegistrationTests` checks.
-///
-/// `AppTabView` owns the view model (it also tells it when the Catalog tab becomes visible, D-39),
-/// so this returns the view model rather than the view.
+/// Builds the catalog screen from the container. `resolveDependencies(from:)` is the registration
+/// guard that `AppContextRegistrationTests` checks.
 @MainActor
 enum CatalogConfigurator {
     struct Dependencies {
@@ -20,10 +17,12 @@ enum CatalogConfigurator {
         return Dependencies(repository: repository, analytics: analytics)
     }
 
-    static func makeViewModel(from container: any ServiceContainerType) -> CatalogViewModel {
+    /// - Parameter isTabSelected: whether the Catalog tab is the selected tab (D-39).
+    static func make(from container: any ServiceContainerType, isTabSelected: Bool) -> CatalogView {
         guard let dependencies = resolveDependencies(from: container) else {
             preconditionFailure("CatalogConfigurator: a service is not registered; see AppContextRegistrationTests")
         }
-        return CatalogViewModel(repository: dependencies.repository, analytics: dependencies.analytics)
+        let viewModel = CatalogViewModel(repository: dependencies.repository, analytics: dependencies.analytics)
+        return CatalogView(viewModel: viewModel, isTabSelected: isTabSelected)
     }
 }

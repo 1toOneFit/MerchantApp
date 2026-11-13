@@ -1,10 +1,19 @@
 import SwiftUI
 
 /// The catalog browse screen: renders `CatalogViewModel.phase` and forwards intents
-/// (ProductSpecification § 4.1). `AppTabView` owns the view model and hosts this view in the
-/// Catalog tab's navigation stack.
+/// (ProductSpecification § 4.1). It owns its view model; `AppTabView` hosts it in the Catalog tab's
+/// navigation stack and passes only whether the Catalog tab is selected.
 struct CatalogView: View {
-    let viewModel: CatalogViewModel
+    /// Drives `catalog_viewed` (D-39): true at the first display and on each switch back to the tab.
+    /// Popping back from details doesn't change it.
+    let isTabSelected: Bool
+
+    @State private var viewModel: CatalogViewModel
+
+    init(viewModel: CatalogViewModel, isTabSelected: Bool) {
+        _viewModel = State(initialValue: viewModel)
+        self.isTabSelected = isTabSelected
+    }
 
     var body: some View {
         ZStack {
@@ -35,6 +44,11 @@ struct CatalogView: View {
         }
         .navigationTitle("Catalog")
         .task { await viewModel.start() }
+        .onChange(of: isTabSelected, initial: true) { _, isSelected in
+            if isSelected {
+                viewModel.catalogBecameVisible()
+            }
+        }
     }
 }
 
