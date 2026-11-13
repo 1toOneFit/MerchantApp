@@ -60,11 +60,11 @@
 - `enum LaunchKind: String, Sendable { case cold, resume }`.
 - `enum AnalyticsEvent: Equatable, Sendable` — `.sessionStarted(isFirstSession: Bool, launchKind: LaunchKind)`, `.appForegrounded(backgroundDurationS: Int)`, `.appBackgrounded(foregroundDurationS: Int)`; `var name: AnalyticsEventName`, `var properties: [String: AnalyticsValue]`.
 
-- [ ] **Step 1: Write failing tests.** `AnalyticsEventTests.namesAndProperties` (parameterized): `.sessionStarted(isFirstSession: true, launchKind: .cold)` → `session_started`, `["is_first_session": .bool(true), "launch_kind": .string("cold")]`; `.appForegrounded(backgroundDurationS: 42)` → `["background_duration_s": .int(42)]`; `.appBackgrounded(foregroundDurationS: 7)` → `["foreground_duration_s": .int(7)]`. `TaxonomyDocumentationTests`: `activeEventsInDocsMatchCode` (Active headings == `AnalyticsEventName.allCases` raw values), `plannedEventsAreAbsentFromCode`, `everyEventHeadingHasAStatus` (positive control: > 0 headings; each has `Active` or `Planned (S<n>)`).
-- [ ] **Step 2:** Run tests → compile failure (types missing).
-- [ ] **Step 3:** Implement the types; move the repository helpers; flip the three statuses in Analytics.md.
-- [ ] **Step 4:** Run tests → pass (including `NavigationRuleTests`).
-- [ ] **Step 5:** Commit `feat: add analytics event model and taxonomy test`.
+- [x] **Step 1: Write failing tests.** `AnalyticsEventTests.namesAndProperties` (parameterized): `.sessionStarted(isFirstSession: true, launchKind: .cold)` → `session_started`, `["is_first_session": .bool(true), "launch_kind": .string("cold")]`; `.appForegrounded(backgroundDurationS: 42)` → `["background_duration_s": .int(42)]`; `.appBackgrounded(foregroundDurationS: 7)` → `["foreground_duration_s": .int(7)]`. `TaxonomyDocumentationTests`: `activeEventsInDocsMatchCode` (Active headings == `AnalyticsEventName.allCases` raw values), `plannedEventsAreAbsentFromCode`, `everyEventHeadingHasAStatus` (positive control: > 0 headings; each has `Active` or `Planned (S<n>)`).
+- [x] **Step 2:** Run tests → compile failure (types missing).
+- [x] **Step 3:** Implement the types; move the repository helpers; flip the three statuses in Analytics.md.
+- [x] **Step 4:** Run tests → pass (including `NavigationRuleTests`).
+- [x] **Step 5:** Commit `feat: add analytics event model and taxonomy test`.
 
 ### Task 2: Installation id
 
@@ -75,11 +75,11 @@
 
 **Interfaces — Produces:** `@MainActor final class InstallationIDProvider` — `init(defaults: UserDefaults, now: @escaping () -> Date = Date.init, makeID: @escaping () -> UUID = UUID.init)`; `private(set) var installationID: UUID`; `private(set) var firstSeenDate: Date`; `func reset()`. Keys `analytics.installation_id` (String), `analytics.first_seen_date` (Date). Loads or creates in `init`.
 
-- [ ] **Step 1: Write failing tests:** `createdOnceAndPersisted` (two providers on the same defaults → same id; `makeID` called once); `firstSeenDateIsCreationTime`; `resetProducesNewIDAndFirstSeenDate` (and a new provider reads them back); `invalidStoredValueIsReplaced` (`"not-a-uuid"` stored → new id persisted).
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add InstallationIDProvider`.
+- [x] **Step 1: Write failing tests:** `createdOnceAndPersisted` (two providers on the same defaults → same id; `makeID` called once); `firstSeenDateIsCreationTime`; `resetProducesNewIDAndFirstSeenDate` (and a new provider reads them back); `invalidStoredValueIsReplaced` (`"not-a-uuid"` stored → new id persisted).
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add InstallationIDProvider`.
 
 ### Task 3: Session tracker
 
@@ -89,11 +89,11 @@
 - `struct AnalyticsSession: Equatable, Sendable { let id: UUID; let startedAt: Date }`.
 - `@MainActor final class SessionTracker` — `static let defaultTimeout: TimeInterval = 30 * 60`; `init(defaults: UserDefaults, timeout: TimeInterval = SessionTracker.defaultTimeout, makeID: @escaping () -> UUID = UUID.init)`; `private(set) var current: AnalyticsSession?`; `func startSession(kind: LaunchKind, at date: Date) -> AnalyticsEvent` (new session, sequence reset, returns `.sessionStarted`); `func isExpired(afterBackground duration: TimeInterval) -> Bool` (`>= timeout`); `func nextSequence() -> Int` (1-based within the current session); `func resetForNewInstallation()` (ends the session, next start is first). Persisted key `analytics.has_started_session` (Bool).
 
-- [ ] **Step 1: Write failing tests:** `noSessionBeforeStart`; `firstStartIsFirstSession` (event `is_first_session: true`, `launch_kind` echoed); `laterStartsAreNotFirstAcrossInstances` (new tracker, same defaults → `false`); `sequenceIncrementsAndResetsPerSession` (1,2,3 → new session → 1); `expiryRule` (parameterized: 0 → false, 1799 → false, 1800 → true, 7200 → true); `resetForNewInstallationEndsSessionAndNextIsFirst`.
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add SessionTracker`.
+- [x] **Step 1: Write failing tests:** `noSessionBeforeStart`; `firstStartIsFirstSession` (event `is_first_session: true`, `launch_kind` echoed); `laterStartsAreNotFirstAcrossInstances` (new tracker, same defaults → `false`); `sequenceIncrementsAndResetsPerSession` (1,2,3 → new session → 1); `expiryRule` (parameterized: 0 → false, 1799 → false, 1800 → true, 7200 → true); `resetForNewInstallationEndsSessionAndNextIsFirst`.
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add SessionTracker`.
 
 ### Task 4: Tracking protocols, envelope and AnalyticsService
 
@@ -111,11 +111,11 @@
 - `@MainActor final class AnalyticsService: AnalyticsTracking` — `init(providers: [any AnalyticsProvider], installation: InstallationIDProvider, sessions: SessionTracker, now: @escaping () -> Date = Date.init)`. `track` starts a cold session first when `sessions.current == nil` (D-36). `setUserProperty` forwards only when `value` differs from the last value for that `name`.
 - Spies: `SpyAnalytics` (`events: [AnalyticsEvent]`, `userProperties: [UserProperty]`), `SpyAnalyticsProvider` (`envelopes`, `changes`).
 
-- [ ] **Step 1: Write failing tests:** `envelopeFieldsArePresentAndTyped` (exact `fields` for a fixed date/ids); `firstEventStartsAColdSessionFirst` (`session_started` cold seq 1, then the event seq 2, same session id); `sequenceRestartsInANewSession`; `everyProviderReceivesEveryEvent` (three spies, identical envelopes, in order); `everyProviderReceivesUserPropertyChanges`; `userPropertyEmitsOnlyOnChange` (same value twice → one change `nil → v`; new value → `v → w`); `firstSeenDateValueIsUTCDay` (`2026-11-14T03:30:00Z` → `"2026-11-14"`).
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add AnalyticsService with envelope and provider fan-out`.
+- [x] **Step 1: Write failing tests:** `envelopeFieldsArePresentAndTyped` (exact `fields` for a fixed date/ids); `firstEventStartsAColdSessionFirst` (`session_started` cold seq 1, then the event seq 2, same session id); `sequenceRestartsInANewSession`; `everyProviderReceivesEveryEvent` (three spies, identical envelopes, in order); `everyProviderReceivesUserPropertyChanges`; `userPropertyEmitsOnlyOnChange` (same value twice → one change `nil → v`; new value → `v → w`); `firstSeenDateValueIsUTCDay` (`2026-11-14T03:30:00Z` → `"2026-11-14"`).
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add AnalyticsService with envelope and provider fan-out`.
 
 ### Task 5: Lifecycle events from scene phases
 
@@ -125,11 +125,11 @@
 
 State machine: first `.active` → cold session if none (track its `session_started`), no `app_foregrounded`. `.background` while active → `app_backgrounded(foreground_duration_s)`. `.active` after `.background` → if the gap is expired, `session_started(resume)` first; then `app_foregrounded(background_duration_s)`. `.inactive` and repeats → nothing.
 
-- [ ] **Step 1: Write failing tests** (SpyAnalytics + real `SessionTracker` + `TestNow`): `coldLaunchStartsASessionWithoutForegrounded`; `backgroundSendsForegroundDuration` (active, +95 s, background → `foreground_duration_s: 95`); `resumeUnderTimeoutKeepsSession` (+29 min → only `app_foregrounded(1740)`, same session id); `resumeAtTimeoutStartsNewSessionFirst` (+30 min → `session_started(resume, first: false)` then `app_foregrounded(1800)`); `repeatedAndInactivePhasesSendNothing`; `backgroundBeforeFirstActiveIsIgnored`; `firstActiveAfterAnEarlyEventDoesNotStartASecondSession`; `clockMovingBackwardsGivesZeroDurations`.
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: send lifecycle events from scene phases`.
+- [x] **Step 1: Write failing tests** (SpyAnalytics + real `SessionTracker` + `TestNow`): `coldLaunchStartsASessionWithoutForegrounded`; `backgroundSendsForegroundDuration` (active, +95 s, background → `foreground_duration_s: 95`); `resumeUnderTimeoutKeepsSession` (+29 min → only `app_foregrounded(1740)`, same session id); `resumeAtTimeoutStartsNewSessionFirst` (+30 min → `session_started(resume, first: false)` then `app_foregrounded(1800)`); `repeatedAndInactivePhasesSendNothing`; `backgroundBeforeFirstActiveIsIgnored`; `firstActiveAfterAnEarlyEventDoesNotStartASecondSession`; `clockMovingBackwardsGivesZeroDurations`.
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: send lifecycle events from scene phases`.
 
 ### Task 6: Launch user properties
 
@@ -137,11 +137,11 @@ State machine: first `.active` → cold session if none (track its `session_star
 
 **Interfaces — Produces:** `struct AppInfo: Equatable, Sendable { let appVersion, buildNumber, osVersion, deviceModel: String; let isDebugBuild: Bool }`; `static func current() -> AppInfo` (Bundle `CFBundleShortVersionString`/`CFBundleVersion`, `"unknown"` when missing; `ProcessInfo`; `uname`; `#if DEBUG`); `static func osVersionString(_ version: OperatingSystemVersion) -> String`; `static func deviceModel(machine: String, environment: [String: String]) -> String` (`SIMULATOR_MODEL_IDENTIFIER` wins). `extension UserProperty { static func launchProperties(app: AppInfo, firstSeenDate: Date) -> [UserProperty] }` (order: app_version, build_number, os_version, device_model, first_seen_date, is_debug_build).
 
-- [ ] **Step 1: Write failing tests:** `osVersionString` (parameterized: 26.0.0 → `26.0`, 26.1.2 → `26.1.2`); `deviceModel` (parameterized: env `iPhone18,3` + machine `arm64` → `iPhone18,3`; no env + `iPhone17,1` → `iPhone17,1`); `launchPropertiesListsAllSix`.
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add launch user properties`.
+- [x] **Step 1: Write failing tests:** `osVersionString` (parameterized: 26.0.0 → `26.0`, 26.1.2 → `26.1.2`); `deviceModel` (parameterized: env `iPhone18,3` + machine `arm64` → `iPhone18,3`; no env + `iPhone17,1` → `iPhone17,1`); `launchPropertiesListsAllSix`.
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add launch user properties`.
 
 ### Task 7: Logging and in-memory providers
 
@@ -151,11 +151,11 @@ State machine: first `.active` → cold session if none (track its `session_star
 - `@MainActor final class LoggingAnalyticsProvider: AnalyticsProvider` — `init(logger: Logger = Log.analytics)`; `static func message(for envelope: AnalyticsEnvelope) -> String` → `event session_started #1 session <uuid> {is_first_session=true, launch_kind=cold}` (keys sorted); `static func message(for change: UserPropertyChange) -> String` → `user property app_version: nil → 1.0`. Logged at `debug`, `privacy: .public` (analytics carries no free text, D-18).
 - `@MainActor @Observable final class InMemoryAnalyticsProvider: AnalyticsProvider` — `static let defaultCapacity = 500`; `init(capacity: Int = defaultCapacity)`; `private(set) var events: [AnalyticsEnvelope]` (oldest first, at most `capacity`); `private(set) var userProperties: [String: AnalyticsValue]`.
 
-- [ ] **Step 1: Write failing tests:** `eventMessage`, `userPropertyMessage` (exact strings); `dropsOldestBeyondCapacity` (capacity 3, send 5 → sequences 3,4,5); `keepsCurrentUserPropertyValues`.
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add logging and in-memory analytics providers`.
+- [x] **Step 1: Write failing tests:** `eventMessage`, `userPropertyMessage` (exact strings); `dropsOldestBeyondCapacity` (capacity 3, send 5 → sequences 3,4,5); `keepsCurrentUserPropertyValues`.
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add logging and in-memory analytics providers`.
 
 ### Task 8: Composition and scene-phase wiring
 
@@ -163,11 +163,11 @@ State machine: first `.active` → cold session if none (track its `session_star
 
 **Interfaces — Produces:** `AppContext.configure(defaults: UserDefaults = .standard, appInfo: AppInfo = .current()) -> AppContext`; `let lifecycle: AppLifecycleTracker`. Registers `any AnalyticsTracking`, `InstallationIDProvider`, `SessionTracker`; in DEBUG also `InMemoryAnalyticsProvider` and `any LogReading` (Task 9). Sets the launch user properties. `AppPhase.init(_ phase: ScenePhase)`. The App observes `@Environment(\.scenePhase)` with `.onChange(of:initial: true)`.
 
-- [ ] **Step 1: Write failing tests:** `analyticsServicesAreRegistered` (resolve `any AnalyticsTracking`, `InstallationIDProvider`, `SessionTracker` from `configure(defaults: isolated)`); `launchUserPropertiesReachTheEventLog` (DEBUG: the in-memory provider holds the six launch properties); `AppPhaseTests.mapsScenePhases` (parameterized). Existing `configureBuildsAnIndependentContainer` switches to isolated defaults.
-- [ ] **Step 2:** Run → fail.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: wire analytics into AppContext and scene phases`.
+- [x] **Step 1: Write failing tests:** `analyticsServicesAreRegistered` (resolve `any AnalyticsTracking`, `InstallationIDProvider`, `SessionTracker` from `configure(defaults: isolated)`); `launchUserPropertiesReachTheEventLog` (DEBUG: the in-memory provider holds the six launch properties); `AppPhaseTests.mapsScenePhases` (parameterized). Existing `configureBuildsAnIndependentContainer` switches to isolated defaults.
+- [x] **Step 2:** Run → fail.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: wire analytics into AppContext and scene phases`.
 
 ### Task 9: Diagnostics sheet (DEBUG)
 
@@ -182,18 +182,24 @@ State machine: first `.active` → cold session if none (track its `session_star
 - `@MainActor @Observable final class DiagnosticsViewModel` — `init(eventLog: InMemoryAnalyticsProvider, installation: InstallationIDProvider, sessions: SessionTracker, analytics: any AnalyticsTracking, logReader: any LogReading, now: @escaping () -> Date = Date.init)`; `var events: [AnalyticsEnvelope]` (newest first); `var userProperties: [DiagnosticsProperty]` (sorted by name; `DiagnosticsProperty: Identifiable { name; value: String }`); `var installationID: String`; `var sessionID: String?`; `private(set) var logs: LogsState` (`.idle`, `.loaded([LogEntry])`, `.failed(String)`); `func loadLogs() async`; `func resetInstallationID()` (D-34: `installation.reset()`, `sessions.resetForNewInstallation()`, track `sessions.startSession(kind: .cold, at: now())`, `setUserProperty(.firstSeenDate(installation.firstSeenDate))`).
 - `@MainActor enum DiagnosticsConfigurator` — `struct Dependencies`; `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`; `static func make(from: any ServiceContainerType) -> DiagnosticsView`.
 
-- [ ] **Step 1: Write failing tests:** `eventsAreNewestFirst`; `userPropertiesAreSortedRows`; `loadLogsShowsEntries`; `loadLogsFailureShowsMessage`; `resetStartsAFreshInstallationSession` (new id; new session id; `session_started(first: true, cold)` sequence 1; `first_seen_date` change); `diagnosticsDependenciesResolve`.
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement the reader, view model, configurator, view (sections: Installation with Reset, User properties, Events with properties, Recent logs with refresh) and the AppTabView entry point.
-- [ ] **Step 4:** Run → pass, `NavigationRuleTests` included.
-- [ ] **Step 5:** Commit `feat: add DEBUG Diagnostics sheet`.
+- [x] **Step 1: Write failing tests:** `eventsAreNewestFirst`; `userPropertiesAreSortedRows`; `loadLogsShowsEntries`; `loadLogsFailureShowsMessage`; `resetStartsAFreshInstallationSession` (new id; new session id; `session_started(first: true, cold)` sequence 1; `first_seen_date` change); `diagnosticsDependenciesResolve`.
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement the reader, view model, configurator, view (sections: Installation with Reset, User properties, Events with properties, Recent logs with refresh) and the AppTabView entry point.
+- [x] **Step 4:** Run → pass, `NavigationRuleTests` included.
+- [x] **Step 5:** Commit `feat: add DEBUG Diagnostics sheet`.
 
 ### Task 10: Docs and review gate
 
 **Files:** `docs/Analytics.md` § 2 (reset, UTC, durations, early-event session rule), `docs/Architecture.md` § 2/§ 4/§ 5/§ 6/§ 10, `docs/ImplementationPlan.md` (decisions D-33–D-36, review log, status), README status line, this plan's checkboxes.
 
-- [ ] **Step 1:** `xcodebuild … clean build` → `** BUILD SUCCEEDED **`; `xcrun xcresulttool get build-results` → `warningCount: 0`.
-- [ ] **Step 2:** `xcodebuild … -configuration Release build` → succeeds (DEBUG-only code compiles out).
-- [ ] **Step 3:** `xcodebuild … test` → all pass; record counts.
-- [ ] **Step 4:** Update docs and the review log (manual Simulator checks, limitations, open questions); status `READY_FOR_REVIEW`.
-- [ ] **Step 5:** Commit `docs: record S1 review gate`.
+- [x] **Step 1:** `xcodebuild … clean build` → `** BUILD SUCCEEDED **`; `xcrun xcresulttool get build-results` → `warningCount: 0`.
+- [x] **Step 2:** `xcodebuild … -configuration Release build` → succeeds (DEBUG-only code compiles out).
+- [x] **Step 3:** `xcodebuild … test` → all pass; record counts.
+- [x] **Step 4:** Update docs and the review log (manual Simulator checks, limitations, open questions); status `READY_FOR_REVIEW`.
+- [x] **Step 5:** Commit `docs: record S1 review gate`.
+
+## Deviations found during implementation
+
+- Task 4: `UserProperty` name/value tests live in `AnalyticsServiceTests.userPropertyNamesAndValues`; an extra test, `eventsInARunningSessionStartNoNewSession`, covers tracking into a session the lifecycle already started.
+- Task 5: added `foregroundDurationRestartsAfterEachResume`.
+- Task 9: the view model exposes `events: [DiagnosticsEvent]` (sorted property rows, id `<session id>#<sequence>`) instead of raw envelopes, and `currentSessionID` comes from the latest logged event, because `SessionTracker` isn't observable. `installationID` is a stored property refreshed after a reset for the same reason.

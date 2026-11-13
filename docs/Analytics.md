@@ -17,31 +17,35 @@
 - UUID v4 generated on first launch, stored in `UserDefaults`. Used as the analytics user id.
 - **Survives** relaunches and app updates. **Resets** on uninstall/reinstall — deliberately not stored in the Keychain, so a reinstall is a new anonymous installation and no cross-install tracking happens.
 - Not IDFA/IDFV; no App Tracking Transparency prompt is needed.
-- DEBUG "Reset installation ID" generates a new id, clears stored experiment assignments (they are re-derived from the new id, so the variant may change), and starts a new session.
+- DEBUG "Reset installation ID" simulates a reinstall (D-34): it generates a new id and a new `first_seen_date`, clears stored experiment assignments (S6; they are re-derived from the new id, so the variant may change), and immediately starts a new session that reports `is_first_session = true` and `launch_kind = cold`.
 
 ### Session
-- A new session starts on cold launch, or when the app returns to the foreground after **≥ 30 minutes** in the background.
+- A new session starts on cold launch, or when the app returns to the foreground after **≥ 30 minutes** in the background (exactly 30:00 counts).
+- The cold session starts at the first `.active` scene phase or the first tracked event, whichever comes first (D-36), so every event has a session and `session_started` is always sequence 1.
+- Background time runs from the `.background` scene phase to the next `.active`, measured with the wall clock (D-35). `.inactive` alone (Control Center, the app switcher) is not leaving the app.
+- `is_first_session` is true only for the installation's first session; this is remembered in `UserDefaults` across launches.
+- Durations in `_s` properties are whole seconds, rounded down; a clock moved backwards gives 0.
 - `session_id` (UUID) and a per-session `sequence` number are attached to every event.
 
 ### Event envelope (attached automatically)
 | Field | Type | Notes |
 |---|---|---|
 | `event` | String | Event name |
-| `timestamp` | String | ISO 8601, UTC |
+| `timestamp` | String | ISO 8601, UTC, with milliseconds (`2026-11-13T10:15:30.250Z`) |
 | `installation_id` | String | User id for analytics |
 | `session_id` | String | UUID |
 | `sequence` | Int | 1-based order within the session |
 
 ### User properties
-User properties describe the installation, not a single event. They are set when their value changes; each change is logged (`analytics` category, old → new). In a real integration they map to the vendor's identify/user-property call, so every later event can be segmented by them.
+User properties describe the installation, not a single event. They are set when their value changes; each change is logged (`analytics` category, old → new). Change detection is in memory, so every launch sends each launch property once (old value `nil`). In a real integration they map to the vendor's identify/user-property call, so every later event can be segmented by them. S1 implements the launch properties; `saved_products_count` arrives in S5 and `experiment_assignments` in S6.
 
 | Property | Type | Values / format | Updated when |
 |---|---|---|---|
-| `app_version` | String | `1.0.0` | launch |
+| `app_version` | String | `CFBundleShortVersionString`, e.g. `1.0` | launch |
 | `build_number` | String | `1` | launch |
 | `os_version` | String | `26.0` | launch |
-| `device_model` | String | hardware identifier, e.g. `iPhone17,1` | launch |
-| `first_seen_date` | String | `yyyy-MM-dd` (installation date) | first launch |
+| `device_model` | String | hardware identifier, e.g. `iPhone17,1` (in the Simulator, the simulated model) | launch |
+| `first_seen_date` | String | `yyyy-MM-dd` in UTC (installation date) | launch (value fixed at first launch; changes only on the DEBUG reset) |
 | `saved_products_count` | Int | ≥ 0 | save/unsave, launch |
 | `experiment_assignments` | Map<String, String> | `{ "product_card_density_v1": "control" \| "treatment" }` | assignment or override |
 | `is_debug_build` | Bool | | launch |
