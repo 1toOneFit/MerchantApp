@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S5 — Saved products (`IN_PROGRESS`) |
+| Current stage | S5 — Saved products (`READY_FOR_REVIEW`) |
 | Current branch | `feature/saved-products` (from `develop` at `46b8e6d`) |
 | Last completed stage | S4 — Product details (merged into `develop` with `--no-ff` at `46b8e6d`, 2026-11-13) |
 | Next authorized stage | S5 — Saved products (authorized by the developer, 2026-11-13) |
-| Pending human action | — |
+| Pending human action | Independent Codex review of `feature/saved-products` and the manual Simulator checks in the S5 review log |
 | Open review findings | — |
 | Blockers | — |
 
@@ -26,7 +26,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
 | S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
-| S5 | Saved products | `feature/saved-products` | IN_PROGRESS | — | Authorized by the developer (2026-11-13) |
+| S5 | Saved products | `feature/saved-products` | READY_FOR_REVIEW | `f82bbd3` + docs commit | Awaiting the developer's Codex review |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
 | S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
 
@@ -604,3 +604,44 @@ The developer ran an independent Codex review and shared four findings. Each was
 #### S4 merge (recorded by the S5 conversation, 2026-11-13)
 
 - The developer merged `feature/product-details` into `develop` with `--no-ff`: merge commit `46b8e6d` (parents `152da21` and `ce63683`; `git branch --merged develop` lists the branch). S4 → `COMPLETED`. S5 (authorized 2026-11-13) starts from `develop` at `46b8e6d` on `feature/saved-products`.
+
+### S5 — Saved products · READY_FOR_REVIEW (2026-11-13)
+
+- **Branch:** `feature/saved-products` (from `develop` at `46b8e6d`). **Head:** the `docs: record S5 review gate` commit on top of `f82bbd3`.
+- **Scope confirmed by the developer** (2026-11-13): as planned; agent recommendations accepted for the card save button as a sibling overlay (D-60), `TabSelection` for Browse catalog (D-61), an enum route (D-62) and `product_details_viewed` from Saved at the first appearance with `snapshot` (D-63). The developer chose `saved_product_revisited` inside `AnalyticsService` (D-64) and leaving an unknown-version file in place (D-65) over the agent's recommendations. Agent decisions D-66 (file format, launch load and write order), D-67 (details from Saved), D-68 (property definitions). Task plan: [plans/S5-saved-products.md](plans/S5-saved-products.md) (with deviations).
+- **Commits:** `bbab473` S4 completed / S5 in progress · `33c3a3c` task plan + D-60–D-68 · `04b9782` saved snapshot and file repository · `bd342f4` saved products store (+ `saved_products_count`) · `bdcfd3a` detail endpoint (+ Networking.md § 2) · `794972b` saved analytics events (5 → Active) and revisit derivation · `a016921` saved route and tab selection · `050bff2` save from catalog cards · `2234766` details save, snapshot and refresh · `f82bbd3` Saved tab · review-gate docs.
+- **Changed files:**
+  - App: new `Shared/Saved/{Domain/SavedProduct, Domain/SavedProductsRepository, Data/FileSavedProductsRepository, SavedProductsStore, SavedProductFormat}.swift`, `Core/Navigation/TabSelection.swift`, `Features/Saved/Presentation/{SavedView, SavedViewModel, SavedRowModel, SavedConfigurator}.swift`, `DesignSystem/Components/SaveButton.swift`; moved `App/AppTab.swift` → `Core/Navigation/AppTab.swift`; changed `Core/Analytics/{AnalyticsEvent, AnalyticsValue, AnalyticsService, UserProperty}.swift`, `Core/Navigation/{ProductDetailRoute, Route}.swift`, `Shared/Products/{Domain/ProductRepository, Data/ProductsTarget, Data/LiveProductRepository}.swift`, `Features/Catalog/Presentation/{CatalogViewModel, CatalogConfigurator, CatalogView}.swift`, `Features/ProductDetail/Presentation/{ProductDetailViewModel, ProductDetailConfigurator, ProductDetailView}.swift`, `App/{AppContext, AppTabView, MerchantCatalogApp}.swift`.
+  - Tests: new `Shared/Saved/{SavedProductTests, FileSavedProductsRepositoryTests, SavedProductsStoreTests, SavedProductFormatTests}`, `Features/Saved/{SavedRowModelTests, SavedViewModelTests}`, `Features/Catalog/CatalogViewModelSaveTests`, `Features/ProductDetail/ProductDetailSavedTests`, `Core/Analytics/SavedAnalyticsEventTests`, `Core/Navigation/TabSelectionTests`, `Fakes/InMemorySavedRepository` (+ `loadedSavedStore`), `Support/TemporaryDirectory`; additions to `ProductsTargetTests`, `LiveProductRepositoryTests`, `AnalyticsServiceTests`, `AnalyticsEventTests`, `DetailsAnalyticsEventTests`, `RouterTests`, `ProductDetailViewModelTests`, `AppContextRegistrationTests`, `Fakes/FakeProductRepository` (`product(id:)` queue); `savedProducts:` at the other catalog suites' call sites.
+  - Docs: Analytics.md (5 events Active, `is_saved`, `content_origin` `list` | `snapshot`, property definitions, `saved_products_count`), ProductSpecification § 4.3/4.4 as built, Architecture § 2/5/6/7/9, Networking.md § 2, README status, AILog, this file, the task plan.
+- **Build settings** (`xcodebuild -showBuildSettings`, 2026-11-13): unchanged (`SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`; no default actor isolation). No packages.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator): `** BUILD SUCCEEDED **`; result bundle **0 warnings**, 0 errors, 0 analyzer warnings. `xcodebuild … -configuration Release build`: succeeded; result bundle 0 warnings, 0 errors. The test action's log has no compiler warnings (only the `appintentsmetadataprocessor` "Metadata extraction skipped" tool line).
+- **Tests:** `xcodebuild … test`: **312 passed, 0 failed, 0 skipped** in 51 suites (result bundle summary). New suites: `SavedProductTests` 2, `FileSavedProductsRepositoryTests` 8, `SavedProductsStoreTests` 11, `SavedProductFormatTests` 2, `SavedAnalyticsEventTests` 3 (one parameterized with 11 cases), `TabSelectionTests` 2, `CatalogViewModelSaveTests` 6, `ProductDetailSavedTests` 14, `SavedRowModelTests` 1, `SavedViewModelTests` 8. Grown: `ProductsTargetTests` 4 → 5, `LiveProductRepositoryTests` 3 → 5, `AnalyticsServiceTests` 9 → 14, `RouterTests` 7 → 8, `ProductDetailViewModelTests` 5 → 9, `AppContextRegistrationTests` 9 → 11. Counts are test functions.
+- **Red first:** every new suite failed on compilation first; the event test also failed on a real value (the `price` double drift, fixed). Tests that passed when first run were mutation-checked (store write chain and merge, revisit dedup and per-session reset, the catalog's hidden-list guard, the details view model's deinit cancel and 404 branch); details in the task plan's deviations.
+- **Manual Simulator checks for the developer** (the agent did not run the app). Events are in Diagnostics (newest first).
+  1. **Save from a card:** on the Catalog grid, tap the bookmark on "Essence Mascara Lash Princess" (id 1; top-right of the thumbnail). The icon fills, the card does **not** open, the Saved tab shows badge **1**. Event `product_saved` (`product_id: 1`, `surface: catalog_card`, `category: beauty`, `price: 9.99`, `position: 0`, `saved_count_after: 1`); user property `saved_products_count` 0 → 1. Tapping the card itself still opens details.
+  2. **All surfaces (AC-V1, AC-D3):** open id 1's details: the toolbar bookmark is filled. Tap it: it empties, `product_unsaved` (`surface: details`, `saved_duration_s`, `saved_count_after: 0`); go back: the card icon is empty, the badge is gone. Save it again from the toolbar (`product_saved`, `surface: details`, no `position`). From search results ("phone"), save a result: `surface: search_card` with its position.
+  3. **Saved tab:** switch to Saved: `saved_products_viewed` (`saved_count`). Rows newest first, each with thumbnail, title, "Price when saved: $9.99" and "Saved <day> <month>" in your locale, no rating. Switch away and back: one more `saved_products_viewed` per switch; popping back from details sends none. Please record whether every switch sends one (it relies on the hidden tab's view receiving the tab change, like `catalog_viewed`).
+  4. **Details from Saved:** tap a row: `product_selected` (`source: saved`, `position`, no `sort`), then `product_details_viewed` (`source: saved`, `category`, `is_saved: true`, `content_origin: snapshot`, no `availability`/`has_discount`/`image_count`). The snapshot shows first ("Saved information · Saved …", title, category, rating, price, no gallery), "Updating…" briefly (turn on DEBUG slow network to see it), then the full details with the gallery. Console `network`: one `GET /products/1`.
+  5. **Revisit:** save a product, wait 30+ minutes with the app in the background (or relaunch the app: a cold launch starts a new session), then open it from Saved or the catalog: `saved_product_revisited` (`days_since_saved: 0`) right after `product_details_viewed`; opening it again in the same session sends none.
+  6. **Terminate and relaunch (AC-V2):** with 2–3 saved products, stop the app in Xcode and run again: the same items, same order, the badge count, card icons filled; `saved_products_count` is set once at launch.
+  7. **Offline (AC-V3, AC-D4):** turn the Mac's network off. The Saved tab still lists every row (thumbnails show the placeholder icon). Open a row: the snapshot plus "Couldn't refresh — showing saved info" and **Retry**; event `product_details_load_failed` (`error_type: offline`, `showing_snapshot: true`). Turn the network on, tap Retry: `retry_requested` (`failed_surface: details`), then the full details.
+  8. **Swipe to remove (AC-V4):** swipe a row left: it disappears, `product_unsaved` (`surface: saved_list`); back on Catalog the card's icon is empty. Remove all: the empty state with **Browse catalog**, which switches to the Catalog tab.
+  9. **No longer available / price changed** (not reachable with live data: every saved id exists and prices don't change). Optional, by editing the saved file: `xcrun simctl get_app_container booted com.example.MerchantCatalog data`, then edit `Library/Application Support/saved-products.json` with the app stopped: set an item's `"id"` to `99999` → its details show the snapshot with "This product is no longer available." and no Retry (`error_type: not_found`); or change an item's `"price"` to `"1.00"` → after the refresh, Pricing shows "Price changed since you saved it" and "Price when saved: $1.00".
+  10. **Corrupt file:** with the app stopped, replace the file's contents with `not json` and launch: the Saved tab is empty, no crash; the folder holds `saved-products.corrupt-<timestamp>.json`; Console `persistence` has an error line.
+  11. Optional: VoiceOver on a card reads the card, then a separate "Save" / "Remove from Saved" button (merged with a custom action in S7, D-60); dark mode for the card's bookmark circle.
+  12. ⌘U in Xcode: 312 tests pass.
+- **Known limitations:**
+  - VoiceOver sees two elements per card (card + save button) until S7 (D-60).
+  - Details from Saved have no gallery until the fresh data arrives, so the layout grows when it does (D-67).
+  - `saved_products_viewed` relies on the Saved view receiving the tab change while hidden, as `catalog_viewed` does (D-39); checked manually (check 3).
+  - A saved-products file with an unknown version is overwritten by the next save (D-65, the developer's choice).
+  - A failed write is only logged; the in-memory list stays and the next change writes again.
+  - `days_since_saved` counts 24-hour periods, not calendar days (D-68).
+  - Rendering, swipe actions, the badge, the toolbar button and the card overlay's hit areas are SwiftUI behavior checked manually, not by unit tests.
+- **Open questions:**
+  1. (From S2.) D-43: which other `URLError` codes, if any, should count as offline?
+  2. (From S3.) The short sort labels and the sort control at the toolbar's leading edge.
+  3. (From S4.) Category names shown as the slug in words ("Mens Shirts").
+  4. Details from Saved price the snapshot under "Price" with the "Saved information · Saved …" note above; would you rather label that row "Price when saved" until the refresh?
+- **Findings and resolution:** awaiting the developer's Codex review.
