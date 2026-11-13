@@ -11,7 +11,7 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Current branch | `feature/search-sort` (from `develop` at `59415a9`) |
 | Last completed stage | S2 — Catalog browsing, networking and images (merged into `develop` with `--no-ff` at `59415a9`, 2026-11-13) |
 | Next authorized stage | — (S3 authorized by the developer, 2026-11-13; in progress) |
-| Pending human action | Independent Codex review of `feature/search-sort` and the manual Simulator checks in the S3 review log |
+| Pending human action | Codex re-review of the four S3 fixes and the manual Simulator checks in the S3 review log |
 | Open review findings | — |
 | Blockers | — |
 
@@ -24,7 +24,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S0 | Project foundation | `feature/project-foundation` | COMPLETED | `ee150e0` | Approved: Codex + developer (2026-11-13); merged into `develop` |
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
-| S3 | Search & sort | `feature/search-sort` | READY_FOR_REVIEW | `d914611` + review-gate docs commit | Authorized by the developer (2026-11-13); awaiting Codex review |
+| S3 | Search & sort | `feature/search-sort` | READY_FOR_REVIEW | `ad651e3` + docs commit | Codex review: 4 findings, all fixed (2026-11-13); awaiting re-review |
 | S4 | Product details | `feature/product-details` | PLANNED | — | — |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
@@ -493,7 +493,7 @@ The developer ran an independent Codex review and shared four findings. Each was
   3. Stale responses (slow network on): type "pho", wait about 0.5 s (the request starts), then type "ne". The first request ends as cancelled in Console `network`, only "phone" results appear, and there is one `search_performed`, for the 5-character query.
   4. Search "phone" with each sort (plan check 2): pick "Price: Low to High" in the sort menu: skeleton, then results in ascending price; the label reads "Lowest price". Scroll to the end: 23 results, still ascending across the page boundary, then "You've reached the end". Events: `sort_changed` (`from_sort: default_order`, `to_sort: price_asc`, `list_context: search`), `search_performed` (`trigger: sort_change`), `catalog_page_requested`/`catalog_page_loaded` with `list_context: search`. Repeat with "Price: High to Low" and "Rating: High to Low". Re-selecting the current option does nothing.
   5. Clear (AC-S4): first scroll browse well down (40+ products loaded, a recognizable product at the top). Search "phone", change the sort, then clear with the field's clear button or Cancel. The browse grid is back **instantly at the same scroll position** with its thumbnails, the label reads "Default" again, and Console shows no request. Event: `search_cleared` (`query_length: 5`, `had_results: true`).
-  6. No results (AC-S5): search "zzzz": "No results", "No products match “zzzz”" and Clear search. Tapping Clear search returns to browse and dismisses the search field and keyboard. Events: `search_performed` (`total_count: 0`), `search_cleared` (`had_results: false`).
+  6. No results (AC-S5): search "zzzz": "No results", `No products match "zzzz"` (straight quotes) and Clear search. Tapping Clear search returns to browse and dismisses the search field and keyboard. Events: `search_performed` (`total_count: 0`), `search_cleared` (`had_results: false`).
   7. Browse sort: in browse, pick "Rating: High to Low": skeleton, then the highest-rated products first, scrolled to the top. Event `catalog_load_completed` (`trigger: sort_change`, `sort: rating_desc`).
   8. Search failure: network off, search "phone": full-screen "Couldn't search products" with the offline message and Retry; `search_failed` (`trigger: typing`, `query_length: 5`, `error_type: offline`). Network on, Retry: results; `retry_requested` (`failed_surface: search`), then `search_performed` (`trigger: retry`).
   9. Pull to refresh while results are shown: content stays; `catalog_refreshed` (`list_context: search`), no `search_performed`.
@@ -514,3 +514,22 @@ The developer ran an independent Codex review and shared four findings. Each was
   2. The toolbar label uses short names ("Default", "Lowest price", "Highest price", "Top rated"); the spec fixes only the menu titles. Are these OK?
   3. The sort control sits at the toolbar's leading edge, so its label stays clear of the centered inline title and the DEBUG Diagnostics button. OK, or should it move to the trailing side?
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S3 Codex review — findings and resolution (2026-11-13)
+
+The developer ran an independent Codex review and shared four findings. Each was checked against the code and accepted; each fix went in test-first on this branch, as its own commit.
+
+| # | Finding | Assessment | Fix | Tests |
+|---|---|---|---|---|
+| 1 | P1 — Cancel on the search field must clear the query, return to browse, cancel in-flight search work and send exactly one `search_cleared` | Accepted. The view relied on the system emptying the text binding on Cancel; nothing ended the search when the field was dismissed. | `ad651e3`: the view reports `isPresented` going from true to false as `searchDismissed()`, which clears the query like an empty text. If the system also empties the text, before or after, that change is a no-op. | `cancelEndsTheSearchOnce` (3 cases: dismissal only, then empty text, empty text first): failed on compilation first; the dismissal-only case was mutation-checked (with an empty `searchDismissed()` it failed with 5 issues). The view's `onChange` wiring is checked manually (check 14). |
+| 2 | P1 — every sort change must reload page 1 and show the list from the top, explicitly, in browse and search | Accepted. A new grid started at the top only because the skeleton replaced it for at least one frame; if both state changes were applied in one update, the old grid and its offset would stay. | `9ebaac0`: each page-1 load (sort change, new query, Retry, Reload) gives the list a new `listID`, and the view keys the grid by it (`.id(listID)`). A view with a new identity is a new view with fresh state, so its scroll view starts at the top, whether or not the skeleton frame was drawn. Load-more and refresh keep the `listID`, so the grid, its scroll position and the refresh control stay. | `sortChangeStartsANewBrowseList`, `sortChangeStartsANewSearchList`, `loadMoreAndRefreshKeepTheList`: compile failure first; the last was mutation-checked (with refresh also changing `listID` it failed). The scroll itself is checked manually (check 15). |
+| 3 | P2 — no-results copy must be exactly `No products match "<query>"` with straight quotes | Accepted. The view used typographic quotes. | `a48347c`: `CatalogCopy.noResultsMessage(for:)` holds the text; the view uses it. | `noResultsMessageMatchesTheSpec`: compile failure first, then pass. |
+| 4 | P2 — `ProductSort` should be `Identifiable` with a stable `id`, as planned | Accepted. The plan's Task 8 interface listed it; the menu used `id: \.self` instead. | `bf86ee2`: `extension ProductSort: Identifiable { var id: Self { self } }`; the menu's `ForEach` uses it. | `idIsTheSortItself`: compile failure first, then pass. |
+
+- **Re-verification:** `xcodebuild … clean build`: result bundle **0 warnings**, 0 errors, 0 analyzer warnings; Release build 0 warnings, 0 errors; `xcodebuild … test`: **206 passed, 0 failed, 0 skipped** in 34 suites (200 + 6 new test functions; new suite `CatalogCopyTests`).
+- **Added manual checks** (numbering continues the list above):
+  14. Cancel: search "phone" (results shown, or with slow network on while the request is in flight), tap the field's **Cancel**: browse is back instantly at its scroll position, the keyboard and Cancel button are gone, the field is empty, and Diagnostics shows exactly **one** `search_cleared`; Console `network` shows the in-flight request cancelled, if there was one. Also: with results shown, switch to Saved and back: the search stays (the field isn't dismissed by a tab switch; expected, please confirm).
+  15. Sort scroll: in browse, scroll well down, then pick another sort: the new order starts at the top. The same while searching (scroll the results to the end, change the sort).
+- **Known limitation added:** if the system ever dismissed the search field without the user's Cancel (e.g. on a tab switch or, in S4, a push to details), the search would be cleared. Not expected; check 14 covers the tab switch.
+- **Scope:** no change beyond the four findings. ProductSpecification § 4.2 now names Cancel; Architecture § 8 describes `listID`.
+

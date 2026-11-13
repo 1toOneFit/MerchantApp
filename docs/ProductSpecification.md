@@ -83,7 +83,7 @@ Category, brand, discount and availability are deliberately **not** on the card,
 
 **Search**
 - `.searchable` field at the top of the Catalog tab, prompt "Search products", always visible under an inline "Catalog" title (D-47).
-- Requests start **300 ms after the last keystroke** (debounce). Leading/trailing whitespace is trimmed; an empty query returns to browse at once. An edit that leaves the trimmed query unchanged (e.g. a trailing space) sends nothing.
+- Requests start **300 ms after the last keystroke** (debounce). Leading/trailing whitespace is trimmed; an empty query, or **Cancel** on the search field, returns to browse at once. An edit that leaves the trimmed query unchanged (e.g. a trailing space) sends nothing.
 - While the user types, the list on screen stays; once the request starts, the results area shows the skeleton until the results arrive (D-50).
 - A new query cancels the in-flight one; a response is applied **only if it belongs to the latest query** (stale-response protection, even if cancellation loses a race).
 - Search uses the server endpoint (`/products/search`) with the current sort and pagination — verified to work together, see [Networking.md § API facts](Networking.md#1-verified-api-facts).
