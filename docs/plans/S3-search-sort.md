@@ -53,11 +53,11 @@
 
 **Interfaces — Produces:** `ProductsTarget.search(query: String, skip: Int, limit: Int, sort: ProductSort)` — path `/products/search`; query items in order `q`, `limit`, `skip`, then the sort items. `makeRequest` sends `+` as `%2B`.
 
-- [ ] **Step 1: Write failing tests.** `searchQueryItems` (parameterized over the four sorts): `.search(query: "phone", skip: 20, limit: 20, sort:)` → `[q=phone, limit=20, skip=20] + sortItems`. `searchPath`: `/products/search`, `.get`. `buildsSearchRequestWithSortAndPage` (AC-S3): `makeRequest(for: .search(query: "phone", skip: 20, limit: 20, sort: .priceDescending), delay: nil).url?.absoluteString == "https://dummyjson.com/products/search?q=phone&limit=20&skip=20&sortBy=price&order=desc"`. `searchQueryIsPercentEncoded`: query `"a+b & c=d"`, `skip 0`, default sort → `…/products/search?q=a%2Bb%20%26%20c%3Dd&limit=20&skip=0`.
-- [ ] **Step 2:** Run → compile failure (no `.search`).
-- [ ] **Step 3:** Implement; after setting `queryItems`, replace `+` with `%2B` in `percentEncodedQuery`. Add A13 to Networking.md (curl 2026-11-13: `q=iphone+charger` and `q=iphone%20charger` → total 1, `q=iphone%2Bcharger` → 0).
-- [ ] **Step 4:** Run → pass (`searchQueryIsPercentEncoded` must fail before the `%2B` line: check by running it once before adding the line).
-- [ ] **Step 5:** Commit `feat: add ProductsTarget.search`.
+- [x] **Step 1: Write failing tests.** `searchQueryItems` (parameterized over the four sorts): `.search(query: "phone", skip: 20, limit: 20, sort:)` → `[q=phone, limit=20, skip=20] + sortItems`. `searchPath`: `/products/search`, `.get`. `buildsSearchRequestWithSortAndPage` (AC-S3): `makeRequest(for: .search(query: "phone", skip: 20, limit: 20, sort: .priceDescending), delay: nil).url?.absoluteString == "https://dummyjson.com/products/search?q=phone&limit=20&skip=20&sortBy=price&order=desc"`. `searchQueryIsPercentEncoded`: query `"a+b & c=d"`, `skip 0`, default sort → `…/products/search?q=a%2Bb%20%26%20c%3Dd&limit=20&skip=0`.
+- [x] **Step 2:** Run → compile failure (no `.search`).
+- [x] **Step 3:** Implement; after setting `queryItems`, replace `+` with `%2B` in `percentEncodedQuery`. Add A13 to Networking.md (curl 2026-11-13: `q=iphone+charger` and `q=iphone%20charger` → total 1, `q=iphone%2Bcharger` → 0).
+- [x] **Step 4:** Run → pass (`searchQueryIsPercentEncoded` must fail before the `%2B` line: check by running it once before adding the line).
+- [x] **Step 5:** Commit `feat: add ProductsTarget.search`.
 
 ### Task 2: Repository search and fake support
 
@@ -67,11 +67,11 @@
 - `ProductRepository.search(query: String, sort: ProductSort, skip: Int, limit: Int) async throws -> ProductPage` (`@concurrent` in `LiveProductRepository`).
 - `FakeProductRepository.Request` gains `var query: String? = nil` declared first (existing `.init(sort:skip:limit:)` calls keep compiling); `search(...)` records `Request(query:sort:skip:limit:)` and answers like `products`; `func resumeNewest(with:)` answers the most recently suspended request.
 
-- [ ] **Step 1: Write failing test** `requestsSearchTargetAndMapsPage` (path `/products/search`, items `q=phone, limit=20, skip=40, sortBy=rating, order=desc`; page equals the DTO's `toDomain()`).
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement (protocol, live repository, fake).
-- [ ] **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add product search to the repository`.
+- [x] **Step 1: Write failing test** `requestsSearchTargetAndMapsPage` (path `/products/search`, items `q=phone, limit=20, skip=40, sortBy=rating, order=desc`; page equals the DTO's `toDomain()`).
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement (protocol, live repository, fake).
+- [x] **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add product search to the repository`.
 
 ### Task 3: SearchQuery
 
@@ -79,9 +79,9 @@
 
 **Interfaces — Produces:** `struct SearchQuery: Equatable, Sendable { let text: String; init?(_ rawText: String); var length: Int; var wordCount: Int }` — `text` trimmed of `.whitespacesAndNewlines`; `nil` when nothing is left; `length = text.count`; `wordCount` = whitespace-separated non-empty parts (D-49).
 
-- [ ] **Step 1: Write failing tests:** `trimsWhitespace` (`"  phone \n"` → `"phone"`); `blankIsNil` (parameterized: `""`, `"   "`, `"\n\t"`); `lengthAndWordCount` (parameterized: `"phone"` → 5/1, `"red  shoes"` → 10/2, `"  café  latte\n"` → 11/2).
-- [ ] **Step 2:** Run → compile failure. **Step 3:** Implement. **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add SearchQuery`.
+- [x] **Step 1: Write failing tests:** `trimsWhitespace` (`"  phone \n"` → `"phone"`); `blankIsNil` (parameterized: `""`, `"   "`, `"\n\t"`); `lengthAndWordCount` (parameterized: `"phone"` → 5/1, `"red  shoes"` → 10/2, `"  café  latte\n"` → 11/2).
+- [x] **Step 2:** Run → compile failure. **Step 3:** Implement. **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add SearchQuery`.
 
 ### Task 4: Deterministic TestClock sleeping
 
@@ -89,9 +89,9 @@
 
 **Interfaces — Produces:** `sleep(until:tolerance:)` suspends until `advance(by:)` reaches the deadline (a deadline already reached returns at once); cancellation throws `CancellationError` (also when cancelled before suspending); `var sleeperCount: Int`; `func waitForSleepers(_ count: Int) async` (continuation, no polling). State in one `Mutex`; continuations are resumed outside the lock.
 
-- [ ] **Step 1: Write failing tests:** `sleepEndsAtTheDeadline` (task sleeps 300 ms; `waitForSleepers(1)`; `advance(299 ms)` → `sleeperCount == 1`; `advance(1 ms)` → the task finishes without error); `cancelledSleepThrows` (cancel while sleeping → `CancellationError`, `sleeperCount == 0`); `pastDeadlineReturnsAtOnce`.
-- [ ] **Step 2:** Run → fail (the current `sleep` records an issue). **Step 3:** Implement. **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `test: add deterministic sleeping to TestClock`.
+- [x] **Step 1: Write failing tests:** `sleepEndsAtTheDeadline` (task sleeps 300 ms; `waitForSleepers(1)`; `advance(299 ms)` → `sleeperCount == 1`; `advance(1 ms)` → the task finishes without error); `cancelledSleepThrows` (cancel while sleeping → `CancellationError`, `sleeperCount == 0`); `pastDeadlineReturnsAtOnce`.
+- [x] **Step 2:** Run → fail (the current `sleep` records an issue). **Step 3:** Implement. **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `test: add deterministic sleeping to TestClock`.
 
 ### Task 5: Search and sort analytics events
 
@@ -102,9 +102,9 @@
 - New names/cases: `.searchStarted(sort: ProductSort)`, `.searchPerformed(trigger: SearchTrigger, queryLength: Int, wordCount: Int, sort: ProductSort, resultCount: Int, totalCount: Int, durationMs: Int)`, `.searchFailed(trigger: SearchTrigger, queryLength: Int, error: AppError)`, `.searchCleared(queryLength: Int, hadResults: Bool)`, `.sortChanged(from: ProductSort, to: ProductSort, listContext: ListContext)` → `from_sort`, `to_sort`, `list_context`.
 - Analytics.md: the five events **Active** with D-48/D-49 notes; `sort_options_opened` heading removed and § 4's row says why (D-44); `has_visible_content` defined (D-45); `list_context: search` noted on `catalog_viewed`, `catalog_refreshed`, `catalog_page_*`.
 
-- [ ] **Step 1: Write failing tests:** one row per new case with exact dictionaries, e.g. `.searchPerformed(trigger: .typing, queryLength: 5, wordCount: 1, sort: .priceAscending, resultCount: 20, totalCount: 23, durationMs: 140)` → `["trigger": "typing", "query_length": 5, "word_count": 1, "sort": "price_asc", "result_count": 20, "total_count": 23, "duration_ms": 140]`; `.searchFailed(trigger: .retry, queryLength: 3, error: .offline)` → `["trigger": "retry", "query_length": 3, "error_type": "offline"]`; `.searchCleared(queryLength: 5, hadResults: false)`; `.sortChanged(from: .defaultOrder, to: .ratingDescending, listContext: .search)`; plus `.catalogLoadCompleted(trigger: .sortChange, …)`, `.catalogPageRequested(listContext: .search, …)`, `.retryRequested(failedSurface: .search, error: .timeout)`.
-- [ ] **Step 2:** Run → compile failure. **Step 3:** Implement code and docs. **Step 4:** Run → pass, `TaxonomyDocumentationTests` included.
-- [ ] **Step 5:** Commit `feat: add search and sort analytics events`.
+- [x] **Step 1: Write failing tests:** one row per new case with exact dictionaries, e.g. `.searchPerformed(trigger: .typing, queryLength: 5, wordCount: 1, sort: .priceAscending, resultCount: 20, totalCount: 23, durationMs: 140)` → `["trigger": "typing", "query_length": 5, "word_count": 1, "sort": "price_asc", "result_count": 20, "total_count": 23, "duration_ms": 140]`; `.searchFailed(trigger: .retry, queryLength: 3, error: .offline)` → `["trigger": "retry", "query_length": 3, "error_type": "offline"]`; `.searchCleared(queryLength: 5, hadResults: false)`; `.sortChanged(from: .defaultOrder, to: .ratingDescending, listContext: .search)`; plus `.catalogLoadCompleted(trigger: .sortChange, …)`, `.catalogPageRequested(listContext: .search, …)`, `.retryRequested(failedSurface: .search, error: .timeout)`.
+- [x] **Step 2:** Run → compile failure. **Step 3:** Implement code and docs. **Step 4:** Run → pass, `TaxonomyDocumentationTests` included.
+- [x] **Step 5:** Commit `feat: add search and sort analytics events`.
 
 ### Task 6: Lists per feed, then search
 
@@ -117,8 +117,8 @@ Two commits: a behavior-preserving refactor, then search.
 - `CatalogPhase` + `case noResults(query: String)`. `struct CatalogListContent: Equatable { let phase: CatalogPhase; let cards: [ProductCardModel] }`.
 - `CatalogViewModel`: `static let searchDebounce: Duration = .milliseconds(300)`; `private(set) var searchText: String`; `var sort: ProductSort`, `var listContext: ListContext`, `var phase`, `var cards` (all of the list on screen); `var browseList: CatalogListContent`; `var searchList: CatalogListContent?`; `func searchTextChanged(to text: String)`; `func clearSearch()`; `func itemAppeared(id: Product.ID, in context: ListContext)` (replaces `itemAppeared(id:)`); `private(set) var searchTask: Task<Void, Never>?`; `var pageTask` (the list on screen). Existing intents act on the list on screen.
 
-- [ ] **Step 1 (refactor):** Move browse state into `CatalogFeed` and the generation check to "the feed for this load still has this generation"; change `itemAppeared` call sites to `in: .browse`. Run the suite → all 153 green. Commit `refactor: hold catalog list state per feed`.
-- [ ] **Step 2: Write failing tests** (`CatalogViewModelSearchTests`; helpers `type(_:)` and `commit()` = `waitForSleepers(1)` + `advance(by: 300 ms)` + await `searchTask`):
+- [x] **Step 1 (refactor):** Move browse state into `CatalogFeed` and the generation check to "the feed for this load still has this generation"; change `itemAppeared` call sites to `in: .browse`. Run the suite → all 153 green. Commit `refactor: hold catalog list state per feed`.
+- [x] **Step 2: Write failing tests** (`CatalogViewModelSearchTests`; helpers `type(_:)` and `commit()` = `waitForSleepers(1)` + `advance(by: 300 ms)` + await `searchTask`):
   - `requestsOnlyTheLastQueryAfterTypingStops` (AC-S1): "p", "ph", "pho", "phon", "phone" with 100 ms between → no request; 300 ms after the last → exactly `[Request(query: "phone", sort: .defaultOrder, skip: 0, limit: 20)]`.
   - `queryIsTrimmed` ("  phone  " → `query: "phone"`); `whitespaceOnlyStaysInBrowse` (no request, no event, `listContext == .browse`); `trailingSpaceSendsNothing` (after "phone" loaded, "phone " → no request).
   - `committedQueryShowsSkeletonThenResults` (during the debounce `phase` is still browse content; after commit `.initialLoading` with `listContext == .search`; then 20 cards); event `.searchPerformed(trigger: .typing, queryLength: 5, wordCount: 1, sort: .defaultOrder, resultCount: 20, totalCount: 23, durationMs: 140)`.
@@ -132,8 +132,8 @@ Two commits: a behavior-preserving refactor, then search.
   - `searchFailureShowsErrorAndRetryRecovers`: `.failed(.offline)`, `.searchFailed(trigger: .typing, queryLength: 5, error: .offline)`; `retry()` → `.retryRequested(failedSurface: .search, error: .offline)` then `.searchPerformed(trigger: .retry, …)`; `cancelledSearchSendsNothing`.
   - `browsePageFinishesWhileSearching` (Review Focus 4); `hiddenListIgnoresItemAppeared` (`itemAppeared(id: 20, in: .browse)` while searching → no request).
   - `catalogViewedReportsTheListOnScreen` (`list_context: search` while searching).
-- [ ] **Step 3:** Run → compile failure, then assertion failures. **Step 4:** Implement (`searchTask`: sleep, `guard !Task.isCancelled`, begin, fetch, finish; begin creates a new search feed stamped with a new generation and cancels the old search page task). **Step 5:** Run → pass.
-- [ ] **Step 6:** Commit `feat: add debounced catalog search`.
+- [x] **Step 3:** Run → compile failure, then assertion failures. **Step 4:** Implement (`searchTask`: sleep, `guard !Task.isCancelled`, begin, fetch, finish; begin creates a new search feed stamped with a new generation and cancels the old search page task). **Step 5:** Run → pass.
+- [x] **Step 6:** Commit `feat: add debounced catalog search`.
 
 ### Task 7: Sort, and search pagination, refresh and teardown
 
@@ -141,14 +141,14 @@ Two commits: a behavior-preserving refactor, then search.
 
 **Interfaces — Produces:** `func sortSelected(_ sort: ProductSort)` — same value: nothing; otherwise `sort_changed`, then page 1 of the list on screen with trigger `sort_change` (browse via `firstPageTask`, search via `searchTask`, no debounce), cancelling that list's page task and its previous page-1 task.
 
-- [ ] **Step 1: Write failing tests:**
+- [x] **Step 1: Write failing tests:**
   - Sort: `sortChangeReloadsFirstPage` (`.sortChanged(from: .defaultOrder, to: .priceAscending, listContext: .browse)`; phase `.initialLoading` while pending; request `(.priceAscending, 0, 20)`; `.catalogLoadCompleted(trigger: .sortChange, sort: .priceAscending, …)`); `sameSortDoesNothing`; `sortChangeFailureReportsVisibleContent` (`.catalogLoadFailed(trigger: .sortChange, sort: .priceAscending, error: .timeout, hasVisibleContent: true)`); `sortChangeDropsAnInFlightPage` (page 2 pending → sort change → page 2 resumes → no `catalog_page_loaded`, 20 new cards); `latestSortWins` (two quick changes → only the second's result shown; first task cancelled); `sortChangeDuringRefreshWins` (Review Focus 5).
   - Search + sort: `searchUsesTheSortOnScreen` (browse `.ratingDescending` → search request sort `.ratingDescending`); `sortChangeWhileSearchingReloadsSearch` (`listContext: .search`; `.searchPerformed(trigger: .sortChange, …)`); `clearingRestoresTheBrowseSort` (D-46: sort changed in search → clear → `sort == .defaultOrder`, browse cards, no request).
   - Search pages (AC-S3): `searchPaginatesWithQueryAndSort` (`itemAppeared(id: 20, in: .search)` → request `(query: "phone", .priceDescending, 20, 20)`; `.catalogPageRequested(listContext: .search, pageIndex: 2, sort: .priceDescending, isRetry: false)`, `.catalogPageLoaded(listContext: .search, …)`); `newQueryDropsAnInFlightSearchPage`.
   - `refreshWhileSearchingReloadsTheQuery` (`.catalogRefreshed(listContext: .search, outcome: .success, durationMs: 0)`; no `search_performed`).
   - Teardown: `releasingTheViewModelCancelsTheSearch` (pending search → released → `cancelledRequestCount == 1`, no `search_performed`); `releasingTheViewModelDuringTheDebounceSendsNothing`.
-- [ ] **Step 2:** Run → fail. **Step 3:** Implement. **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add server-side sort for browse and search`.
+- [x] **Step 2:** Run → fail. **Step 3:** Implement. **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add server-side sort for browse and search`.
 
 ### Task 8: Catalog UI
 
@@ -156,20 +156,26 @@ Two commits: a behavior-preserving refactor, then search.
 
 **Interfaces — Produces:** `extension ProductSort: Identifiable { var title: String; var shortTitle: String }` — titles exactly the spec's four; short titles for the toolbar label: "Default", "Lowest price", "Highest price", "Top rated". `CatalogView`: inline title; `.searchable(text:isPresented:placement: .navigationBarDrawer(displayMode: .always), prompt: "Search products")` bound to `searchText` / `searchTextChanged(to:)`; a `.topBarLeading` `Menu` with a `Picker` (label: arrow icon + `shortTitle`, accessibility "Sort, <title>"); a `ZStack` with the browse list (always present; `opacity 0`, no hit testing, accessibility-hidden while searching) and the search list on top when `searchList != nil`; `noResults` → `ContentUnavailableView` with the spec copy and **Clear search** (`clearSearch()` and dismisses the field).
 
-- [ ] **Step 1: Write failing test** `titlesMatchTheSpec` (four titles, exact copy).
-- [ ] **Step 2:** Run → compile failure. **Step 3:** Implement. **Step 4:** Run the full suite → pass, `NavigationRuleTests` included. No layout unit tests (no snapshot tests).
-- [ ] **Step 5:** Commit `feat: add search field and sort menu to the catalog`.
+- [x] **Step 1: Write failing test** `titlesMatchTheSpec` (four titles, exact copy).
+- [x] **Step 2:** Run → compile failure. **Step 3:** Implement. **Step 4:** Run the full suite → pass, `NavigationRuleTests` included. No layout unit tests (no snapshot tests).
+- [x] **Step 5:** Commit `feat: add search field and sort menu to the catalog`.
 
 ### Task 9: Docs and review gate
 
 **Files:** `docs/ProductSpecification.md` § 4.2 (D-45–D-47, D-50 behavior, no-results state row), `docs/Architecture.md` (§ 2 new files, § 5 debounce/tasks, § 8 feeds), `docs/Networking.md` (§ 2 as built), `docs/ImplementationPlan.md` (D-44–D-52, review log, status), README status line, this plan's checkboxes and deviations.
 
-- [ ] **Step 1:** `xcodebuild … clean build` → `** BUILD SUCCEEDED **`; result bundle `warningCount: 0`.
-- [ ] **Step 2:** `xcodebuild … -configuration Release build` → succeeds, 0 warnings.
-- [ ] **Step 3:** `xcodebuild … test` → all pass; record counts.
-- [ ] **Step 4:** Update docs and the review log (manual Simulator checks, limitations, open questions); status `READY_FOR_REVIEW`.
-- [ ] **Step 5:** Commit `docs: record S3 review gate`.
+- [x] **Step 1:** `xcodebuild … clean build` → `** BUILD SUCCEEDED **`; result bundle `warningCount: 0`.
+- [x] **Step 2:** `xcodebuild … -configuration Release build` → succeeds, 0 warnings.
+- [x] **Step 3:** `xcodebuild … test` → all pass; record counts.
+- [x] **Step 4:** Update docs and the review log (manual Simulator checks, limitations, open questions); status `READY_FOR_REVIEW`.
+- [x] **Step 5:** Commit `docs: record S3 review gate`.
 
 ## Deviations found during implementation
 
-*(Filled in during implementation.)*
+- Task 1: `searchQueryIsPercentEncoded` was seen failing on its assertion (`q=a+b%20%26%20c%3Dd`) before the `%2B` line; the other new tests failed on compilation first.
+- Task 4: extra test `sleepCancelledBeforeItStartsThrows`. The suite was also run 50 times in a row (`-test-iterations 50 -run-tests-until-failure`, 200 runs, all passed) to check `TestClock` for races.
+- Task 5: an extra row for `search_performed` with `trigger: sort_change` and zero results. `search_failed` has no `http_status`, as Analytics.md defines it.
+- Task 6, refactor: `itemAppeared(id:in:)` got its `context == listContext` guard in the refactor commit, before a test needed it. `hiddenListIgnoresItemAppeared` was mutation-checked: its first version still passed with the guard removed (the stray request is recorded only once its task runs), so it now asserts on the synchronous effects (no `catalog_page_requested`, browse footer idle) and fails without the guard.
+- Task 6, search: with the `Task.isCancelled` check after the sleep removed, `retypingAtTheDeadlineRequestsOnlyTheLatestQuery` hung instead of failing (the stale request waited on the fake forever). It now queues answers, so it fails (`["ph", "pho"]`), and the search and sort suites have a 1-minute time limit. The no-results case was added to `CatalogView` here, because the phase switch must stay exhaustive. A cancelled search page 1 restores the list's previous first-page status, like browse; for a new query that is "not loaded", which shows the same skeleton.
+- Task 7: the search pagination, refresh and teardown tests passed when first run, because Task 6's per-list code already handled them. Each was mutation-checked and failed: page and refresh requests without the query, `deinit` without cancelling `searchTask`, no page-task cancel in `beginFirstPage`, no `firstPageTask` cancel before a browse page 1. `beginSearch`'s own page-task cancel was removed as redundant (`beginFirstPage` cancels it). `releasingTheViewModelDuringTheDebounceSendsNothing` asserts before awaiting, so the mutation fails it instead of hanging.
+- Task 8: the sort menu sits at `.topBarLeading`, clear of the centered inline title and the DEBUG Diagnostics button (trailing). A failed search's title reads "Couldn't search products".
