@@ -6,7 +6,7 @@ enum Route: Hashable {
     var logDescription: String {
         switch self {
         case .productDetail(let route):
-            "productDetail(id: \(route.product.id), source: \(route.source.rawValue))"
+            "productDetail(id: \(route.productID), source: \(route.source.rawValue))"
         }
     }
 }

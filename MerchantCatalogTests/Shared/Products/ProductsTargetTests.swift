@@ -52,4 +52,13 @@ struct ProductsTargetTests {
         #expect(target.path == "/products/search")
         #expect(target.method == .get)
     }
+
+    /// `GET /products/{id}`, used to refresh details opened from Saved (Networking.md A7).
+    @Test func detailPathHasNoQuery() {
+        let target = ProductsTarget.detail(id: 7)
+
+        #expect(target.path == "/products/7")
+        #expect(target.queryItems == [])
+        #expect(target.method == .get)
+    }
 }

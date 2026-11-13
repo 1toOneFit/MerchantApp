@@ -5,16 +5,18 @@ enum CatalogConfigurator {
     struct Dependencies {
         let repository: any ProductRepository
         let analytics: any AnalyticsTracking
+        let savedProducts: SavedProductsStore
     }
 
     static func resolveDependencies(from container: any ServiceContainerType) -> Dependencies? {
         guard
             let repository: any ProductRepository = container.resolve(),
-            let analytics: any AnalyticsTracking = container.resolve()
+            let analytics: any AnalyticsTracking = container.resolve(),
+            let savedProducts: SavedProductsStore = container.resolve()
         else {
             return nil
         }
-        return Dependencies(repository: repository, analytics: analytics)
+        return Dependencies(repository: repository, analytics: analytics, savedProducts: savedProducts)
     }
 
     /// - Parameters:
@@ -24,7 +26,12 @@ enum CatalogConfigurator {
         guard let dependencies = resolveDependencies(from: container) else {
             preconditionFailure("CatalogConfigurator: a service is not registered; see AppContextRegistrationTests")
         }
-        let viewModel = CatalogViewModel(repository: dependencies.repository, analytics: dependencies.analytics, router: router)
+        let viewModel = CatalogViewModel(
+            repository: dependencies.repository,
+            analytics: dependencies.analytics,
+            router: router,
+            savedProducts: dependencies.savedProducts
+        )
         return CatalogView(viewModel: viewModel, isTabSelected: isTabSelected)
     }
 }

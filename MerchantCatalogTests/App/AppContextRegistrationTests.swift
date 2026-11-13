@@ -52,8 +52,40 @@ struct AppContextRegistrationTests {
         #expect(container.resolve() as (any ProductRepository)? != nil)
     }
 
+    /// Review finding 2: the saved repository is registered by its protocol, like every other
+    /// infrastructure service (Architecture § 4).
+    @Test func savedRepositoryIsRegisteredByProtocol() {
+        let container = configure().container
+
+        #expect(container.resolve() as (any SavedProductsRepository)? != nil)
+    }
+
+    /// The store reads and writes through that same registered repository.
+    @Test func savedStoreUsesTheRegisteredRepository() async throws {
+        let directory = TemporaryDirectory()
+        let context = AppContext.configure(defaults: store.defaults, appInfo: Self.appInfo, savedProductsDirectory: directory.url)
+        let repository = try #require(context.container.resolve() as (any SavedProductsRepository)?)
+        let item = SavedProduct(product(3), savedAt: date("2026-11-13T10:00:00Z"))
+
+        await repository.save([item])
+        await context.savedProducts.load()
+
+        #expect(context.savedProducts.items == [item])
+    }
+
     @Test func catalogDependenciesResolve() {
         #expect(CatalogConfigurator.resolveDependencies(from: configure().container) != nil)
+    }
+
+    @Test func savedDependenciesResolve() {
+        #expect(SavedConfigurator.resolveDependencies(from: configure().container) != nil)
+    }
+
+    /// Every screen and the tab badge read one store (AC-V1).
+    @Test func savedStoreIsShared() {
+        let context = configure()
+
+        #expect(context.container.resolve() as SavedProductsStore? === context.savedProducts)
     }
 
     @Test func productDetailDependenciesResolve() {

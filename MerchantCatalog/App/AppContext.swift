@@ -14,17 +14,27 @@ final class AppContext {
     let container: any ServiceContainerType
     /// Receives scene-phase changes from `MerchantCatalogApp`.
     let lifecycle: AppLifecycleTracker
+    /// The saved products every screen and the tab badge read; `MerchantCatalogApp` loads it once at
+    /// launch. Also registered in the container.
+    let savedProducts: SavedProductsStore
 
-    private init(container: any ServiceContainerType, lifecycle: AppLifecycleTracker) {
+    private init(container: any ServiceContainerType, lifecycle: AppLifecycleTracker, savedProducts: SavedProductsStore) {
         self.container = container
         self.lifecycle = lifecycle
+        self.savedProducts = savedProducts
     }
 
     /// - Parameters:
     ///   - defaults: where the installation id and session bookkeeping live; tests pass an
     ///     isolated suite.
     ///   - appInfo: the launch user properties' source.
-    static func configure(defaults: UserDefaults = .standard, appInfo: AppInfo = .current()) -> AppContext {
+    ///   - savedProductsDirectory: holds the saved-products file (Architecture § 9); nothing is read
+    ///     until the store's `load()`.
+    static func configure(
+        defaults: UserDefaults = .standard,
+        appInfo: AppInfo = .current(),
+        savedProductsDirectory: URL = .applicationSupportDirectory
+    ) -> AppContext {
         let container = ServiceContainer()
 
         let installation = InstallationIDProvider(defaults: defaults)
@@ -48,6 +58,12 @@ final class AppContext {
         let client = URLSessionAPIClient(delay: requestDelay)
         container.register(client as any APIClientType)
         container.register(LiveProductRepository(client: client) as any ProductRepository)
+        let savedRepository: any SavedProductsRepository = FileSavedProductsRepository(directory: savedProductsDirectory)
+        // `as any` keeps the key the protocol: an existential passed to a generic parameter is
+        // otherwise opened, and the service would be registered under the concrete type.
+        container.register(savedRepository as any SavedProductsRepository)
+        let savedProducts = SavedProductsStore(repository: savedRepository, analytics: analytics)
+        container.register(savedProducts)
         #if DEBUG
         container.register(SlowNetworkSetting(defaults: defaults, requestDelay: requestDelay))
         #endif
@@ -57,6 +73,6 @@ final class AppContext {
         }
 
         let lifecycle = AppLifecycleTracker(analytics: analytics, sessions: sessions)
-        return AppContext(container: container, lifecycle: lifecycle)
+        return AppContext(container: container, lifecycle: lifecycle, savedProducts: savedProducts)
     }
 }

@@ -1,3 +1,5 @@
+import Foundation
+
 /// Event names from `docs/Analytics.md`. Only events whose status there is **Active** exist here;
 /// `TaxonomyDocumentationTests` keeps the two equal.
 enum AnalyticsEventName: String, CaseIterable, Sendable {
@@ -20,6 +22,11 @@ enum AnalyticsEventName: String, CaseIterable, Sendable {
     case productSelected = "product_selected"
     case productDetailsViewed = "product_details_viewed"
     case productGalleryInteracted = "product_gallery_interacted"
+    case productDetailsLoadFailed = "product_details_load_failed"
+    case productSaved = "product_saved"
+    case productUnsaved = "product_unsaved"
+    case savedProductsViewed = "saved_products_viewed"
+    case savedProductRevisited = "saved_product_revisited"
 }
 
 /// How a session began: a cold launch, or a return to the foreground after the session timeout.
@@ -34,18 +41,29 @@ enum ListContext: String, Sendable {
     case search
 }
 
-/// Where a product was opened from (`source`). S5 adds `saved`.
+/// Where a product was opened from (`source`).
 enum ProductSource: String, Sendable {
     /// The browse grid.
     case catalog
     /// Search results.
     case search
+    /// The Saved list.
+    case saved
 }
 
-/// Where the details content came from (`content_origin`): in S4 always the product already loaded
-/// in the list (Networking.md A7). S5 adds `snapshot` and `network`.
+/// What the details screen showed first (`content_origin`): the product the list loaded
+/// (Networking.md A7), or the saved snapshot (details opened from Saved, D-63).
 enum ContentOrigin: String, Sendable {
     case list
+    case snapshot
+}
+
+/// Where a save or removal happened (`surface`).
+enum SaveSurface: String, Sendable {
+    case catalogCard = "catalog_card"
+    case searchCard = "search_card"
+    case details
+    case savedList = "saved_list"
 }
 
 /// Why the first page of the browse list loaded (`trigger`).
@@ -75,13 +93,15 @@ enum RefreshOutcome: Equatable, Sendable {
     case failure(AppError)
 }
 
-/// The surface whose Retry was tapped (`failed_surface`). S4 adds `details`.
+/// The surface whose Retry was tapped (`failed_surface`).
 enum FailedSurface: String, Sendable {
     case catalog
     /// A page ≥ 2 of the browse list or of search results (D-48).
     case catalogPage = "catalog_page"
     /// The first page of search results.
     case search
+    /// The refresh of details opened from Saved.
+    case details
 }
 
 /// A product-analytics event with its typed properties. Features create these and pass them to
@@ -120,13 +140,27 @@ enum AnalyticsEvent: Equatable, Sendable {
     case searchCleared(queryLength: Int, hadResults: Bool)
     /// The user picked a different sort for the list on screen.
     case sortChanged(from: ProductSort, to: ProductSort, listContext: ListContext)
-    /// The user tapped a product card; `position` is its 0-based index in the list on screen.
-    case productSelected(productID: Int, source: ProductSource, position: Int, sort: ProductSort)
-    /// Details were first shown for a push (D-59). `category` and `availability` are omitted when
-    /// unknown; `is_saved` arrives in S5 (D-56).
-    case productDetailsViewed(productID: Int, source: ProductSource, category: String?, availability: ProductAvailability?, hasDiscount: Bool, imageCount: Int, contentOrigin: ContentOrigin)
+    /// The user tapped a product card or Saved row; `position` is its 0-based index in the list on
+    /// screen. `sort` is the list's order; Saved has none (D-68).
+    case productSelected(productID: Int, source: ProductSource, position: Int, sort: ProductSort?)
+    /// Details were first shown for a push (D-59). Unknown values are omitted; from Saved the
+    /// snapshot has no availability, discount or images (D-63). `savedAt`: when the product was
+    /// saved, `nil` if it isn't; sent only as `is_saved`, never as a date. `AnalyticsService` derives
+    /// `saved_product_revisited` from it (D-64).
+    case productDetailsViewed(productID: Int, source: ProductSource, category: String?, availability: ProductAvailability?, hasDiscount: Bool?, imageCount: Int?, savedAt: Date?, contentOrigin: ContentOrigin)
     /// The first swipe to another gallery image during a details visit (D-59).
     case productGalleryInteracted(productID: Int, imageCount: Int)
+    /// `/products/{id}` failed for details opened from Saved.
+    case productDetailsLoadFailed(productID: Int, source: ProductSource, error: AppError, showingSnapshot: Bool)
+    /// The user saved a product. `price` is sent as a double; `category` and `position` (cards only)
+    /// are omitted when absent.
+    case productSaved(productID: Int, surface: SaveSurface, category: String?, price: Decimal, position: Int?, savedCountAfter: Int)
+    /// The user removed a product from Saved.
+    case productUnsaved(productID: Int, surface: SaveSurface, savedDurationS: Int, savedCountAfter: Int)
+    /// The Saved tab became visible.
+    case savedProductsViewed(savedCount: Int)
+    /// Details of a product saved before the current session (derived by `AnalyticsService`, D-64).
+    case savedProductRevisited(productID: Int, source: ProductSource, daysSinceSaved: Int)
 
     var name: AnalyticsEventName {
         switch self {
@@ -149,6 +183,11 @@ enum AnalyticsEvent: Equatable, Sendable {
         case .productSelected: .productSelected
         case .productDetailsViewed: .productDetailsViewed
         case .productGalleryInteracted: .productGalleryInteracted
+        case .productDetailsLoadFailed: .productDetailsLoadFailed
+        case .productSaved: .productSaved
+        case .productUnsaved: .productUnsaved
+        case .savedProductsViewed: .savedProductsViewed
+        case .savedProductRevisited: .savedProductRevisited
         }
     }
 
@@ -235,20 +274,48 @@ enum AnalyticsEvent: Equatable, Sendable {
                 "product_id": .int(productID),
                 "source": .string(source.rawValue),
                 "position": .int(position),
-                "sort": .string(sort.analyticsValue),
-            ]
-        case .productDetailsViewed(let productID, let source, let category, let availability, let hasDiscount, let imageCount, let contentOrigin):
+                "sort": sort.map { .string($0.analyticsValue) },
+            ].compactMapValues(\.self)
+        case .productDetailsViewed(let productID, let source, let category, let availability, let hasDiscount, let imageCount, let savedAt, let contentOrigin):
             [
                 "product_id": .int(productID),
                 "source": .string(source.rawValue),
                 "category": category.map(AnalyticsValue.string),
                 "availability": availability.map { .string($0.analyticsValue) },
-                "has_discount": .bool(hasDiscount),
-                "image_count": .int(imageCount),
+                "has_discount": hasDiscount.map(AnalyticsValue.bool),
+                "image_count": imageCount.map(AnalyticsValue.int),
+                "is_saved": .bool(savedAt != nil),
                 "content_origin": .string(contentOrigin.rawValue),
             ].compactMapValues(\.self)
         case .productGalleryInteracted(let productID, let imageCount):
             ["product_id": .int(productID), "image_count": .int(imageCount)]
+        case .productDetailsLoadFailed(let productID, let source, let error, let showingSnapshot):
+            [
+                "product_id": .int(productID),
+                "source": .string(source.rawValue),
+                "error_type": .string(error.analyticsErrorType),
+                "showing_snapshot": .bool(showingSnapshot),
+            ]
+        case .productSaved(let productID, let surface, let category, let price, let position, let savedCountAfter):
+            [
+                "product_id": .int(productID),
+                "surface": .string(surface.rawValue),
+                "category": category.map(AnalyticsValue.string),
+                "price": .double(price.analyticsValue),
+                "position": position.map(AnalyticsValue.int),
+                "saved_count_after": .int(savedCountAfter),
+            ].compactMapValues(\.self)
+        case .productUnsaved(let productID, let surface, let savedDurationS, let savedCountAfter):
+            [
+                "product_id": .int(productID),
+                "surface": .string(surface.rawValue),
+                "saved_duration_s": .int(savedDurationS),
+                "saved_count_after": .int(savedCountAfter),
+            ]
+        case .savedProductsViewed(let savedCount):
+            ["saved_count": .int(savedCount)]
+        case .savedProductRevisited(let productID, let source, let daysSinceSaved):
+            ["product_id": .int(productID), "source": .string(source.rawValue), "days_since_saved": .int(daysSinceSaved)]
         }
     }
 
@@ -281,6 +348,14 @@ extension ProductSort {
         case .priceDescending: "price_desc"
         case .ratingDescending: "rating_desc"
         }
+    }
+}
+
+extension Decimal {
+    /// The nearest `Double` to the decimal as written: 1899.99 stays 1899.99, where
+    /// `NSDecimalNumber.doubleValue` gives 1899.9900000000002.
+    var analyticsValue: Double {
+        Double(description) ?? NSDecimalNumber(decimal: self).doubleValue
     }
 }
 

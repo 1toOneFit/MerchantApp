@@ -118,7 +118,9 @@ Content renders **immediately** from the product already loaded in the list (the
 7. **Shipping & availability** — availability status, stock, shipping information, minimum order quantity, return policy.
 8. **Reviews** — "Recent reviews" (the API returns 3 per product): rating, comment, reviewer name, date. Reviewer email is never displayed or logged.
 
-Save/unsave is a toolbar button; state stays consistent with the grid and Saved tab (S5).
+Save/unsave is a toolbar button (a bookmark); state stays consistent with the grid and Saved tab.
+
+**Opened from Saved (as built, S5):** the snapshot shows title, category, rating and price at once, labeled "Saved information · Saved 3 Nov", without a gallery (the gallery never shows the card thumbnail) while "Updating…" fetches `/products/{id}`. Success replaces it with the full product; if the price differs from the snapshot's, Pricing adds "Price changed since you saved it" and "Price when saved: $9.99". A failure keeps the snapshot with "Couldn't refresh — showing saved info" and **Retry**. A 404 keeps the snapshot with "This product is no longer available." and no Retry (the product can still be unsaved). The stored snapshot is never overwritten by fresh data, so "price when saved" stays the price when saved (D-67).
 
 Details open from a card tap in the browse grid or search results, on the Catalog tab's stack. Going back shows the catalog exactly as it was: scroll position, loaded pages, search text, results and sort (AC-C6); a search stays active even if the system deactivated the search field for the push (D-54).
 
@@ -132,13 +134,13 @@ Details open from a card tap in the browse grid or search results, on the Catalo
 
 ### 4.4 Saved products
 
-- Save/unsave from the catalog card, details toolbar, and swipe-to-delete in the Saved list.
+- Save/unsave from the catalog card (a bookmark button over the thumbnail's top-trailing corner, D-60), details toolbar, and swipe-to-delete in the Saved list.
 - Persisted locally as **snapshots**: `id, title, thumbnailURL, price, rating, category, savedAt`. Snapshots let the Saved tab render instantly and offline; they are labeled as **saved information**, e.g. "Price when saved: $9.99 · Saved 3 Nov".
 - Saved data is treated as a durable *selection*, not as current truth: details always refetch, and if the fresh price differs from the snapshot the details screen shows "Price changed since you saved it" (factual, no judgement).
 - Saved row: thumbnail, title, price when saved, saved date. No rating (identical in both experiment arms).
 - Order: most recently saved first.
-- Empty state: explanation + **Browse catalog** button that switches to the Catalog tab.
-- Survives relaunch; a corrupt store file is moved aside, logged, and the app starts with an empty list rather than crashing.
+- Empty state: explanation + **Browse catalog** button that switches to the Catalog tab (D-61).
+- Survives relaunch; a corrupt store file is moved aside, logged, and the app starts with an empty list rather than crashing. A file with an unknown format version (e.g. from a newer build) is left in place, logged, and the app starts empty; the next save overwrites it (D-65).
 
 **Acceptance criteria**
 - AC-V1 Saving from any surface updates all surfaces (card icon, details toolbar, Saved list, tab badge) at once.

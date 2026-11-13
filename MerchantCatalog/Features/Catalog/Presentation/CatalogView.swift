@@ -8,7 +8,8 @@ import SwiftUI
 /// While a search is shown, the browse list stays in the hierarchy underneath, invisible and inert,
 /// so clearing the search shows it at the same scroll position with its thumbnails loaded (D-47).
 /// A card tap asks the view model to open details on the Catalog tab's stack (D-53); this view stays
-/// underneath, so going back shows it as it was (AC-C6).
+/// underneath, so going back shows it as it was (AC-C6). The card's save button toggles the shared
+/// saved store (D-60).
 struct CatalogView: View {
     /// Drives `catalog_viewed` (D-39): true at the first display and on each switch back to the tab.
     /// Popping back from details doesn't change it.
@@ -168,12 +169,32 @@ private struct CatalogGrid: View {
         ScrollView {
             LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
                 ForEach(cards) { card in
-                    Button {
-                        viewModel.cardSelected(id: card.id, in: context)
-                    } label: {
-                        ProductCardView(card: card)
+                    let isSaved = viewModel.isSaved(card.id)
+                    // The save button is a sibling over the thumbnail's corner, not nested in the
+                    // card's button, so each takes its own taps (D-60). VoiceOver reads the pair as
+                    // one element that opens details, with a custom action to save or unsave
+                    // (ProductSpecification § 4.5).
+                    ZStack(alignment: .topTrailing) {
+                        Button {
+                            viewModel.cardSelected(id: card.id, in: context)
+                        } label: {
+                            ProductCardView(card: card)
+                        }
+                        .buttonStyle(.plain)
+                        CardSaveButton(isSaved: isSaved) {
+                            viewModel.saveToggled(id: card.id, in: context)
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .ignore)
+                    // S6 passes the rating in the treatment arm.
+                    .accessibilityLabel(ProductCardAccessibility.label(title: card.title, price: card.price, rating: nil, isSaved: isSaved))
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction {
+                        viewModel.cardSelected(id: card.id, in: context)
+                    }
+                    .accessibilityAction(named: ProductCardAccessibility.saveActionName(isSaved: isSaved)) {
+                        viewModel.saveToggled(id: card.id, in: context)
+                    }
                     .onAppear { viewModel.itemAppeared(id: card.id, in: context) }
                 }
             }
