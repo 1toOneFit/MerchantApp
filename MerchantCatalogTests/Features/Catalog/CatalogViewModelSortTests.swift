@@ -195,4 +195,46 @@ struct CatalogViewModelSortTests {
         #expect(viewModel.cards.map(\.id) == Array(1...20))
         #expect(repository.requests.count == requestCount)
     }
+
+    // MARK: - Scroll to top
+
+    /// Review finding 2: a sort change gives the browse list a new identity, so the view shows it in
+    /// a new grid, from the top.
+    @Test func sortChangeStartsANewBrowseList() async {
+        let viewModel = await browsingViewModel()
+        let listID = viewModel.browseList.listID
+        repository.enqueue(page(101...120, total: 194, skip: 0))
+
+        viewModel.sortSelected(.priceAscending)
+        await viewModel.firstPageTask?.value
+
+        #expect(viewModel.browseList.listID != listID)
+    }
+
+    @Test func sortChangeStartsANewSearchList() async {
+        let viewModel = await browsingViewModel()
+        await search("phone", in: viewModel, answer: page(201...220, total: 23, skip: 0))
+        let listID = viewModel.searchList?.listID
+        repository.enqueue(page(221...240, total: 23, skip: 0))
+
+        viewModel.sortSelected(.priceAscending)
+        await viewModel.searchTask?.value
+
+        #expect(viewModel.searchList?.listID != listID)
+    }
+
+    /// Loading more and pull-to-refresh keep the list's identity: the grid and its scroll position
+    /// stay.
+    @Test func loadMoreAndRefreshKeepTheList() async {
+        let viewModel = await browsingViewModel()
+        let listID = viewModel.browseList.listID
+        repository.enqueue(page(21...40, total: 194, skip: 20))
+        viewModel.itemAppeared(id: 20, in: .browse)
+        await viewModel.pageTask?.value
+        repository.enqueue(page(1...20, total: 194, skip: 0))
+
+        await viewModel.refresh()
+
+        #expect(viewModel.browseList.listID == listID)
+    }
 }

@@ -23,6 +23,8 @@ struct CatalogFeed {
     let query: SearchQuery?
     var sort: ProductSort
     private(set) var generation = 0
+    /// The generation of the latest page-1 load, which refreshes don't change (`CatalogListContent`).
+    private(set) var listID = 0
     private(set) var list = CatalogListState()
     /// One card per loaded product, in server order.
     private(set) var cards: [ProductCardModel] = []
@@ -40,7 +42,7 @@ struct CatalogFeed {
     }
 
     var content: CatalogListContent {
-        CatalogListContent(phase: phase, cards: cards)
+        CatalogListContent(phase: phase, cards: cards, listID: listID)
     }
 
     /// Products are on screen.
@@ -72,6 +74,7 @@ struct CatalogFeed {
     /// A page-1 load starts: the skeleton shows until it finishes.
     mutating func beginFirstPage(generation: Int) {
         self.generation = generation
+        listID = generation
         firstPage = .loading
         pageLoad = .idle
         refreshError = nil

@@ -79,7 +79,11 @@ private struct CatalogListView: View {
         case .initialLoading:
             CatalogSkeletonGrid()
         case .content(let footer, let refreshError):
+            // A new list (sort change, new query, Retry, Reload) gets a new grid, and a new scroll
+            // view starts at the top. A page 1 shows the skeleton in between, which replaces the
+            // grid too; the identity makes the reset independent of that frame being drawn.
             CatalogGrid(cards: content.cards, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel)
+                .id(content.listID)
         case .empty:
             ContentUnavailableView {
                 Label("No products", systemImage: "shippingbox")

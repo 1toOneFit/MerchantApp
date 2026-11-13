@@ -30,4 +30,8 @@ enum CatalogFooter: Equatable {
 struct CatalogListContent: Equatable {
     let phase: CatalogPhase
     let cards: [ProductCardModel]
+    /// Changes whenever page 1 loads anew (initial load, Retry, Reload, sort change, new query), never
+    /// on load-more or pull-to-refresh. The view gives each list its own grid, so a new list starts
+    /// at the top (ProductSpecification § 4.2).
+    let listID: Int
 }
