@@ -154,7 +154,7 @@ Details open from a card tap in the browse grid or search results, on the Catalo
 
 - Error messages are specific and actionable: offline ("You're offline. Check your connection and try again."), timeout, server error, unexpected data.
 - Offline messaging appears **only** where saved content really exists (Saved snapshots — the user's data, not a cache). The app does no caching, so the catalog needs a connection (see [Networking.md § 3](Networking.md#3-caching--deliberately-not-implemented)).
-- Images load **only while visible**: loading starts when a cell appears, and an in-flight load stops when the cell disappears. Placeholder while loading, neutral icon on failure, retried on the next appearance. No image cache, so a scrolled-back image downloads again (see [Networking.md § 4](Networking.md#4-image-loading)).
+- Images load **only while visible**: loading starts when a cell appears, and an in-flight load is cancelled when the cell disappears, e.g. on fast scrolling (D-78). Placeholder while loading, neutral icon on failure, retried on the next appearance. No image cache, so a scrolled-back image downloads again (see [Networking.md § 4](Networking.md#4-image-loading)).
 - Dynamic Type supported on all text (cards allow 2-line titles, grid stays usable at accessibility sizes by switching to 1 column at AX sizes).
 - VoiceOver: each card reads as one element: "Title, price[, rating], saved/not saved" with a custom action for save/unsave. Buttons have labels; images are decorative unless in the gallery.
 - Tap targets ≥ 44 × 44 pt. Dark mode supported via system colors.
@@ -191,7 +191,7 @@ Defined in [Analytics.md](Analytics.md) (event taxonomy, user properties, instal
 - Builds and runs in the iOS Simulator with no setup beyond opening the project (no keys, no package resolution).
 - No third-party dependencies in 1.0.
 - Unit tests deterministic, no live network; no UI snapshot tests.
-- Main thread never blocks on networking, JSON decoding or file I/O (image loading and decoding are handled by `AsyncImage`).
+- Main thread never blocks on networking, JSON decoding or file I/O (image download and decoding run off the main actor in `URLSessionImageLoader`, D-78).
 - No HTTP or custom caching ([Networking.md § 3](Networking.md#3-caching--deliberately-not-implemented)).
 
 ## 8. Deliberate exclusions

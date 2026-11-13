@@ -30,7 +30,7 @@ Prices, stock, shipping and return terms are demo data from a mock API.
 | Moya-style `TargetType` over native `URLSession` | Alamofire | No dependency |
 | Server-side search, sort and pagination (verified to combine) | Client-side sorting | Never misrepresent the order of the whole catalog |
 | Saved items as local snapshots | IDs only + refetch | Instant, offline Saved tab; details always refetch fresh data |
-| `AsyncImage`, shown only while the cell is visible | Custom image loader | Load starts on appear and stops on disappear, without custom machinery |
+| A small cancellable image loader (`.task(id:)` + `URLSession`, no cache) | `AsyncImage` | `AsyncImage` can't cancel or report its request; ours starts on appear, is cancelled on disappear (fast scrolling) and is unit-tested |
 
 Full rationale: [docs/Architecture.md](docs/Architecture.md); every decision with who made it: [Decisions](docs/ImplementationPlan.md#decisions).
 
@@ -60,14 +60,14 @@ Against the release completion criteria of the original brief ([MasterSpecificat
 | No fabricated research, metrics, experiment outcomes or performance numbers | Met. Unverified platform behavior is labeled as expected. |
 | Current stable Xcode | **Not met.** Built with Xcode 26.0; the current release is 27.2, which needs a macOS update that didn't fit the assignment window. Opening in newer Xcode is expected to work but unverified. |
 
-**Known limitations:** `AsyncImage` request cancellation on disappear is expected, not yet verified ([Networking.md § 4](docs/Networking.md#verification)); `URLError` codes outside the documented table count as "unknown", not "offline"; categories show as the API slug in words ("Mens Shirts"); sort labels are short ("Top rated"); details opened from Saved show the snapshot's price as "Price" under a "Saved information" note until the refresh arrives; an experiment override applies at the next launch.
+**Known limitations:** image cancellation is unit-tested down to the request, while SwiftUI cancelling the task on disappear is Apple-documented and checked manually ([Networking.md § 4](docs/Networking.md#verification)); `URLError` codes outside the documented table count as "unknown", not "offline"; categories show as the API slug in words ("Mens Shirts"); sort labels are short ("Top rated"); details opened from Saved show the snapshot's price as "Price" under a "Saved information" note until the refresh arrives; an experiment override applies at the next launch.
 
 ## AI assistance
 
 I drafted the spec with ChatGPT. Analysis, API verification, planning and implementation were done with Claude Code, and each stage got an independent Codex review that I ran manually. [docs/AILog.md](docs/AILog.md) records, as it happened, where I accepted, changed or rejected AI output. Examples:
 
 - I kept my own DI container and Domain layer instead of Claude's simplification suggestions.
-- I replaced its planned caching and custom image loader with no caching and visibility-gated `AsyncImage`.
+- I replaced its planned caching and custom image loader with no caching and visibility-gated `AsyncImage`; at the final review I asked for explicit cancellation instead, so images now load through a small cancellable loader.
 - I rejected moving the catalog's view model into the tab view.
 - Codex reviews found real defects in Claude's code (a cancelled refresh that could still apply its response, cards that were two VoiceOver elements, a page Retry during refresh); each was fixed test-first.
 

@@ -93,51 +93,49 @@ Codes and statuses outside this table (e.g. `URLError.cannotFindHost`, a 400, a 
 
 ## 4. Image loading
 
-Images use SwiftUI **`AsyncImage`**. There is no custom image loader and no image cache (see § 3).
+Images load through **`URLSessionImageLoader`** (behind the `ImageLoading` protocol), a small loader with explicit cancellation and **no cache** (see § 3). It replaced SwiftUI's `AsyncImage` in S7 (D-78): `AsyncImage` offers no way to cancel or observe its request, so cancellation on disappear could only be hoped for, never shown.
 
 ### Requirement
 
-Image loading **starts when a cell appears** and **stops when the cell disappears** if the load is still in progress.
+Image loading **starts when a cell appears** and **stops when the cell disappears** if the load is still in progress (fast scrolling).
 
-### Design: visibility-gated `AsyncImage`
-
-Lazy grids create cells on demand but may keep an off-screen cell's view alive, so `AsyncImage` alone isn't guaranteed to stop work when a cell scrolls away. `ProductImageView` makes the lifecycle explicit:
+### Design: `.task(id:)` + a cancellable loader
 
 ```swift
 struct ProductImageView: View {
     let url: URL?
-    @State private var isVisible = false
+    @Environment(\.imageLoader) private var loader     // the registered `any ImageLoading` (AppContext)
+    @State private var model = ProductImageModel()      // .empty → .loaded(UIImage) | .failed
 
     var body: some View {
         ZStack {
-            placeholder                          // always present: fixed size, no layout jump
-            if isVisible, let url {
-                AsyncImage(url: url) { phase in … }   // empty → placeholder, success → image, failure → icon
-                    .id(url)                          // new URL → new load
-            }
+            placeholder                                  // always present: fixed size, no layout jump
+            image or failure icon for model.phase
         }
-        .onAppear { isVisible = true }               // start loading
-        .onDisappear { isVisible = false }           // remove AsyncImage → its in-flight load is torn down
+        .task(id: url) { await model.load(url, using: loader) }   // start on appear / new URL
+        .onDisappear { model.reset() }                             // release the decoded image
     }
 }
 ```
 
-- **Appear:** `isVisible = true` inserts `AsyncImage`, which starts the request.
-- **Disappear:** `isVisible = false` removes `AsyncImage` from the hierarchy. SwiftUI ends the work of removed views, so an in-flight load stops and its result can never land in a cell that now shows another product.
-- **Reuse / identity change:** `.id(url)` forces a fresh `AsyncImage` when the URL changes.
-- **Failure:** a neutral icon. Because the view is recreated on the next appearance, scrolling back retries automatically.
-- **Gallery:** the same component per page, so only visible pages load.
-- **Concurrency:** there is no app-level `Task`; loading and decoding are managed by `AsyncImage`.
+- **Appear:** SwiftUI runs `.task(id: url)`, which calls `model.load`: placeholder, then `loader.image(from:)`.
+- **Disappear (fast scroll):** SwiftUI cancels the view's task. `URLSessionImageLoader` awaits `URLSession.data(for:)` in that task, so the cancellation cancels the `URLSessionTask`; the loader throws `CancellationError` and logs `[<id>] cancelled after … ms` in the `network` category. The model keeps the placeholder, and a response or failure that wins the race with the cancellation is dropped (`Task.isCancelled`). `reset()` releases an already loaded image, so an off-screen cell holds no decoded image.
+- **Reuse / identity change:** a new URL changes the task id: SwiftUI cancels the old load, and the model shows the placeholder (never the previous product's image) until the new image arrives.
+- **Failure:** a neutral icon; the next appearance loads again.
+- **Gallery:** the same component per page, so only pages on screen load.
+- **No cache:** the loader's own `URLSession` has `urlCache = nil` and `.reloadIgnoringLocalCacheData` (`AsyncImage` used `URLSession.shared`, whose cache we couldn't turn off).
+- **Concurrency:** `image(from:)` is `@concurrent`: download and decoding (`UIImage(data:)` + `byPreparingForDisplay()`) run off the main actor; the `@MainActor` model only assigns the result. The only task is the one `.task` owns, so SwiftUI manages its lifetime.
+- **Injection:** `AppContext` registers the loader as `any ImageLoading` and `MerchantCatalogApp` puts it into the SwiftUI environment (`\.imageLoader`); the environment's default fails every load (failure icon + error log), so a missing injection is visible.
 
 ### Verification
 
-- 🔍 **Expectation:** removing an `AsyncImage` from the hierarchy cancels its in-flight request. Apple documents automatic cancellation for `.task`, but not explicitly for `AsyncImage`, so this is verified manually by the developer, not asserted.
-  - **Manual check:** slow image downloads with macOS Network Link Conditioner (e.g. the "3G" profile); the DEBUG `delay` toggle affects only API requests. Scroll fast through the grid and watch a proxy (Proxyman/Charles) or Instruments' network template: requests for cells that left the screen should end as cancelled. Record the date, method and result here.
-  - **Status:** `ProductImageView` is implemented as designed above (S2). The manual check is pending (handed to the developer at the S2 review gate); no result is claimed yet.
-- Unit tests cover what is controllable: card and gallery presentation models expose the right URLs (thumbnail for cards, full images for the gallery, `nil` → placeholder only). `AsyncImage`'s network lifecycle can't be proven in unit tests and isn't claimed to be.
+- ✅ **Cancellation reaches the request** (verified 2026-11-13, unit test `URLSessionImageLoaderTests.cancellationStopsTheRequest`): a request to a `StubURLProtocol` stub that never answers; cancelling the calling task makes `URLSession` stop the load (`stopLoading`) and the loader throw `CancellationError`. With the request moved into a detached task (a mutation), the test hits its time limit, so it does detect a load that survives cancellation.
+- ✅ **State rules** (unit tests `ProductImageModelTests`): a cancelled load keeps the placeholder; a late image or failure after cancellation is ignored; a new URL clears the previous image; `reset()` releases the image.
+- 🔍 **Expectation (Apple-documented, not app-tested):** SwiftUI cancels a `.task` at some point after its view disappears and restarts it when its `id` changes (Apple's `task(id:priority:_:)` documentation). In a lazy grid a cell "disappears" when it leaves the grid's render window, which can extend slightly past the visible edge.
+  - **Manual check (developer):** with Console.app filtered to the `network` category (debug messages on) and macOS Network Link Conditioner "3G", fling the catalog grid: thumbnails of cells that scrolled away end with `cancelled after … ms` lines; no proxy needed. Record the date and result here.
 
 ### Known limitations (accepted)
 
 - No de-duplication: two visible views with the same URL load it twice (rare in this UI).
-- No control over decoding or downsampling: full gallery images are decoded at full size by `AsyncImage`.
+- No downsampling: full gallery images are decoded at full size (`byPreparingForDisplay()` decodes off the main actor but keeps the size).
 - Re-download on every reappearance (no cache).
