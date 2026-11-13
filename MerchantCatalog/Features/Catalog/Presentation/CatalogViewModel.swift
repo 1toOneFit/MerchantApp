@@ -59,6 +59,8 @@ final class CatalogViewModel {
     @ObservationIgnored private let repository: any ProductRepository
     @ObservationIgnored private let analytics: any AnalyticsTracking
     @ObservationIgnored private let clock: any Clock<Duration>
+    /// The Catalog tab's router (D-53).
+    @ObservationIgnored private let router: Router
 
     /// Why a page 1 loads, and for which list.
     private enum FirstPageTrigger {
@@ -100,9 +102,15 @@ final class CatalogViewModel {
         let elapsed: () -> Duration
     }
 
-    init(repository: any ProductRepository, analytics: any AnalyticsTracking, clock: any Clock<Duration> = ContinuousClock()) {
+    init(
+        repository: any ProductRepository,
+        analytics: any AnalyticsTracking,
+        router: Router,
+        clock: any Clock<Duration> = ContinuousClock()
+    ) {
         self.repository = repository
         self.analytics = analytics
+        self.router = router
         self.clock = clock
     }
 
@@ -178,7 +186,14 @@ final class CatalogViewModel {
 
     /// The search field was dismissed (Cancel): the query is cleared and browse returns. The system
     /// may also empty the field's text, before or after; that second change is a no-op.
+    ///
+    /// Ignored while details are pushed on the Catalog tab: if the system deactivated the field for
+    /// the push, going back must still show the search (AC-C6, D-54).
     func searchDismissed() {
+        guard router.path.isEmpty else {
+            Log.navigation.debug("search dismissal ignored while details are open")
+            return
+        }
         searchTextChanged(to: "")
     }
 
@@ -212,6 +227,22 @@ final class CatalogViewModel {
             return
         }
         startPageTask(in: context, isRetry: false)
+    }
+
+    /// A card of the `context` list was tapped: `product_selected` from the list on screen, then the
+    /// details screen on the Catalog tab's stack (D-53). Cards of a hidden list are ignored (D-47).
+    func cardSelected(id: Product.ID, in context: ListContext) {
+        guard
+            context == listContext,
+            let feed = feed(for: context),
+            let position = feed.list.items.firstIndex(where: { $0.id == id })
+        else {
+            return
+        }
+        let product = feed.list.items[position]
+        let source: ProductSource = context == .search ? .search : .catalog
+        analytics.track(.productSelected(productID: id, source: source, position: position, sort: feed.sort))
+        router.showProductDetail(ProductDetailRoute(product: product, source: source))
     }
 
     /// The footer's Retry after a failed page. Ignored while a refresh is in flight: the refresh

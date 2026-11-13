@@ -25,7 +25,7 @@ struct AppTabView: View {
         TabView(selection: $selection) {
             Tab("Catalog", systemImage: "square.grid.2x2", value: AppTab.catalog) {
                 NavigationStack(path: $catalogRouter.path) {
-                    CatalogConfigurator.make(from: container, isTabSelected: selection == .catalog)
+                    CatalogConfigurator.make(from: container, router: catalogRouter, isTabSelected: selection == .catalog)
                     #if DEBUG
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
