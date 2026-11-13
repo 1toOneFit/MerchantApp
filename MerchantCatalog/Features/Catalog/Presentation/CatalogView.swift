@@ -71,7 +71,7 @@ private struct CatalogGrid: View {
             LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
                 ForEach(viewModel.cards) { card in
                     ProductCardView(card: card)
-                        .onAppear { viewModel.itemAppeared(id: card.id) }
+                        .onAppear { viewModel.itemAppeared(id: card.id, in: .browse) }
                 }
             }
             .padding(.horizontal)
