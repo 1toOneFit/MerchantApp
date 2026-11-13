@@ -399,6 +399,30 @@ struct CatalogViewModelTests {
         await refresh.value
     }
 
+    /// Review finding 1: the failed-page footer's Retry must not start a page request while a
+    /// refresh is in flight.
+    @Test func retryPageIsIgnoredDuringRefresh() async {
+        let viewModel = await loadedViewModel()
+        repository.enqueue(failure: AppError.timeout)
+        viewModel.itemAppeared(id: 20)
+        await viewModel.pageTask?.value
+        let refresh = Task { await viewModel.refresh() }
+        await repository.waitForPendingRequests(1)
+
+        repository.enqueue(page(21...40, total: 194, skip: 20))
+
+        viewModel.retryPage()
+        viewModel.itemAppeared(id: 20)
+        await viewModel.pageTask?.value
+
+        #expect(repository.requests.count == 3, "page 1, the failed page 2 and the refresh only")
+        #expect(!analytics.events.contains { $0.name == .retryRequested })
+
+        repository.resumeNext(with: .success(page(1...20, total: 194, skip: 0)))
+        await refresh.value
+        #expect(viewModel.phase == .content(footer: .idle, refreshError: nil))
+    }
+
     @Test func dismissRefreshErrorClearsBanner() async {
         let viewModel = await loadedViewModel()
         repository.enqueue(failure: AppError.offline)

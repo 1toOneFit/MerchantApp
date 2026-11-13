@@ -118,9 +118,10 @@ final class CatalogViewModel {
         startPageTask(isRetry: false)
     }
 
-    /// The footer's Retry after a failed page.
+    /// The footer's Retry after a failed page. Ignored while a refresh is in flight: the refresh
+    /// replaces the list, and only one page request may run at a time (D-41).
     func retryPage() {
-        guard case .failed(let error) = pageLoad else { return }
+        guard !isRefreshing, case .failed(let error) = pageLoad else { return }
         analytics.track(.retryRequested(failedSurface: .catalogPage, error: error))
         startPageTask(isRetry: true)
     }
