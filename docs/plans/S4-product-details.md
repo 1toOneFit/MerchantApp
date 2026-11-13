@@ -53,11 +53,11 @@
 - DTO: all new fields optional; blank strings → `nil` (like `brand`); blank tags dropped; `dimensions` only when all three values exist; review `date` parsed as ISO 8601 with fractional seconds, else `nil`; a review with no rating, comment or name is dropped; `reviewerEmail` is not a DTO property.
 - Test helper `makeProduct(id:title:price:brand:availability:thumbnailURL:imageURLs:productDescription:category:tags:rating:discountPercentage:stock:sku:weight:dimensions:warranty:shipping:returnPolicy:minimumOrderQuantity:reviews:)` with defaults (`nil` / `[]`, title "Product <id>", price `<id>.99`); `product(_:)` keeps its current values and calls it.
 
-- [ ] **Step 1: Write failing tests:** `decodesDetailsFields` (fixture → description "A lengthening mascara for everyday wear.", category "beauty", tags `["beauty", "mascara"]`, rating 4.94, discount 7.17, stock 5, sku "BEA-ACM-001", weight 4, dimensions 15.14/13.08/22.99, warranty "1 month warranty", shipping "Ships in 1 month", returnPolicy "No return policy", MOQ 48, one review `(3, "Fine.", "Reviewer One", 2025-04-30T09:41:02.053Z)`); `missingDetailsFieldsAreEmpty` (all removed → `nil` / `[]`); `blankDetailsStringsAreNil` (parameterized over the string keys); `partialDimensionsAreNil`; `reviewsMapWithoutEmail` (`Mirror` of `ProductReview` has no label containing "email"); `malformedReviewFieldsAreNil` (date "yesterday" → `nil` date; a review `{}` is dropped).
-- [ ] **Step 2:** Run → compile failure.
-- [ ] **Step 3:** Implement; add A14 to Networking.md (curl 2026-11-13: `weight` integer 1–10 and `dimensions` without units, `discountPercentage` 0.04–19.61 with none 0, 10 "In Stock" products with stock ≤ 10, 4 with stock 0, reviews carry `reviewerEmail`).
-- [ ] **Step 4:** Run the suite → pass.
-- [ ] **Step 5:** Commit `feat: map product details fields`.
+- [x] **Step 1: Write failing tests:** `decodesDetailsFields` (fixture → description "A lengthening mascara for everyday wear.", category "beauty", tags `["beauty", "mascara"]`, rating 4.94, discount 7.17, stock 5, sku "BEA-ACM-001", weight 4, dimensions 15.14/13.08/22.99, warranty "1 month warranty", shipping "Ships in 1 month", returnPolicy "No return policy", MOQ 48, one review `(3, "Fine.", "Reviewer One", 2025-04-30T09:41:02.053Z)`); `missingDetailsFieldsAreEmpty` (all removed → `nil` / `[]`); `blankDetailsStringsAreNil` (parameterized over the string keys); `partialDimensionsAreNil`; `reviewsMapWithoutEmail` (`Mirror` of `ProductReview` has no label containing "email"); `malformedReviewFieldsAreNil` (date "yesterday" → `nil` date; a review `{}` is dropped).
+- [x] **Step 2:** Run → compile failure.
+- [x] **Step 3:** Implement; add A14 to Networking.md (curl 2026-11-13: `weight` integer 1–10 and `dimensions` without units, `discountPercentage` 0.04–19.61 with none 0, 10 "In Stock" products with stock ≤ 10, 4 with stock 0, reviews carry `reviewerEmail`).
+- [x] **Step 4:** Run the suite → pass.
+- [x] **Step 5:** Commit `feat: map product details fields`.
 
 ### Task 2: ProductInsights
 
@@ -72,9 +72,9 @@
 - `shippingAndAvailability: [Fact]` — availability (`units: nil`), stock, shipping, minimumOrder, returnPolicy.
 - `reviews: [ProductReview]`. An empty array = the section is omitted.
 
-- [ ] **Step 1: Write failing tests:** `fullProductHasEveryFact` (exact arrays in the orders above); `sparseProductKeepsOnlyCoreFacts` (Review Focus 1: only `atAGlance == [.rating(4.5)]`, `pricing == [.price(9.99)]`, every other array empty); `noBrandMeansNoBrandRow`; `zeroDiscountIsOmitted` (parameterized 0, `nil`); `availabilityCarriesStock` (`.lowStock`, stock 5 → `.availability(.lowStock, units: 5)` in At a Glance, `.availability(.lowStock, units: nil)` + `.stock(5)` in Shipping); `unknownAvailabilityKeepsStock` (availability `nil`, stock 7 → no availability fact, `.stock(7)` kept).
-- [ ] **Step 2:** Run → compile failure. **Step 3:** Implement. **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add ProductInsights`.
+- [x] **Step 1: Write failing tests:** `fullProductHasEveryFact` (exact arrays in the orders above); `sparseProductKeepsOnlyCoreFacts` (Review Focus 1: only `atAGlance == [.rating(4.5)]`, `pricing == [.price(9.99)]`, every other array empty); `noBrandMeansNoBrandRow`; `zeroDiscountIsOmitted` (parameterized 0, `nil`); `availabilityCarriesStock` (`.lowStock`, stock 5 → `.availability(.lowStock, units: 5)` in At a Glance, `.availability(.lowStock, units: nil)` + `.stock(5)` in Shipping); `unknownAvailabilityKeepsStock` (availability `nil`, stock 7 → no availability fact, `.stock(7)` kept).
+- [x] **Step 2:** Run → compile failure. **Step 3:** Implement. **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add ProductInsights`.
 
 ### Task 3: Details presentation models
 
@@ -85,9 +85,9 @@
 - `struct ProductDetailHeader: Equatable { let title: String; let brand: String?; let category: String?; init(_ product: Product) }` — category via the same display rule.
 - `struct ProductGalleryModel: Equatable { let imageURLs: [URL]; var showsPageIndicator: Bool; init(_ product: Product) }` — full images, never the thumbnail; indicator only for ≥ 2 images.
 
-- [ ] **Step 1: Write failing tests** with the values above (locale `en_US`); `headerWithoutBrand`; `galleryUsesFullImages` (3 images + thumbnail → the 3 images); `singleImageHidesThePageIndicator`; `noImagesMeansEmptyGallery`.
-- [ ] **Step 2:** Run → compile failure. **Step 3:** Implement. **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add product details presentation models`.
+- [x] **Step 1: Write failing tests** with the values above (locale `en_US`); `headerWithoutBrand`; `galleryUsesFullImages` (3 images + thumbnail → the 3 images); `singleImageHidesThePageIndicator`; `noImagesMeansEmptyGallery`.
+- [x] **Step 2:** Run → compile failure. **Step 3:** Implement. **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add product details presentation models`.
 
 ### Task 4: Details analytics events
 
@@ -100,9 +100,9 @@
 - `.productGalleryInteracted(productID: Int, imageCount: Int)`.
 - Analytics.md: the three events **Active**; `is_saved` marked "(from S5, D-56)"; `content_origin` `list` only until S5; D-59 dedup notes.
 
-- [ ] **Step 1: Write failing tests:** exact dictionaries, e.g. `.productSelected(productID: 4, source: .search, position: 3, sort: .priceAscending)` → `["product_id": 4, "source": "search", "position": 3, "sort": "price_asc"]`; `.productDetailsViewed(productID: 1, source: .catalog, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, contentOrigin: .list)` → all seven; the same with `category: nil, availability: nil` → no such keys; `.productGalleryInteracted(productID: 1, imageCount: 3)`.
-- [ ] **Step 2:** Run → compile failure. **Step 3:** Implement code and docs. **Step 4:** Run → pass, `TaxonomyDocumentationTests` included.
-- [ ] **Step 5:** Commit `feat: add product details analytics events`.
+- [x] **Step 1: Write failing tests:** exact dictionaries, e.g. `.productSelected(productID: 4, source: .search, position: 3, sort: .priceAscending)` → `["product_id": 4, "source": "search", "position": 3, "sort": "price_asc"]`; `.productDetailsViewed(productID: 1, source: .catalog, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, contentOrigin: .list)` → all seven; the same with `category: nil, availability: nil` → no such keys; `.productGalleryInteracted(productID: 1, imageCount: 3)`.
+- [x] **Step 2:** Run → compile failure. **Step 3:** Implement code and docs. **Step 4:** Run → pass, `TaxonomyDocumentationTests` included.
+- [x] **Step 5:** Commit `feat: add product details analytics events`.
 
 ### Task 5: Route, router and details view model
 
@@ -113,9 +113,9 @@
 - `@MainActor @Observable final class ProductDetailViewModel { init(route: ProductDetailRoute, analytics: any AnalyticsTracking); let header: ProductDetailHeader; let insights: ProductInsights; let gallery: ProductGalleryModel; private(set) var galleryIndex: Int; func contentAppeared(); func galleryPageChanged(to index: Int) }`.
 - `ProductDetailConfigurator.resolveDependencies(from:) -> Dependencies?` (analytics). Its `make(from:route:) -> ProductDetailView` comes with the view in Task 7.
 
-- [ ] **Step 1: Write failing tests:** RouterTests' helper builds `.productDetail(ProductDetailRoute(product: product(id), source: .catalog))`; `showProductDetailPushesTheRoute`. View model: `detailsViewedOncePerScreen` (`contentAppeared()` twice → one `.productDetailsViewed(productID: 1, source: .search, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, contentOrigin: .list)`); `eachPushTracksItsOwnView` (two view models → two events); `galleryEventFiresOnceOnTheFirstSwipe` (`to: 0` → none; `to: 1` → `.productGalleryInteracted(productID: 1, imageCount: 3)`; `to: 2`, `to: 0` → none; `galleryIndex == 0`); `exposesHeaderInsightsAndGallery`. Registration: `productDetailDependenciesResolve`.
-- [ ] **Step 2:** Run → compile failure. **Step 3:** Implement (the S0 placeholder destination in `AppTabView` switches on the new payload, still a `Text` until Task 7). **Step 4:** Run → pass.
-- [ ] **Step 5:** Commit `feat: add product details route and view model`.
+- [x] **Step 1: Write failing tests:** RouterTests' helper builds `.productDetail(ProductDetailRoute(product: product(id), source: .catalog))`; `showProductDetailPushesTheRoute`. View model: `detailsViewedOncePerScreen` (`contentAppeared()` twice → one `.productDetailsViewed(productID: 1, source: .search, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, contentOrigin: .list)`); `eachPushTracksItsOwnView` (two view models → two events); `galleryEventFiresOnceOnTheFirstSwipe` (`to: 0` → none; `to: 1` → `.productGalleryInteracted(productID: 1, imageCount: 3)`; `to: 2`, `to: 0` → none; `galleryIndex == 0`); `exposesHeaderInsightsAndGallery`. Registration: `productDetailDependenciesResolve`.
+- [x] **Step 2:** Run → compile failure. **Step 3:** Implement (the S0 placeholder destination in `AppTabView` switches on the new payload, still a `Text` until Task 7). **Step 4:** Run → pass.
+- [x] **Step 5:** Commit `feat: add product details route and view model`.
 
 ### Task 6: Card selection from the catalog
 
@@ -123,9 +123,9 @@
 
 **Interfaces — Produces:** `CatalogViewModel.init(repository:analytics:router:clock:)` (`router: Router`, required); `func cardSelected(id: Product.ID, in context: ListContext)` — ignored for a hidden list or an unknown id; else `product_selected` (`source` `.catalog` / `.search` from the list, `position` = index in that list, `sort` of that list), then `router.showProductDetail`. `searchDismissed()` returns early while `!router.path.isEmpty` (D-54). `CatalogConfigurator.make(from:router:isTabSelected:)`.
 
-- [ ] **Step 1: Write failing tests** (`@Suite(.timeLimit(.minutes(1)))`): `selectingABrowseCardTracksAndPushes` (id 4 → `.productSelected(productID: 4, source: .catalog, position: 3, sort: .defaultOrder)`, `router.path == [.productDetail(.init(product: product(4), source: .catalog))]`); `selectingASearchResultUsesTheSearchList` (search "phone" with ids 101…103, sort changed to `.priceAscending` → select 102 → `source: .search, position: 1, sort: .priceAscending`); `positionCountsLoadedPages` (page 2 loaded → id 25 → `position: 24`); `hiddenListCardIsIgnored` (while searching, `cardSelected(id: 4, in: .browse)` → no event, empty path); `unknownCardIsIgnored`; `searchSurvivesDismissalWhileDetailsArePushed` (search loaded, card selected, `searchDismissed()` → `listContext == .search`, `searchText == "phone"`, no `search_cleared`, no request; `router.pop()` then `searchDismissed()` → browse, one `search_cleared`); `returningFromDetailsKeepsBrowseState` (40 cards, sort `.ratingDescending`; select, pop → same cards, sort, no request).
-- [ ] **Step 2:** Run → compile failure, then assertion failures. **Step 3:** Implement. **Step 4:** Run the suite → pass.
-- [ ] **Step 5:** Commit `feat: open product details from the catalog`.
+- [x] **Step 1: Write failing tests** (`@Suite(.timeLimit(.minutes(1)))`): `selectingABrowseCardTracksAndPushes` (id 4 → `.productSelected(productID: 4, source: .catalog, position: 3, sort: .defaultOrder)`, `router.path == [.productDetail(.init(product: product(4), source: .catalog))]`); `selectingASearchResultUsesTheSearchList` (search "phone" with ids 101…103, sort changed to `.priceAscending` → select 102 → `source: .search, position: 1, sort: .priceAscending`); `positionCountsLoadedPages` (page 2 loaded → id 25 → `position: 24`); `hiddenListCardIsIgnored` (while searching, `cardSelected(id: 4, in: .browse)` → no event, empty path); `unknownCardIsIgnored`; `searchSurvivesDismissalWhileDetailsArePushed` (search loaded, card selected, `searchDismissed()` → `listContext == .search`, `searchText == "phone"`, no `search_cleared`, no request; `router.pop()` then `searchDismissed()` → browse, one `search_cleared`); `returningFromDetailsKeepsBrowseState` (40 cards, sort `.ratingDescending`; select, pop → same cards, sort, no request).
+- [x] **Step 2:** Run → compile failure, then assertion failures. **Step 3:** Implement. **Step 4:** Run the suite → pass.
+- [x] **Step 5:** Commit `feat: open product details from the catalog`.
 
 ### Task 7: Details UI
 
@@ -133,20 +133,25 @@
 
 **Interfaces — Produces:** `ProductDetailView(viewModel:)` owns its view model in `@State`; a `ScrollView` with the gallery (page-style `TabView` bound to `galleryIndex` / `galleryPageChanged(to:)`, `ProductImageView` per page, indicator per `showsPageIndicator`, each page an image element "Image n of m"), the header (title as a header trait, brand, category), then each non-empty section with its exact title (Global Constraints), facts as `ProductFactRow`s (At a Glance as chips), reviews as rating stars + comment + name + date (`.abbreviated`). `.onAppear { viewModel.contentAppeared() }`. Inline navigation bar, no title.
 
-- [ ] **Step 1:** Implement. No layout unit tests (no snapshot tests).
-- [ ] **Step 2:** Run the full suite → pass, `NavigationRuleTests` included.
-- [ ] **Step 3:** Commit `feat: add the product details screen`.
+- [x] **Step 1:** Implement. No layout unit tests (no snapshot tests).
+- [x] **Step 2:** Run the full suite → pass, `NavigationRuleTests` included.
+- [x] **Step 3:** Commit `feat: add the product details screen`.
 
 ### Task 8: Docs and review gate
 
 **Files:** `docs/ProductSpecification.md` § 4.3 (D-55, D-58), `docs/Architecture.md` (§ 2 files, § 6 Configurator, § 7 as built), `docs/Networking.md` (A14, § 2 note: `.detail` arrives in S5), `docs/ImplementationPlan.md` (D-53–D-59, review log, status), README status line, AILog, this plan's checkboxes and deviations.
 
-- [ ] **Step 1:** `xcodebuild … clean build` → `** BUILD SUCCEEDED **`; result bundle `warningCount: 0`.
-- [ ] **Step 2:** `xcodebuild … -configuration Release build` → succeeds, 0 warnings.
-- [ ] **Step 3:** `xcodebuild … test` → all pass; record counts.
-- [ ] **Step 4:** Update docs and the review log (manual Simulator checks: products 1 (1 image, brand), 16 (1 image, no brand), 167 (6 images), 117 (out of stock), 92 (discount 0.04 %); back restores scroll and search; VoiceOver pass); status `READY_FOR_REVIEW`.
-- [ ] **Step 5:** Commit `docs: record S4 review gate`.
+- [x] **Step 1:** `xcodebuild … clean build` → `** BUILD SUCCEEDED **`; result bundle `warningCount: 0`.
+- [x] **Step 2:** `xcodebuild … -configuration Release build` → succeeds, 0 warnings.
+- [x] **Step 3:** `xcodebuild … test` → all pass; record counts.
+- [x] **Step 4:** Update docs and the review log (manual Simulator checks: products 1 (1 image, brand), 16 (1 image, no brand), 167 (6 images), 117 (out of stock), 92 (discount 0.04 %); back restores scroll and search; VoiceOver pass); status `READY_FOR_REVIEW`.
+- [x] **Step 5:** Commit `docs: record S4 review gate`.
 
 ## Deviations found during implementation
 
-*(filled in during implementation)*
+- Task 1: extra test `blankTagsAreDropped`. `ProductCardModelTests` now builds its product with `makeProduct`; touching that line surfaced a Swift Testing "redundant `#require`" warning in the test target (the `xcodebuild build` result bundle doesn't compile tests, so earlier gates didn't count it), so it reads the decimal with a `guard`. The full test log has no warnings.
+- Task 3: `ProductDetailHeader` has a memberwise initializer for tests; the category display rule (`categoryName(_:)`) lives on it and `ProductFactRow` uses it.
+- Task 4: extra rows for `in_stock` and `out_of_stock`.
+- Task 5: `Route.logDescription` was added. `Router.push` logged `String(describing: route)` publicly, which would now include the product's title (Architecture § 10 keeps titles out of public logs); it logs only the id and source. Not unit-tested (a log line). The view model's two once-guards passed when first run (compile failure first); each was mutation-checked: without them `detailsViewedOncePerScreen` and `galleryEventFiresOnceOnTheFirstSwipe` fail.
+- Task 6: a stub `cardSelected` and the `router` parameter were added first, so the suite failed on assertions (4 tests, 9 issues) before the implementation. `hiddenListCardIsIgnored`, `unknownCardIsIgnored` and `returningFromDetailsKeepsBrowseState` passed against the stub by design; the first was mutation-checked (without `context == listContext` it fails), and so was the last (without `start()`'s `notLoaded` guard it first hit the 1-minute time limit, so it now queues an answer and fails on cards and request count instead).
+- Task 7: the card is a `Button` with `.buttonStyle(.plain)` around `ProductCardView`. Each gallery page is one VoiceOver image element, "Product image n of m". No `#Preview` (the other feature screens have none).

@@ -109,16 +109,18 @@ Category, brand, discount and availability are deliberately **not** on the card,
 Content renders **immediately** from the product already loaded in the list (the list endpoint returns full product objects). When opened from Saved, the screen shows the saved snapshot immediately and fetches `/products/{id}` for fresh data; if that fetch fails, the snapshot stays visible with a "Couldn't refresh — showing saved info" banner and Retry.
 
 **Layout (top to bottom)**
-1. **Gallery** — paged images (1–6 per product; page indicator hidden when there is one image), loading placeholder and failure state per image.
+1. **Gallery** — paged images (1–6 per product; page indicator hidden when there is one image), loading placeholder and failure state per image; each image loads only while its page is on screen. A product without images has no gallery.
 2. **Header** — title, brand (when present; 92 of 194 demo products have none), category.
-3. **At a Glance** — compact factual chips, only for fields that exist: rating with review count, availability (+ stock units), minimum order quantity, shipping information, return policy, warranty.
-4. **Pricing** — price; discount percentage as provided by the API (see [§ 6 Data semantics](#6-data-semantics)).
+3. **At a Glance** — compact factual chips, only for fields that exist: rating (without a review count: the aggregate rating isn't based on the 3 returned reviews, § 6, D-55), availability (+ stock units), minimum order quantity, shipping information, return policy, warranty.
+4. **Pricing** — price; discount percentage as provided by the API, with up to 2 fraction digits, e.g. "−7.17%", shown only when greater than 0 (see [§ 6 Data semantics](#6-data-semantics), D-58).
 5. **Overview** — description, tags.
-6. **Product information** — SKU, brand, category, weight, dimensions, warranty.
+6. **Product information** — SKU, brand, category, weight, dimensions, warranty. Weight and dimensions are shown as the API gives them, without units, because the API states none ([Networking.md A14](Networking.md#1-verified-api-facts), D-58).
 7. **Shipping & availability** — availability status, stock, shipping information, minimum order quantity, return policy.
 8. **Reviews** — "Recent reviews" (the API returns 3 per product): rating, comment, reviewer name, date. Reviewer email is never displayed or logged.
 
-Save/unsave is a toolbar button; state stays consistent with the grid and Saved tab.
+Save/unsave is a toolbar button; state stays consistent with the grid and Saved tab (S5).
+
+Details open from a card tap in the browse grid or search results, on the Catalog tab's stack. Going back shows the catalog exactly as it was: scroll position, loaded pages, search text, results and sort (AC-C6); a search stays active even if the system deactivated the search field for the push (D-54).
 
 **Insight rule:** only facts present in the data. No invented score, margin, recommendation or "best seller" claim.
 
