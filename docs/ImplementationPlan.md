@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S6 — Card rating experiment (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/card-rating-experiment` (from `develop` at `dc04338`) |
-| Last completed stage | S5 — Saved products (merged into `develop` with `--no-ff` at `dc04338`, 2026-11-13) |
-| Next authorized stage | S6 — Card rating experiment (authorized by the developer, 2026-11-13) |
-| Pending human action | Merge `feature/card-rating-experiment` into `develop` with `--no-ff` |
+| Current stage | S7 — Release readiness (`IN_PROGRESS`) |
+| Current branch | `feature/release-readiness` (from `develop` at `efc5c89`) |
+| Last completed stage | S6 — Card rating experiment (merged into `develop` with `--no-ff` at `efc5c89`, 2026-11-13) |
+| Next authorized stage | S7 — Release readiness (authorized by the developer, 2026-11-13) |
+| Pending human action | — |
 | Open review findings | — |
 | Blockers | — |
 
@@ -27,8 +27,8 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
-| S6 | Card rating experiment | `feature/card-rating-experiment` | APPROVED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13) |
-| S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
+| S6 | Card rating experiment | `feature/card-rating-experiment` | COMPLETED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13); merged into `develop` with `--no-ff` at `efc5c89` |
+| S7 | Release readiness | `feature/release-readiness` | IN_PROGRESS | — | — |
 
 The stages run strictly in order, S0 → S7. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
 
@@ -724,3 +724,7 @@ The developer shared two remaining findings and asked for both fixes on the bran
 
 - Developer's final approval after the two review fixes (`7ecdeee`, `bbb9123`): **approved**. No manual-check results were shared with the agent; the carried-over open questions (D-43 offline codes, S3 sort labels and position, category display names, a "Price when saved" label) stay open, and the behavior they describe stays as built.
 - Status → `APPROVED`. The developer merges `feature/card-rating-experiment` into `develop` with `--no-ff`; the S7 conversation records S6 `COMPLETED` once it confirms the merge.
+
+#### S6 merge (recorded by the S7 conversation, 2026-11-13)
+
+- The developer merged `feature/card-rating-experiment` into `develop` with `--no-ff`: merge commit `efc5c89` (parents `dc04338` and `a4f670b`; `git branch --merged develop` lists the branch). S6 → `COMPLETED`. S7 (authorized 2026-11-13, "merged, start S7") starts from `develop` at `efc5c89` on `feature/release-readiness`.
