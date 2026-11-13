@@ -1,6 +1,6 @@
 # Architecture — MerchantCatalog
 
-**Status:** Approved by the developer (2026-11-13). Describes the target design; each stage updates this file when reality differs.
+**Status:** Approved by the developer (2026-11-13). Written as the target design and updated by each stage; as of release 1.0 (S7) it describes the app as built.
 
 ## 1. Summary
 
@@ -24,15 +24,15 @@
 ## 2. Folder structure
 
 ```text
-MerchantCatalog/                       # app target (file-system-synchronized groups)
+MerchantCatalog/                       # app target (file-system-synchronized groups) — as built, 1.0
   App/
     MerchantCatalogApp.swift           # @main; AppContext.configure(); scenePhase → lifecycle analytics
     AppContext.swift                   # registers concrete services under their protocols
     AppTabView.swift                   # TabView + the ONLY NavigationStacks / navigationDestination
-    AppTab.swift                       # .catalog / .saved
+    AppPhase+ScenePhase.swift          # ScenePhase → AppPhase for the lifecycle tracker
   Core/
     DI/            ServiceContainerType.swift, ServiceContainer.swift
-    Navigation/    Router.swift, Route.swift, ProductDetailRoute.swift [S4]
+    Navigation/    Router.swift, Route.swift, ProductDetailRoute.swift, AppTab.swift, TabSelection.swift
     Logging/       Log.swift (Logger categories), LogStoreReader.swift (OSLogStore reader [DEBUG])
     Time/          Clock+Stopwatch.swift (elapsed time on an injected clock), Duration+Milliseconds.swift
     Analytics/     AnalyticsTracking.swift (protocol), AnalyticsProvider.swift (protocol),
@@ -42,49 +42,52 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
                    SessionTracker.swift, AppLifecycleTracker.swift (scene phase → lifecycle events),
                    InstallationIDProvider.swift, UserProperty.swift, AppInfo.swift
     Experiments/   Experiment.swift, ExperimentAssigner.swift, ExperimentService.swift (+ DEBUG ExperimentOverrides),
-                   LocalExperimentService.swift, ExposureTracker.swift [S6]
-    Persistence/   JSONFileStore.swift (atomic write, corrupt-file quarantine)
+                   LocalExperimentService.swift, ExposureTracker.swift
   Networking/
     APIClientType.swift (protocol), URLSessionAPIClient.swift, TargetType.swift, HTTPMethod.swift,
     APIConfig.swift, AppError.swift, RequestDelay.swift (DEBUG slow-network delay, Mutex), NetworkLogger.swift
   Shared/
     Products/
       Domain/      Product (+ ProductAvailability), ProductPage, ProductSort, ProductRepository (protocol),
-                   ProductInsights (facts builder) [S4]
+                   ProductInsights (facts builder)
       Data/        ProductsTarget, ProductDTO (+ mapping), LiveProductRepository
     Saved/
       Domain/      SavedProduct (snapshot), SavedProductsRepository (protocol)
-      Data/        FileSavedProductsRepository
+      Data/        FileSavedProductsRepository (atomic writes, corrupt-file quarantine)
       SavedProductsStore.swift         # @MainActor @Observable source of truth shared by all screens
+      SavedProductFormat.swift         # "Price when saved" / saved-date copy
   Features/
     Catalog/
-      Domain/      CatalogListState (pure pagination/de-dup state), SearchQuery (trimmed query) [S3]
-      Presentation/ CatalogView (+ sort menu), CatalogViewModel, CatalogFeed (one list's state) [S3],
-                    CatalogPhase (+ CatalogFooter, CatalogListContent), CatalogConfigurator,
-                    ProductCardView, ProductCardModel, ProductSort+Title [S3], CardExperiment [S6]
+      Domain/      CatalogListState (pure pagination/de-dup state), SearchQuery (trimmed query)
+      Presentation/ CatalogView (+ sort menu), CatalogViewModel, CatalogFeed (one list's state),
+                    CatalogPhase (+ CatalogFooter, CatalogListContent), CatalogConfigurator, CatalogCopy,
+                    CatalogLayout (columns by Dynamic Type) [S7], ProductCardView, ProductCardModel,
+                    ProductCardAccessibility (VoiceOver label), ProductSort+Title, CardExperiment
     ProductDetail/
       Presentation/ ProductDetailView (+ sections), ProductDetailViewModel, ProductDetailConfigurator,
-                    ProductGalleryView, ProductGalleryModel, ProductDetailHeader, ProductFactRow [S4]
+                    ProductGalleryView, ProductGalleryModel, ProductDetailHeader, ProductFactRow
     Saved/
-      Presentation/ SavedView, SavedViewModel, SavedConfigurator
+      Presentation/ SavedView, SavedViewModel, SavedRowModel, SavedConfigurator
     Diagnostics/                        # compiled in DEBUG only
       Domain/      SlowNetworkSetting (persisted toggle → RequestDelay)
       Presentation/ DiagnosticsView, DiagnosticsViewModel, DiagnosticsConfigurator (events, user
-                    properties, experiment override [S6], slow network [S2], logs, reset installation ID)
+                    properties, experiment override, slow network, logs, reset installation ID)
   DesignSystem/
-    Theme/         Spacing, Typography (system styles only)
-    Components/    ProductImageView (visibility-gated AsyncImage), ErrorBanner, SaveButton (+ CardSaveButton) [S5]
+    Components/    ProductImageView (visibility-gated AsyncImage), ErrorBanner, SaveButton (+ CardSaveButton)
   Assets.xcassets                       # AppIcon (drawn by scripts/make-app-icon.swift), AccentColor
 MerchantCatalogTests/
   Fakes/           FakeAPIClient, StubURLProtocol, FakeProductRepository, ProductFixtures,
-                   InMemorySavedRepository [S5], SpyAnalytics, SpyAnalyticsProvider, FakeLogReader, …
-  Support/         RepositoryFiles (source scans), IsolatedDefaults, TestNow, TestUUIDs, TestClock, ProductJSON
+                   InMemorySavedRepository, SpyAnalytics, SpyAnalyticsProvider, FakeLogReader
+  Support/         RepositoryFiles (source scans), IsolatedDefaults, TestNow, TestUUIDs, TestClock (+ tests),
+                   ProductJSON, TemporaryDirectory, CardExperiments
   …Tests.swift     mirror the app folders
 ```
 
 `Shared/` holds domain and data used by more than one feature (products, saved items). A feature folder holds only what that feature uses. Test doubles live in the test target only. DEBUG-only runtime tooling lives in `Features/Diagnostics`.
 
-**What exists (S0):** the tree above is the target layout. S0 created `App/` (`MerchantCatalogApp`, `AppContext`, `AppTab`, `AppTabView`), `Core/DI`, `Core/Navigation`, `Core/Logging` and `Assets.xcassets`, the repo-level `scripts/make-app-icon.swift` (not part of the app target), plus tests in `MerchantCatalogTests/App` and `MerchantCatalogTests/Core/{DI,Navigation}`. Every other folder is created together with its first file: git doesn't track empty folders, and a placeholder file inside a file-system-synchronized folder would be copied into the app bundle.
+The tree above is the 1.0 layout as built. Planned items that were never needed (`Core/Persistence/JSONFileStore`, `DesignSystem/Theme`, `ProductQuery`, `SearchDebouncer`, `HTTPStatusCode`) are explained in the stage notes below, which record how it grew.
+
+**What exists (S0):** S0 created `App/` (`MerchantCatalogApp`, `AppContext`, `AppTab`, `AppTabView`), `Core/DI`, `Core/Navigation`, `Core/Logging` and `Assets.xcassets`, the repo-level `scripts/make-app-icon.swift` (not part of the app target), plus tests in `MerchantCatalogTests/App` and `MerchantCatalogTests/Core/{DI,Navigation}`. Every other folder is created together with its first file: git doesn't track empty folders, and a placeholder file inside a file-system-synchronized folder would be copied into the app bundle.
 
 **What exists (S1):** `Core/Analytics` (everything listed above), `Core/Logging/LogStoreReader.swift`, `Features/Diagnostics/Presentation`, `App/AppPhase+ScenePhase.swift`, plus tests in `MerchantCatalogTests/Core/Analytics`, `Features/Diagnostics`, `Fakes` and `Support`.
 
@@ -95,6 +98,8 @@ MerchantCatalogTests/
 **What exists (S5):** `Shared/Saved/Domain/{SavedProduct, SavedProductsRepository}`, `Shared/Saved/Data/FileSavedProductsRepository`, `Shared/Saved/{SavedProductsStore, SavedProductFormat}`, `Core/Navigation/TabSelection` (and `AppTab`, moved from `App/` because features now depend on it), `Features/Saved/Presentation/{SavedView, SavedViewModel, SavedRowModel, SavedConfigurator}`, `DesignSystem/Components/SaveButton`, `ProductsTarget.detail` and `ProductRepository.product(id:)`, plus tests in `MerchantCatalogTests/{Shared/Saved, Features/Saved}`, `Features/Catalog/CatalogViewModelSaveTests`, `Features/ProductDetail/ProductDetailSavedTests`, `Core/Analytics/SavedAnalyticsEventTests`, `Core/Navigation/TabSelectionTests`, `Fakes/InMemorySavedRepository` and `Support/TemporaryDirectory`. There is no `Core/Persistence/JSONFileStore`: one file type doesn't need a generic store, so `FileSavedProductsRepository` writes and quarantines its own file.
 
 **What exists (S6):** `Core/Experiments/{Experiment, ExperimentAssigner, ExperimentService, LocalExperimentService, ExposureTracker}` (`ExperimentService.swift` also declares the DEBUG-only `ExperimentOverrides`), `Features/Catalog/Presentation/CardExperiment`, plus tests in `MerchantCatalogTests/Core/Experiments`, `Features/Catalog/CatalogViewModelExperimentTests` and `Support/CardExperiments` (`unobservedCardExperiment()` for catalog suites that don't look at the experiment). The Diagnostics override lives in the existing Diagnostics files.
+
+**What exists (S7):** `Features/Catalog/Presentation/CatalogLayout` (two grid columns, one at accessibility text sizes, D-75), plus `MerchantCatalogTests/Features/Catalog/CatalogLayoutTests`. Larger tap targets (D-76) changed only view code.
 
 **What exists (S4):** `Core/Navigation/ProductDetailRoute`, `Shared/Products/Domain/ProductInsights` (and the details fields on `Product`, with `ProductDimensions` and `ProductReview`), `Features/ProductDetail/Presentation` as listed above, plus tests in `MerchantCatalogTests/Shared/Products/ProductInsightsTests`, `MerchantCatalogTests/Features/ProductDetail/` and `MerchantCatalogTests/Features/Catalog/CatalogViewModelSelectionTests`. The At a Glance chips are a private view in `ProductDetailView.swift`; `ProductFactRow` turns each `ProductInsights.Fact` into a label, value and symbol. `ProductsTarget.detail` isn't needed yet (S5).
 
@@ -156,12 +161,13 @@ protocol ServiceContainerType: AnyObject {
 
 ```swift
 enum Route: Hashable {
-    case productDetail(ProductDetailRoute)   // id, optional preloaded Product, optional SavedProduct, source
+    case productDetail(ProductDetailRoute)   // .list(Product, source:) | .saved(SavedProduct) (D-62)
 }
 
 @MainActor @Observable
 final class Router {
     var path: [Route] = []
+    func push(_ route: Route)
     func showProductDetail(_ route: ProductDetailRoute)
     func pop()
     func popToRoot()
@@ -233,7 +239,8 @@ Rules: search terms and product titles are interpolated with `privacy: .private`
 - **TDD (Red → Green → Refactor)** for all testable behavior. Each stage lists the tests to write first in [ImplementationPlan.md](ImplementationPlan.md).
 - **Swift Testing** (`@Test`, `#expect`, parameterized arguments). Tests are deterministic: no live network, injected clocks, controllable fakes (fake repositories that suspend until the test resumes them, to test out-of-order completion).
 - **HTTP layer:** `StubURLProtocol` on an ephemeral `URLSessionConfiguration` tests request building, status mapping, decoding and cancellation of `URLSessionAPIClient`.
-- **Source-scan tests:** `NavigationRuleTests` (the navigation rule) and `TaxonomyDocumentationTests` (Active events in Analytics.md == `AnalyticsEvent` cases).
+- **Pure presentation rules** are tested without views: card models, the card's VoiceOver label (`ProductCardAccessibilityTests`), copy, and the grid's column count by Dynamic Type size (`CatalogLayoutTests`). How SwiftUI renders them (layout, hit areas, VoiceOver focus, dark mode) is checked manually.
+- **Source-scan tests:** `NavigationRuleTests` (the navigation rule) and `TaxonomyDocumentationTests` (Active events in Analytics.md == `AnalyticsEvent` cases; since 1.0 every event is Active and removed events stay out of code).
 - **Agent verification = `xcodebuild build` + `xcodebuild test` only.** The agent does not run or drive the app in the Simulator (token cost). Each stage lists **manual Simulator checks for the developer**, and their results are recorded in the review log.
 - **What unit tests can't prove:** `AsyncImage`'s network cancellation. It's checked manually ([Networking.md § 4](Networking.md#verification)) and never claimed from unit tests.
 - **Excluded:** UI snapshot tests (spec exclusion).

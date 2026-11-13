@@ -159,6 +159,12 @@ Details open from a card tap in the browse grid or search results, on the Catalo
 - VoiceOver: each card reads as one element: "Title, price[, rating], saved/not saved" with a custom action for save/unsave. Buttons have labels; images are decorative unless in the gallery.
 - Tap targets ≥ 44 × 44 pt. Dark mode supported via system colors.
 
+**As built (S7):**
+- **Dynamic Type:** all text uses system text styles. The catalog grid and its loading skeleton have two columns up to the largest standard size (xxxLarge) and one column at every accessibility size (AX1–AX5), so titles keep a readable line length (D-75). Card titles keep two lines with reserved space; the rating row keeps cards of equal height at every size.
+- **VoiceOver:** each catalog card is one element, e.g. "Essence Mascara Lash Princess, $9.99, rated 2.6 of 5, not saved" (the rating only in the treatment arm), with the button trait (opens details) and a custom action "Save" / "Remove from Saved"; the visible bookmark is not a separate stop (D-60). Saved rows and the details status lines read as one element each.
+- **Tap targets:** the card bookmark and the refresh banner's close button have a 44 × 44 pt tappable frame inside the button; standalone bordered buttons (Retry, Reload, Clear search, Browse catalog, the details banner's Retry) use the system's large control size (D-76); toolbar items use the system's sizing.
+- **Dark mode:** only system colors, materials and semantic styles (`.primary`, `.secondary`, `.tint`, `.orange`), no fixed colors, so every screen follows the system appearance. Checked manually, not by tests.
+
 ## 5. Analytics and experiment
 
 Defined in [Analytics.md](Analytics.md) (event taxonomy, user properties, installation ID) and [Experiments.md](Experiments.md) (`product_card_density_v1`). No real analytics backend: events go to structured logs and the DEBUG Diagnostics panel.
