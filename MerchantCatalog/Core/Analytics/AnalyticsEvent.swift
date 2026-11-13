@@ -17,6 +17,9 @@ enum AnalyticsEventName: String, CaseIterable, Sendable {
     case searchFailed = "search_failed"
     case searchCleared = "search_cleared"
     case sortChanged = "sort_changed"
+    case productSelected = "product_selected"
+    case productDetailsViewed = "product_details_viewed"
+    case productGalleryInteracted = "product_gallery_interacted"
 }
 
 /// How a session began: a cold launch, or a return to the foreground after the session timeout.
@@ -29,6 +32,20 @@ enum LaunchKind: String, Sendable {
 enum ListContext: String, Sendable {
     case browse
     case search
+}
+
+/// Where a product was opened from (`source`). S5 adds `saved`.
+enum ProductSource: String, Sendable {
+    /// The browse grid.
+    case catalog
+    /// Search results.
+    case search
+}
+
+/// Where the details content came from (`content_origin`): in S4 always the product already loaded
+/// in the list (Networking.md A7). S5 adds `snapshot` and `network`.
+enum ContentOrigin: String, Sendable {
+    case list
 }
 
 /// Why the first page of the browse list loaded (`trigger`).
@@ -103,6 +120,13 @@ enum AnalyticsEvent: Equatable, Sendable {
     case searchCleared(queryLength: Int, hadResults: Bool)
     /// The user picked a different sort for the list on screen.
     case sortChanged(from: ProductSort, to: ProductSort, listContext: ListContext)
+    /// The user tapped a product card; `position` is its 0-based index in the list on screen.
+    case productSelected(productID: Int, source: ProductSource, position: Int, sort: ProductSort)
+    /// Details were first shown for a push (D-59). `category` and `availability` are omitted when
+    /// unknown; `is_saved` arrives in S5 (D-56).
+    case productDetailsViewed(productID: Int, source: ProductSource, category: String?, availability: ProductAvailability?, hasDiscount: Bool, imageCount: Int, contentOrigin: ContentOrigin)
+    /// The first swipe to another gallery image during a details visit (D-59).
+    case productGalleryInteracted(productID: Int, imageCount: Int)
 
     var name: AnalyticsEventName {
         switch self {
@@ -122,6 +146,9 @@ enum AnalyticsEvent: Equatable, Sendable {
         case .searchFailed: .searchFailed
         case .searchCleared: .searchCleared
         case .sortChanged: .sortChanged
+        case .productSelected: .productSelected
+        case .productDetailsViewed: .productDetailsViewed
+        case .productGalleryInteracted: .productGalleryInteracted
         }
     }
 
@@ -203,6 +230,25 @@ enum AnalyticsEvent: Equatable, Sendable {
                 "to_sort": .string(to.analyticsValue),
                 "list_context": .string(listContext.rawValue),
             ]
+        case .productSelected(let productID, let source, let position, let sort):
+            [
+                "product_id": .int(productID),
+                "source": .string(source.rawValue),
+                "position": .int(position),
+                "sort": .string(sort.analyticsValue),
+            ]
+        case .productDetailsViewed(let productID, let source, let category, let availability, let hasDiscount, let imageCount, let contentOrigin):
+            [
+                "product_id": .int(productID),
+                "source": .string(source.rawValue),
+                "category": category.map(AnalyticsValue.string),
+                "availability": availability.map { .string($0.analyticsValue) },
+                "has_discount": .bool(hasDiscount),
+                "image_count": .int(imageCount),
+                "content_origin": .string(contentOrigin.rawValue),
+            ].compactMapValues(\.self)
+        case .productGalleryInteracted(let productID, let imageCount):
+            ["product_id": .int(productID), "image_count": .int(imageCount)]
         }
     }
 
@@ -234,6 +280,17 @@ extension ProductSort {
         case .priceAscending: "price_asc"
         case .priceDescending: "price_desc"
         case .ratingDescending: "rating_desc"
+        }
+    }
+}
+
+extension ProductAvailability {
+    /// The `availability` property value (Analytics.md § 2, shared property values).
+    var analyticsValue: String {
+        switch self {
+        case .inStock: "in_stock"
+        case .lowStock: "low_stock"
+        case .outOfStock: "out_of_stock"
         }
     }
 }
