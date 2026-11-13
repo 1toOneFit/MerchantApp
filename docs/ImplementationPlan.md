@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S4 — Product details (`READY_FOR_REVIEW`) |
+| Current stage | S4 — Product details (`APPROVED`, awaiting merge into `develop`) |
 | Current branch | `feature/product-details` (from `develop` at `152da21`) |
 | Last completed stage | S3 — Search and sort (merged into `develop` with `--no-ff` at `152da21`, 2026-11-13) |
 | Next authorized stage | — (S5 — Saved products — not yet authorized) |
-| Pending human action | Independent Codex review of S4 and the manual Simulator checks in the S4 review log |
+| Pending human action | Merge `feature/product-details` into `develop` with `--no-ff` |
 | Open review findings | — |
 | Blockers | — |
 
@@ -25,7 +25,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S1 | Analytics core & diagnostics | `feature/analytics-core` | COMPLETED | `78e51cb` | Approved by the developer (2026-11-13); merged into `develop` with `--no-ff` at `30838a3` |
 | S2 | Catalog browsing, networking & images | `feature/catalog-browse` | COMPLETED | `c8a81cb` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `59415a9` |
 | S3 | Search & sort | `feature/search-sort` | COMPLETED | `d70599d` | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `152da21` |
-| S4 | Product details | `feature/product-details` | READY_FOR_REVIEW | `34ffb7c` + docs commit | Awaiting the developer's Codex review |
+| S4 | Product details | `feature/product-details` | APPROVED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13) |
 | S5 | Saved products | `feature/saved-products` | PLANNED | — | — |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | PLANNED | — | — |
 | S7 | Release readiness | `feature/release-readiness` | PLANNED | — | — |
@@ -586,3 +586,8 @@ The developer ran an independent Codex review and shared four findings. Each was
   2. (From S3.) The short sort labels and the sort control at the toolbar's leading edge.
   3. Category names are shown as the API's slug in words ("Mens Shirts", "Womens Jewellery"), without an apostrophe or other rewording. OK?
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S4 review result (2026-11-13)
+
+- Independent Codex review, run manually by the developer: **no findings**. Developer's final approval: **approved**. No manual-check results were shared with the agent; the S4 open questions (D-43 offline codes, the S3 sort labels and position, category display names) stay open, and the behavior they describe stays as built.
+- Status → `APPROVED`. The developer merges `feature/product-details` into `develop` with `--no-ff`; the next stage's conversation records S4 `COMPLETED` once it confirms the merge. S5 is not yet authorized.
