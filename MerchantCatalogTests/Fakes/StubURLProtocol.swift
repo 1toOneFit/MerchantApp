@@ -26,6 +26,8 @@ final class StubURLProtocol: URLProtocol {
         private struct State {
             var requests: [URLRequest] = []
             var waiters: [CheckedContinuation<Void, Never>] = []
+            var stopCount = 0
+            var stopWaiters: [CheckedContinuation<Void, Never>] = []
         }
 
         fileprivate init(host: String, response: Response) {
@@ -55,6 +57,35 @@ final class StubURLProtocol: URLProtocol {
                 }
                 if hasRequest { continuation.resume() }
             }
+        }
+
+        /// How many times `URLSession` stopped a load of this stub (`stopLoading`). It also stops a
+        /// load that finished, so for a `.never` stub, which never finishes, a stop means the task
+        /// was cancelled.
+        var stopCount: Int {
+            state.withLock { $0.stopCount }
+        }
+
+        /// Returns once `URLSession` has stopped at least one load of this stub.
+        func waitForStop() async {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let hasStopped = state.withLock { state in
+                    if state.stopCount > 0 { return true }
+                    state.stopWaiters.append(continuation)
+                    return false
+                }
+                if hasStopped { continuation.resume() }
+            }
+        }
+
+        fileprivate func recordStop() {
+            let waiters = state.withLock { state in
+                state.stopCount += 1
+                let waiters = state.stopWaiters
+                state.stopWaiters = []
+                return waiters
+            }
+            waiters.forEach { $0.resume() }
         }
 
         fileprivate func record(_ request: URLRequest) {
@@ -113,7 +144,10 @@ final class StubURLProtocol: URLProtocol {
         }
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        guard let host = request.url?.host(), let stub = Self.stubs.withLock({ $0[host] }) else { return }
+        stub.recordStop()
+    }
 
     private func finish(with response: URLResponse, body: Data) {
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)

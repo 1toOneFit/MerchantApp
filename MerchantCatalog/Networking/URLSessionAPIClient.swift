@@ -93,12 +93,13 @@ final class URLSessionAPIClient: APIClientType {
         return request
     }
 
-    private static func isCancellation(_ error: any Error) -> Bool {
+    /// Also used by `URLSessionImageLoader`.
+    static func isCancellation(_ error: any Error) -> Bool {
         error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
     /// Transport errors (Networking.md § 2); codes outside the table are `.unknown` (D-43).
-    private static func appError(for error: URLError) -> AppError {
+    static func appError(for error: URLError) -> AppError {
         switch error.code {
         case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed: .offline
         case .timedOut: .timeout
@@ -107,7 +108,7 @@ final class URLSessionAPIClient: APIClientType {
     }
 
     /// `nil` for 2xx; otherwise the status's error.
-    private static func appError(forStatus status: Int) -> AppError? {
+    static func appError(forStatus status: Int) -> AppError? {
         switch status {
         case 200..<300: nil
         case 404: .notFound
