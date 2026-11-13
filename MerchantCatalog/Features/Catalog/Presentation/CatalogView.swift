@@ -123,7 +123,7 @@ private struct CatalogSortMenu: View {
     var body: some View {
         Menu {
             Picker("Sort", selection: Binding(get: { sort }, set: { select($0) })) {
-                ForEach(ProductSort.allCases, id: \.self) { option in
+                ForEach(ProductSort.allCases) { option in
                     Text(option.title).tag(option)
                 }
             }

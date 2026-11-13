@@ -18,4 +18,9 @@ struct ProductSortTitleTests {
     @Test func menuListsTheSortsInSpecOrder() {
         #expect(ProductSort.allCases.map(\.title) == ["Default", "Price: Low to High", "Price: High to Low", "Rating: High to Low"])
     }
+
+    /// Review finding 4: the menu's `ForEach` identifies options by a stable, unique `id`.
+    @Test func idIsTheSortItself() {
+        #expect(ProductSort.allCases.map(\.id) == ProductSort.allCases)
+    }
 }

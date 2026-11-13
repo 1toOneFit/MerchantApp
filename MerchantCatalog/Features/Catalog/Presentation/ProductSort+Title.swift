@@ -1,4 +1,7 @@
-extension ProductSort {
+extension ProductSort: Identifiable {
+    /// Each case is its own stable identity, for the sort menu's `ForEach`.
+    var id: Self { self }
+
     /// The option's title in the sort menu (ProductSpecification § 4.2).
     var title: String {
         switch self {
