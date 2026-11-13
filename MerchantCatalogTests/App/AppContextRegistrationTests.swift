@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import MerchantCatalog
 
@@ -7,19 +8,72 @@ private struct Marker: Equatable {
 
 /// Guards the composition root.
 ///
-/// From S2 on, every scene Configurator gets a test here asserting that its
-/// `resolveDependencies(from:)` returns non-nil against `AppContext.configure().container`,
-/// so a missing registration fails a test instead of trapping in `forceResolve` at runtime.
-/// S0 has no Configurator yet.
+/// Every scene Configurator gets a test here asserting that its `resolveDependencies(from:)`
+/// returns non-nil against `AppContext.configure().container`, so a missing registration fails a
+/// test instead of trapping in `forceResolve` at runtime.
 @MainActor
 struct AppContextRegistrationTests {
+    private let store = IsolatedDefaults()
+
+    private static let appInfo = AppInfo(
+        appVersion: "1.0",
+        buildNumber: "1",
+        osVersion: "26.0",
+        deviceModel: "iPhone18,3",
+        isDebugBuild: true
+    )
+
+    private func configure() -> AppContext {
+        AppContext.configure(defaults: store.defaults, appInfo: Self.appInfo)
+    }
+
     @Test func configureBuildsAnIndependentContainer() {
-        let first = AppContext.configure()
+        let first = configure()
         first.container.register(Marker(id: 1))
 
-        let second = AppContext.configure()
+        let second = configure()
 
         #expect(second.container.resolve() as Marker? == nil)
         #expect(first.container.resolve() as Marker? == Marker(id: 1))
     }
+
+    @Test func analyticsServicesAreRegistered() {
+        let container = configure().container
+
+        #expect(container.resolve() as (any AnalyticsTracking)? != nil)
+        #expect(container.resolve() as InstallationIDProvider? != nil)
+        #expect(container.resolve() as SessionTracker? != nil)
+    }
+
+    #if DEBUG
+    @Test func launchUserPropertiesReachTheEventLog() throws {
+        let container = configure().container
+        let eventLog = try #require(container.resolve() as InMemoryAnalyticsProvider?)
+        let installation = try #require(container.resolve() as InstallationIDProvider?)
+
+        #expect(eventLog.userProperties == [
+            "app_version": .string("1.0"),
+            "build_number": .string("1"),
+            "os_version": .string("26.0"),
+            "device_model": .string("iPhone18,3"),
+            "first_seen_date": UserProperty.firstSeenDate(installation.firstSeenDate).value,
+            "is_debug_build": .bool(true),
+        ])
+    }
+
+    /// The lifecycle tracker and the service share one session tracker, so the cold session the
+    /// first `.active` starts is the one every later event carries.
+    @Test func lifecycleEventsReachTheEventLog() throws {
+        let context = configure()
+        let eventLog = try #require(context.container.resolve() as InMemoryAnalyticsProvider?)
+        let sessions = try #require(context.container.resolve() as SessionTracker?)
+
+        context.lifecycle.handle(.active)
+        context.lifecycle.handle(.background)
+
+        let session = try #require(sessions.current)
+        #expect(eventLog.events.map(\.event.name) == [.sessionStarted, .appBackgrounded])
+        #expect(eventLog.events.map(\.sessionID) == [session.id, session.id])
+    }
+    #endif
 }
