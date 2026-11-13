@@ -67,12 +67,12 @@ struct AppTabView: View {
         #endif
     }
 
-    /// S0 placeholder; S4 builds the product details screen through its Configurator.
+    /// Builds each pushed screen through its Configurator.
     @ViewBuilder
     private func destination(for route: Route) -> some View {
         switch route {
         case .productDetail(let route):
-            Text("Product \(route.product.id)")
+            ProductDetailConfigurator.make(from: container, route: route)
         }
     }
 }

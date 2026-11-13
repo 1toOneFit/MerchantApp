@@ -7,6 +7,8 @@ import SwiftUI
 ///
 /// While a search is shown, the browse list stays in the hierarchy underneath, invisible and inert,
 /// so clearing the search shows it at the same scroll position with its thumbnails loaded (D-47).
+/// A card tap asks the view model to open details on the Catalog tab's stack (D-53); this view stays
+/// underneath, so going back shows it as it was (AC-C6).
 struct CatalogView: View {
     /// Drives `catalog_viewed` (D-39): true at the first display and on each switch back to the tab.
     /// Popping back from details doesn't change it.
@@ -166,8 +168,13 @@ private struct CatalogGrid: View {
         ScrollView {
             LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
                 ForEach(cards) { card in
-                    ProductCardView(card: card)
-                        .onAppear { viewModel.itemAppeared(id: card.id, in: context) }
+                    Button {
+                        viewModel.cardSelected(id: card.id, in: context)
+                    } label: {
+                        ProductCardView(card: card)
+                    }
+                    .buttonStyle(.plain)
+                    .onAppear { viewModel.itemAppeared(id: card.id, in: context) }
                 }
             }
             .padding(.horizontal)
