@@ -149,15 +149,6 @@ private struct CatalogSortMenu: View {
     }
 }
 
-/// Two flexible columns (ProductSpecification § 2).
-private enum CatalogLayout {
-    static let columns = [
-        GridItem(.flexible(), spacing: 12, alignment: .top),
-        GridItem(.flexible(), spacing: 12, alignment: .top),
-    ]
-    static let rowSpacing: CGFloat = 20
-}
-
 private struct CatalogGrid: View {
     let cards: [ProductCardModel]
     let context: ListContext
@@ -165,9 +156,11 @@ private struct CatalogGrid: View {
     let refreshError: AppError?
     let viewModel: CatalogViewModel
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
+            LazyVGrid(columns: CatalogLayout.columns(for: dynamicTypeSize), spacing: CatalogLayout.rowSpacing) {
                 ForEach(cards) { card in
                     let isSaved = viewModel.isSaved(card.id)
                     // The save button is a sibling over the thumbnail's corner, not nested in the
@@ -245,9 +238,11 @@ private struct CatalogFooterView: View {
 private struct CatalogSkeletonGrid: View {
     private let cards = (0..<8).map(ProductCardModel.placeholder)
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
+            LazyVGrid(columns: CatalogLayout.columns(for: dynamicTypeSize), spacing: CatalogLayout.rowSpacing) {
                 ForEach(cards) { card in
                     ProductCardView(card: card)
                 }

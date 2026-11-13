@@ -314,6 +314,7 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-72 | DEBUG "Reset installation ID" clears stored assignments and keeps the override | Developer (S6 scope) | Agent recommendation: the override is a developer setting, stored separately (Experiments.md). |
 | D-73 | Bucketing input is `UUID.uuidString` (uppercase, as the envelope sends it), and the first 8 digest bytes are read big-endian. Every experiment is resolved at launch in `AppContext`, so `experiment_assignments` is set every launch. A stored value that isn't a known variant is re-bucketed | Agent (S6) | Experiments.md left the case and byte order open; golden values were computed independently with Python `hashlib`. |
 | D-74 | Exposure dedup reads the session id after tracking, so an exposure that starts the cold session counts for it. A session that starts while cards are already on screen (resume after 30 min) is exposed at the next card appearance | Agent (S6) | Exposure means a card rendered (`onAppear`), not that the app came back. |
+| D-75 | The catalog grid (and its skeleton) has one column at every accessibility text size (`DynamicTypeSize.isAccessibilitySize`, AX1–AX5) and two otherwise; `CatalogLayout.columnCount(for:)` is the tested rule, the views read `@Environment(\.dynamicTypeSize)` | Developer (S7 scope) | Agent recommendation, chosen over keeping two columns at AX1–AX2. |
 
 Decisions marked "Agent" are open to the developer's override during plan review.
 
