@@ -1,9 +1,10 @@
+import Foundation
 import Testing
 @testable import MerchantCatalog
 
 /// Product selection and details events (Analytics.md § 3 `product_selected`, Details): names and
-/// exact properties. `is_saved` arrives in S5 (D-56); unknown category or availability is omitted
-/// (D-59).
+/// exact properties. `is_saved` reports whether the product is saved (never the date); unknown
+/// category or availability is omitted (D-59).
 struct DetailsAnalyticsEventTests {
     private typealias Case = (event: AnalyticsEvent, name: String, properties: [String: AnalyticsValue])
 
@@ -19,7 +20,7 @@ struct DetailsAnalyticsEventTests {
             ["product_id": .int(1), "source": .string("catalog"), "position": .int(0), "sort": .string("default_order")]
         ),
         (
-            AnalyticsEvent.productDetailsViewed(productID: 1, source: .catalog, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, contentOrigin: .list),
+            AnalyticsEvent.productDetailsViewed(productID: 1, source: .catalog, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, savedAt: nil, contentOrigin: .list),
             "product_details_viewed",
             [
                 "product_id": .int(1),
@@ -28,22 +29,24 @@ struct DetailsAnalyticsEventTests {
                 "availability": .string("low_stock"),
                 "has_discount": .bool(true),
                 "image_count": .int(3),
+                "is_saved": .bool(false),
                 "content_origin": .string("list"),
             ]
         ),
         (
-            AnalyticsEvent.productDetailsViewed(productID: 2, source: .search, category: nil, availability: nil, hasDiscount: false, imageCount: 1, contentOrigin: .list),
+            AnalyticsEvent.productDetailsViewed(productID: 2, source: .search, category: nil, availability: nil, hasDiscount: false, imageCount: 1, savedAt: nil, contentOrigin: .list),
             "product_details_viewed",
             [
                 "product_id": .int(2),
                 "source": .string("search"),
                 "has_discount": .bool(false),
                 "image_count": .int(1),
+                "is_saved": .bool(false),
                 "content_origin": .string("list"),
             ]
         ),
         (
-            AnalyticsEvent.productDetailsViewed(productID: 3, source: .catalog, category: "groceries", availability: .inStock, hasDiscount: true, imageCount: 0, contentOrigin: .list),
+            AnalyticsEvent.productDetailsViewed(productID: 3, source: .catalog, category: "groceries", availability: .inStock, hasDiscount: true, imageCount: 0, savedAt: nil, contentOrigin: .list),
             "product_details_viewed",
             [
                 "product_id": .int(3),
@@ -52,11 +55,12 @@ struct DetailsAnalyticsEventTests {
                 "availability": .string("in_stock"),
                 "has_discount": .bool(true),
                 "image_count": .int(0),
+                "is_saved": .bool(false),
                 "content_origin": .string("list"),
             ]
         ),
         (
-            AnalyticsEvent.productDetailsViewed(productID: 4, source: .catalog, category: "vehicle", availability: .outOfStock, hasDiscount: false, imageCount: 6, contentOrigin: .list),
+            AnalyticsEvent.productDetailsViewed(productID: 4, source: .catalog, category: "vehicle", availability: .outOfStock, hasDiscount: false, imageCount: 6, savedAt: date("2026-11-10T10:00:00Z"), contentOrigin: .list),
             "product_details_viewed",
             [
                 "product_id": .int(4),
@@ -65,6 +69,7 @@ struct DetailsAnalyticsEventTests {
                 "availability": .string("out_of_stock"),
                 "has_discount": .bool(false),
                 "image_count": .int(6),
+                "is_saved": .bool(true),
                 "content_origin": .string("list"),
             ]
         ),

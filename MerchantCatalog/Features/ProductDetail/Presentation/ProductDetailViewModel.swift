@@ -41,6 +41,7 @@ final class ProductDetailViewModel {
             availability: product.availability,
             hasDiscount: (product.discountPercentage ?? 0) > 0,
             imageCount: product.imageURLs.count,
+            savedAt: nil,
             contentOrigin: .list
         ))
     }

@@ -33,6 +33,7 @@ struct AnalyticsEventTests {
         (AnalyticsValue.string("cold"), "cold"),
         (.int(42), "42"),
         (.bool(true), "true"),
+        (.double(9.99), "9.99"),
     ])
     func valueDescriptionIsThePlainValue(value: AnalyticsValue, text: String) {
         #expect(value.description == text)

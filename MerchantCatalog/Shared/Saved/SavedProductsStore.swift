@@ -6,6 +6,17 @@ enum SavedProductsChange: Equatable, Sendable {
     case saved(SavedProduct, countAfter: Int)
     /// `savedDurationS`: whole seconds since the product was saved; 0 if the clock moved back (D-68).
     case removed(SavedProduct, savedDurationS: Int, countAfter: Int)
+
+    /// `product_saved` or `product_unsaved` for a change made on `surface`; `position` only for
+    /// cards (Analytics.md § 3 Saved).
+    func event(surface: SaveSurface, position: Int?) -> AnalyticsEvent {
+        switch self {
+        case .saved(let item, let countAfter):
+            .productSaved(productID: item.id, surface: surface, category: item.category, price: item.price, position: position, savedCountAfter: countAfter)
+        case .removed(let item, let savedDurationS, let countAfter):
+            .productUnsaved(productID: item.id, surface: surface, savedDurationS: savedDurationS, savedCountAfter: countAfter)
+        }
+    }
 }
 
 /// The saved products every screen observes (Architecture § 9): the card icons, the details

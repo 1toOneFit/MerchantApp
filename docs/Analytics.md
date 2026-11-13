@@ -57,7 +57,7 @@ No name, email, location, IP, advertising identifier, or free text is collected.
 |---|---|
 | `sort` / `from_sort` / `to_sort` | `default_order`, `price_asc`, `price_desc`, `rating_desc` |
 | `list_context` | `browse`, `search` |
-| `source` (where a product was opened from) | `catalog`, `search`, `saved` (S5) |
+| `source` (where a product was opened from) | `catalog`, `search`, `saved` |
 | `surface` (where a save/unsave happened) | `catalog_card`, `search_card`, `details`, `saved_list` |
 | `error_type` | `offline`, `timeout`, `not_found`, `rate_limited`, `server`, `decoding`, `unknown` |
 | `trigger` (why a first page loaded) | Browse: `initial`, `retry` (full-screen Retry), `reload` (the empty state's Reload, D-38), `sort_change`. Search: `typing`, `retry`, `sort_change` (D-48) |
@@ -146,8 +146,8 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Status:** Active
 - **Meaning:** the user chose a product from a list (intent to evaluate). Distinct from `product_details_viewed`, which records that details were actually shown.
 - **Trigger:** tap on a product card or Saved row.
-- **Properties:** `product_id` Int; `source` (`catalog` | `search` | `saved`); `position` Int (0-based index in the list); `sort` (catalog/search only).
-- **Note:** `source`, `position` and `sort` come from the list on screen: `search` with the search's sort while results are shown (D-46). A card of the hidden browse layer can't be selected (D-47). `saved` arrives in S5.
+- **Properties:** `product_id` Int; `source` (`catalog` | `search` | `saved`); `position` Int (0-based index in the list); `sort` (catalog/search only; omitted for `saved`, D-68).
+- **Note:** `source`, `position` and `sort` come from the list on screen: `search` with the search's sort while results are shown (D-46). A card of the hidden browse layer can't be selected (D-47). `saved`: a tap on a Saved row, `position` in the Saved list (newest first).
 - **Screen:** Catalog, Saved. **Dedup:** once per tap. **Privacy:** product id only.
 
 ### Search
@@ -197,14 +197,16 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Status:** Active
 - **Meaning:** product details were shown to the user.
 - **Trigger:** details content first displayed for a navigation push: the details screen's first appearance (D-59).
-- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (omitted when the API sends an unknown value); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (from S5, D-56); `content_origin` `list` | `snapshot` | `network` (S4 sends only `list`: details opened from a list render the list's product, Networking.md A7; `snapshot` and `network` arrive with S5).
+- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (omitted when unknown); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (whether the product is saved when details appear); `content_origin` `list` | `snapshot`: `list` when opened from a list (the list's product, Networking.md A7), `snapshot` when opened from Saved (the saved snapshot shows first, then `/products/{id}` refreshes it). With `snapshot`, `availability`, `has_discount` and `image_count` are omitted: the snapshot doesn't have them (D-63). There is no `network` value: the fresh data never shows first.
+- **Note:** `AnalyticsService` follows it with `saved_product_revisited` when the product was saved before the current session (D-64); the event carries the save date for that, but sends only `is_saved`.
 - **Screen:** Product details. **Dedup:** once per push: tab switches and returning to the screen don't re-send; a new push does. **Privacy:** none.
 
 #### `product_details_load_failed`
-- **Status:** Planned (S5)
+- **Status:** Active
 - **Meaning:** fresh product data could not be loaded for the details screen.
-- **Trigger:** `/products/{id}` request fails (Saved → details, or Retry).
-- **Properties:** `product_id` Int; `source`; `error_type`; `showing_snapshot` Bool.
+- **Trigger:** `/products/{id}` request fails (Saved → details, or Retry); cancellations (leaving the screen) excluded.
+- **Properties:** `product_id` Int; `source`; `error_type` (`not_found` when the product is gone: the screen keeps the snapshot and says it is no longer available, without Retry, D-67); `showing_snapshot` Bool (the snapshot stays on screen).
+- **Note:** the banner's Retry sends `retry_requested` (`failed_surface: details`).
 - **Screen:** Product details. **Dedup:** once per failed request. **Privacy:** none.
 
 #### `product_gallery_interacted`
@@ -217,32 +219,32 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 ### Saved
 
 #### `product_saved`
-- **Status:** Planned (S5)
+- **Status:** Active
 - **Meaning:** the user saved a product for later.
 - **Trigger:** save control toggled on.
-- **Properties:** `product_id` Int; `surface` (`catalog_card` | `search_card` | `details`); `category` String; `price` Double; `position` Int (cards only); `saved_count_after` Int.
+- **Properties:** `product_id` Int; `surface` (`catalog_card` | `search_card` | `details`); `category` String (omitted when unknown, D-68); `price` Double (the demo price as shown); `position` Int (cards only: index in the list on screen); `saved_count_after` Int.
 - **Screen:** Catalog, Product details. **Dedup:** once per toggle. **Privacy:** none.
 
 #### `product_unsaved`
-- **Status:** Planned (S5)
+- **Status:** Active
 - **Meaning:** the user removed a product from Saved.
 - **Trigger:** save control toggled off, or swipe-to-remove in Saved.
-- **Properties:** `product_id` Int; `surface`; `saved_duration_s` Int; `saved_count_after` Int.
+- **Properties:** `product_id` Int; `surface` (`catalog_card` | `search_card` | `details` | `saved_list`); `saved_duration_s` Int (whole seconds since it was saved; 0 if the clock moved back, D-68); `saved_count_after` Int.
 - **Screen:** Catalog, Product details, Saved. **Dedup:** once per toggle. **Privacy:** none.
 
 #### `saved_products_viewed`
-- **Status:** Planned (S5)
+- **Status:** Active
 - **Meaning:** the user looked at their saved products.
-- **Trigger:** Saved tab becomes visible (same rule as `catalog_viewed`).
+- **Trigger:** each switch to the Saved tab (same rule as `catalog_viewed`, D-39; Saved is never the first tab shown). Not re-sent when popping back from details.
 - **Properties:** `saved_count` Int.
 - **Screen:** Saved. **Dedup:** once per tab visibility. **Privacy:** none.
 
 #### `saved_product_revisited`
-- **Status:** Planned (S5)
+- **Status:** Active
 - **Meaning:** the user came back to evaluate a product they saved in an earlier session — the "Revisit" outcome of the core journey.
-- **Trigger:** `product_details_viewed` for a product whose `savedAt` is before the current session's start.
-- **Properties:** `product_id` Int; `source`; `days_since_saved` Int.
-- **Screen:** Product details. **Dedup:** once per product per session. **Privacy:** none.
+- **Trigger:** `product_details_viewed` for a product whose `savedAt` is before the current session's start, from any `source`. Derived by `AnalyticsService` right after that event (D-64).
+- **Properties:** `product_id` Int; `source`; `days_since_saved` Int (whole 24-hour periods since it was saved; 0 if the clock moved back, D-68).
+- **Screen:** Product details. **Dedup:** once per product per session (a new session, including the DEBUG reset's, starts over). **Privacy:** none.
 
 ### Reliability
 

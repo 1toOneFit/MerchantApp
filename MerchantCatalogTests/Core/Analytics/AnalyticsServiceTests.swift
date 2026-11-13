@@ -141,4 +141,74 @@ struct AnalyticsServiceTests {
         #expect(property.name == name)
         #expect(property.value == value)
     }
+
+    // MARK: - saved_product_revisited (D-64)
+
+    private func viewed(_ id: Int, savedAt: Date?, source: ProductSource = .saved) -> AnalyticsEvent {
+        .productDetailsViewed(productID: id, source: source, category: nil, availability: nil, hasDiscount: nil, imageCount: nil, savedAt: savedAt, contentOrigin: .snapshot)
+    }
+
+    @Test func revisitFollowsDetailsOfAProductSavedBeforeTheSession() {
+        let provider = SpyAnalyticsProvider()
+        let service = makeService([provider])
+
+        service.track(viewed(7, savedAt: date("2026-11-10T11:00:00Z"), source: .catalog))
+
+        #expect(provider.envelopes.map(\.event) == [
+            .sessionStarted(isFirstSession: true, launchKind: .cold),
+            viewed(7, savedAt: date("2026-11-10T11:00:00Z"), source: .catalog),
+            .savedProductRevisited(productID: 7, source: .catalog, daysSinceSaved: 2),
+        ])
+        #expect(provider.envelopes.map(\.sequence) == [1, 2, 3])
+    }
+
+    @Test func noRevisitForAProductSavedThisSession() {
+        let provider = SpyAnalyticsProvider()
+        let service = makeService([provider])
+        service.track(.appBackgrounded(foregroundDurationS: 1))
+        clock.advance(by: 60)
+
+        service.track(viewed(7, savedAt: clock.date - 30))
+
+        #expect(provider.envelopes.last?.event.name == .productDetailsViewed)
+    }
+
+    @Test func noRevisitForAnUnsavedProduct() {
+        let provider = SpyAnalyticsProvider()
+        let service = makeService([provider])
+
+        service.track(viewed(7, savedAt: nil))
+
+        #expect(provider.envelopes.last?.event.name == .productDetailsViewed)
+    }
+
+    @Test func revisitOncePerProductPerSession() {
+        let provider = SpyAnalyticsProvider()
+        let service = makeService([provider])
+        let savedAt = date("2026-11-12T10:00:00Z")
+
+        service.track(viewed(7, savedAt: savedAt))
+        service.track(viewed(7, savedAt: savedAt))
+        service.track(viewed(8, savedAt: savedAt))
+
+        let revisits = provider.envelopes.map(\.event).filter { $0.name == .savedProductRevisited }
+        #expect(revisits == [
+            .savedProductRevisited(productID: 7, source: .saved, daysSinceSaved: 1),
+            .savedProductRevisited(productID: 8, source: .saved, daysSinceSaved: 1),
+        ])
+    }
+
+    @Test func aNewSessionRevisitsAgain() {
+        let provider = SpyAnalyticsProvider()
+        let service = makeService([provider])
+        let savedAt = date("2026-11-12T10:00:00Z")
+        service.track(viewed(7, savedAt: savedAt))
+
+        clock.advance(by: 3_600)
+        service.track(sessions.startSession(kind: .resume, at: clock.date))
+        service.track(viewed(7, savedAt: savedAt))
+
+        let revisits = provider.envelopes.filter { $0.event.name == .savedProductRevisited }
+        #expect(revisits.map(\.sessionID) == [uuid(1), uuid(2)])
+    }
 }

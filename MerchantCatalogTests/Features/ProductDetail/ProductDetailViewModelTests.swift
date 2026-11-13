@@ -44,7 +44,7 @@ struct ProductDetailViewModelTests {
         viewModel.contentAppeared()
 
         #expect(analytics.events == [
-            .productDetailsViewed(productID: 1, source: .search, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, contentOrigin: .list),
+            .productDetailsViewed(productID: 1, source: .search, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, savedAt: nil, contentOrigin: .list),
         ])
     }
 
@@ -54,7 +54,7 @@ struct ProductDetailViewModelTests {
         viewModel.contentAppeared()
 
         #expect(analytics.events == [
-            .productDetailsViewed(productID: 2, source: .catalog, category: nil, availability: nil, hasDiscount: false, imageCount: 0, contentOrigin: .list),
+            .productDetailsViewed(productID: 2, source: .catalog, category: nil, availability: nil, hasDiscount: false, imageCount: 0, savedAt: nil, contentOrigin: .list),
         ])
     }
 
