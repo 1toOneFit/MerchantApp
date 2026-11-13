@@ -23,6 +23,7 @@ Method: `curl` against `https://dummyjson.com` on 2026-11-13. Re-verify if behav
 | A11 ✅ | Product JSON: `ETag` (weak) but **no** `Cache-Control`, `Expires` or `Last-Modified`. `If-None-Match` → `304`. | See § 3. |
 | A12 ✅ | Images (`cdn.dummyjson.com`, `.webp`, ~10 KB thumbnails): `Cache-Control: public, max-age=0, no-store`. | See § 3 and § 4. |
 | A13 ✅ | A `+` in the `q` value is decoded as a **space**: `q=iphone+charger` and `q=iphone%20charger` both → `total: 1`, `q=iphone%2Bcharger` → `total: 0` (curl, 2026-11-13). | The client sends `+` as `%2B` (D-51); `URLComponents` leaves `+` unencoded (checked with a Swift script, 2026-11-13). |
+| A14 ✅ | Details fields over all 194 products (curl `/products?limit=0`, 2026-11-13): `weight` is an integer 1–10 and `dimensions` (`width`, `height`, `depth`) are decimals, both **without units**; `discountPercentage` is 0.04–19.61 (none is 0, 7 are under 1 %); `availabilityStatus` and `stock` are independent (10 "In Stock" products have stock ≤ 10, the 4 "Out of Stock" ones have 0); `minimumOrderQuantity` 1–50; reviews carry `rating` 1–5, `comment`, `date` (ISO 8601 with milliseconds), `reviewerName` and `reviewerEmail`; `description` and `tags` are never empty. | Details show numbers as given, without invented units (D-58); the discount row depends on `> 0`, not on rounding; `reviewerEmail` is not decoded. |
 
 ## 2. Network layer (protocol-first)
 

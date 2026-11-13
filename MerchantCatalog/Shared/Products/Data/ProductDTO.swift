@@ -12,8 +12,9 @@ struct ProductListResponseDTO: Decodable, Sendable {
     }
 }
 
-/// A product as the API sends it. Only the fields `Product` maps are decoded (D-37); everything
-/// beyond `id`, `title` and `price` is optional so an unusual product never fails a whole page.
+/// A product as the API sends it. Only the fields `Product` maps are decoded; everything beyond
+/// `id`, `title` and `price` is optional so an unusual product never fails a whole page. Blank
+/// strings count as missing.
 struct ProductDTO: Decodable, Sendable {
     let id: Int
     let title: String
@@ -22,17 +23,86 @@ struct ProductDTO: Decodable, Sendable {
     let availabilityStatus: String?
     let thumbnail: String?
     let images: [String]?
+    let description: String?
+    let category: String?
+    let tags: [String]?
+    let rating: Double?
+    let discountPercentage: Double?
+    let stock: Int?
+    let sku: String?
+    let weight: Double?
+    let dimensions: DimensionsDTO?
+    let warrantyInformation: String?
+    let shippingInformation: String?
+    let returnPolicy: String?
+    let minimumOrderQuantity: Int?
+    let reviews: [ReviewDTO]?
+
+    struct DimensionsDTO: Decodable, Sendable {
+        let width: Double?
+        let height: Double?
+        let depth: Double?
+
+        func toDomain() -> ProductDimensions? {
+            guard let width, let height, let depth else { return nil }
+            return ProductDimensions(width: width, height: height, depth: depth)
+        }
+    }
+
+    /// `reviewerEmail` is deliberately not decoded: it is never displayed or logged
+    /// (ProductSpecification § 4.3).
+    struct ReviewDTO: Decodable, Sendable {
+        let rating: Int?
+        let comment: String?
+        let reviewerName: String?
+        let date: String?
+
+        /// `nil` when the review has no rating, comment or reviewer name.
+        func toDomain() -> ProductReview? {
+            let comment = comment.flatMap(ProductDTO.nonBlank)
+            let reviewerName = reviewerName.flatMap(ProductDTO.nonBlank)
+            guard rating != nil || comment != nil || reviewerName != nil else { return nil }
+            return ProductReview(
+                rating: rating,
+                comment: comment,
+                reviewerName: reviewerName,
+                date: date.flatMap { try? Date($0, strategy: ProductDTO.reviewDateFormat) }
+            )
+        }
+    }
+
+    /// `2025-04-30T09:41:02.053Z` (Networking.md A14).
+    private static let reviewDateFormat = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
 
     func toDomain() -> Product {
         Product(
             id: id,
             title: title,
             price: price,
-            brand: brand.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 },
+            brand: brand.flatMap(Self.nonBlank),
             availability: availabilityStatus.flatMap(Self.availability),
             thumbnailURL: thumbnail.flatMap(Self.webURL),
-            imageURLs: (images ?? []).compactMap(Self.webURL)
+            imageURLs: (images ?? []).compactMap(Self.webURL),
+            productDescription: description.flatMap(Self.nonBlank),
+            category: category.flatMap(Self.nonBlank),
+            tags: (tags ?? []).compactMap(Self.nonBlank),
+            rating: rating,
+            discountPercentage: discountPercentage,
+            stock: stock,
+            sku: sku.flatMap(Self.nonBlank),
+            weight: weight,
+            dimensions: dimensions?.toDomain(),
+            warranty: warrantyInformation.flatMap(Self.nonBlank),
+            shipping: shippingInformation.flatMap(Self.nonBlank),
+            returnPolicy: returnPolicy.flatMap(Self.nonBlank),
+            minimumOrderQuantity: minimumOrderQuantity,
+            reviews: (reviews ?? []).compactMap { $0.toDomain() }
         )
+    }
+
+    /// The string, or `nil` when it is only whitespace.
+    private static func nonBlank(_ string: String) -> String? {
+        string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : string
     }
 
     private static func availability(_ status: String) -> ProductAvailability? {
