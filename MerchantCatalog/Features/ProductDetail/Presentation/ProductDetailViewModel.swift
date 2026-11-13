@@ -16,6 +16,7 @@ final class ProductDetailViewModel {
     private(set) var galleryIndex = 0
 
     @ObservationIgnored private let route: ProductDetailRoute
+    @ObservationIgnored private let product: Product
     @ObservationIgnored private let analytics: any AnalyticsTracking
     @ObservationIgnored private var hasTrackedView = false
     @ObservationIgnored private var hasTrackedGallery = false
@@ -23,9 +24,14 @@ final class ProductDetailViewModel {
     init(route: ProductDetailRoute, analytics: any AnalyticsTracking) {
         self.route = route
         self.analytics = analytics
-        header = ProductDetailHeader(route.product)
-        insights = ProductInsights(route.product)
-        gallery = ProductGalleryModel(route.product)
+        let product = switch route {
+        case .list(let product, _): product
+        case .saved(let snapshot): snapshot.displayProduct
+        }
+        self.product = product
+        header = ProductDetailHeader(product)
+        insights = ProductInsights(product)
+        gallery = ProductGalleryModel(product)
     }
 
     /// The details content appeared. Only the first appearance counts: tab switches and returning
@@ -33,7 +39,6 @@ final class ProductDetailViewModel {
     func contentAppeared() {
         guard !hasTrackedView else { return }
         hasTrackedView = true
-        let product = route.product
         analytics.track(.productDetailsViewed(
             productID: product.id,
             source: route.source,
@@ -53,6 +58,6 @@ final class ProductDetailViewModel {
         galleryIndex = index
         guard !hasTrackedGallery else { return }
         hasTrackedGallery = true
-        analytics.track(.productGalleryInteracted(productID: route.product.id, imageCount: gallery.imageURLs.count))
+        analytics.track(.productGalleryInteracted(productID: product.id, imageCount: gallery.imageURLs.count))
     }
 }

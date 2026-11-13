@@ -242,7 +242,7 @@ final class CatalogViewModel {
         let product = feed.list.items[position]
         let source: ProductSource = context == .search ? .search : .catalog
         analytics.track(.productSelected(productID: id, source: source, position: position, sort: feed.sort))
-        router.showProductDetail(ProductDetailRoute(product: product, source: source))
+        router.showProductDetail(.list(product, source: source))
     }
 
     /// The footer's Retry after a failed page. Ignored while a refresh is in flight: the refresh

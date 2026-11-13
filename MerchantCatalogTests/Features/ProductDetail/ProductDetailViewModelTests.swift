@@ -23,7 +23,7 @@ struct ProductDetailViewModelTests {
     )
 
     private func makeViewModel(product: Product = mascara, source: ProductSource = .search) -> ProductDetailViewModel {
-        ProductDetailViewModel(route: ProductDetailRoute(product: product, source: source), analytics: analytics)
+        ProductDetailViewModel(route: ProductDetailRoute.list(product, source: source), analytics: analytics)
     }
 
     /// AC-D1: everything is there at once; nothing is tracked before the screen appears.
