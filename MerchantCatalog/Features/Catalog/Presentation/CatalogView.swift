@@ -93,7 +93,7 @@ private struct CatalogListView: View {
             ContentUnavailableView {
                 Label("No results", systemImage: "magnifyingglass")
             } description: {
-                Text("No products match \u{201C}\(query)\u{201D}")
+                Text(CatalogCopy.noResultsMessage(for: query))
             } actions: {
                 Button("Clear search", action: clearSearch)
                     .buttonStyle(.borderedProminent)
