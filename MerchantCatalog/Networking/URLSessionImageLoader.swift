@@ -48,6 +48,7 @@ final class URLSessionImageLoader: ImageLoading {
             throw AppError.unknown
         }
         NetworkLogger.received(id: id, status: http.statusCode, latency: latency, bytes: data.count)
+        NetworkLogger.responseDetails(http, body: data, id: id)
         if let error = URLSessionAPIClient.appError(forStatus: http.statusCode) {
             throw error
         }

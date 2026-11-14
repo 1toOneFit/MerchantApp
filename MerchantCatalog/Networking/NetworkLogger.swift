@@ -2,7 +2,9 @@ import Foundation
 import OSLog
 
 /// Request logging in the `network` category (Architecture § 10): method, sanitized URL, a short
-/// request id, status, latency, size, errors and cancellation. Success and cancellation log at
+/// request id, status, latency, size, errors and cancellation. DEBUG builds add every request and
+/// response field: query, headers, timeout, response headers and the body (`NetworkLogFormatter`,
+/// D-80). Success and cancellation log at
 /// debug level, failures at error level. The search term (`q`) is redacted before logging (D-18),
 /// so the rest of the URL is logged as public. Errors are logged as a code or category only
 /// (`summary(of:)`), never as their description, which can contain the full request URL.
@@ -59,7 +61,28 @@ enum NetworkLogger {
         let method = request.httpMethod ?? "GET"
         let url = request.url.map(sanitizedURL) ?? "nil"
         Log.network.debug("[\(id, privacy: .public)] \(method, privacy: .public) \(url, privacy: .public)")
+        #if DEBUG
+        details(NetworkLogFormatter.requestLines(request), id: id)
+        #endif
     }
+
+    /// DEBUG builds: the response's status, type, size, headers and body (D-80). Release logs only
+    /// the `received` summary line.
+    static func responseDetails(_ response: HTTPURLResponse, body: Data, id: String) {
+        #if DEBUG
+        details(NetworkLogFormatter.responseLines(response, body: body), id: id)
+        #endif
+    }
+
+    #if DEBUG
+    /// One debug-level message per line, each tagged with the request id. The lines are already
+    /// sanitized (`q` and credentials redacted), so they are logged as public.
+    private static func details(_ lines: [String], id: String) {
+        for line in lines {
+            Log.network.debug("[\(id, privacy: .public)] \(line, privacy: .public)")
+        }
+    }
+    #endif
 
     static func received(id: String, status: Int, latency: Duration, bytes: Int) {
         let ms = latency.wholeMilliseconds

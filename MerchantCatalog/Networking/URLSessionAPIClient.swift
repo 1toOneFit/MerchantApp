@@ -52,6 +52,7 @@ final class URLSessionAPIClient: APIClientType {
             throw AppError.unknown
         }
         NetworkLogger.received(id: id, status: http.statusCode, latency: latency, bytes: data.count)
+        NetworkLogger.responseDetails(http, body: data, id: id)
         if let error = Self.appError(forStatus: http.statusCode) {
             throw error
         }
