@@ -62,17 +62,17 @@ Accounts, cart/checkout, product editing, inventory/orders, remote sync, persona
 
 Funnel signals for each step of the journey: search-to-selection, details views, saves per details view, **revisits of saved products in a later session**, and load-failure rates as guardrails. The card-rating experiment has a pre-registered primary metric, secondary outcomes and guardrails. No results are claimed from a local demo. See [docs/Analytics.md](docs/Analytics.md) and [docs/Experiments.md](docs/Experiments.md).
 
-## Release status (1.0)
+## Release status (1.0, updated with S8)
 
 Against the release completion criteria of the original brief ([MasterSpecification § 1](docs/MasterSpecification.md#1-product-intent-and-success-definition)):
 
 | Criterion | Status |
 |---|---|
-| Builds and runs in a Simulator without extra setup | **Builds:** Debug and Release, 0 warnings, verified at every stage. **Runs:** the AI agent never ran the app; each review gate lists manual Simulator checks for me, and the 1.0 smoke checklist is in the S7 review log. |
+| Builds and runs in a Simulator without extra setup | **Builds:** Debug and Release, 0 warnings, verified at every stage. **Runs:** the AI agent never ran the app by hand; since S8, six XCUITests launch it on fixed, offline data through `xcodebuild test`; each review gate lists manual Simulator checks for me, and the 1.0 smoke checklist is in the S7 review log. |
 | Core journey, search, sorting, pagination, saved products, loading/error states | Met. Each acceptance criterion is covered by view-model or model tests where testable; rendering is checked manually. |
 | Coherent analytics and one reviewable experiment | Met. Every documented event is implemented, and a test keeps code and taxonomy equal. The experiment's assignment, exposure and metrics are documented. |
 | TDD for testable behaviors | Met. Each stage wrote failing tests first and recorded it in the review log; no live network in unit tests. |
-| Understandable documentation and a verified review trail | Met. An independent Codex review and my approval gated every stage, S0–S7 ([review log](docs/ImplementationPlan.md#review-log)). |
+| Understandable documentation and a verified review trail | Met. An independent Codex review and my approval gated every stage, S0–S7; S8 (Needs attention) went through a review whose three findings were fixed test-first, plus my change requests, before my approval ([review log](docs/ImplementationPlan.md#review-log)). |
 | No fabricated research, metrics, experiment outcomes or performance numbers | Met. Unverified platform behavior is labeled as expected. |
 | Current stable Xcode | **Not met.** Built with Xcode 26.0; the current release is 27.2, which needs a macOS update that didn't fit the assignment window. Opening in newer Xcode is expected to work but unverified. |
 
