@@ -30,7 +30,14 @@
 
 ## Tasks
 
-- [ ] **Task 1 — route by id.** Tests first: `RouterTests` (route = id + source; log description), `CatalogViewModelSelectionTests` and `SavedViewModelTests` (pushed route). Implement the struct and the two call sites.
-- [ ] **Task 2 — view model.** Tests first: rewrite `ProductDetailViewModelTests` (catalog/search: skeleton state, load, cancellation, failure → error, 404, Retry, view event after success, gallery, saving disabled/enabled) and `ProductDetailSavedTests` (skeleton first, success with price note, failure → snapshot fallback + event `snapshot` + load_failed `showing_snapshot: true`, 404 fallback, Retry, unsave during fallback). Implement; Analytics.md in the same commit.
-- [ ] **Task 3 — view.** Full-screen skeleton (placeholder product, redacted, pulse), error state for list routes, Saved fallback with the existing status view, bookmark enabled rule. Build only (no view tests).
-- [ ] **Task 4 — docs + verify.** ProductSpecification § 4.3/4.4 (AC-D1, AC-D4), Architecture § 7, D-83 (D-62, D-63, D-81, D-82 marked updated), README, AILog, review log with manual checks; clean Debug/Release 0 warnings, full tests.
+- [x] **Task 1 — route by id.** Tests first: `RouterTests` (route = id + source; log description), `CatalogViewModelSelectionTests` and `SavedViewModelTests` (pushed route). Implement the struct and the two call sites.
+- [x] **Task 2 — view model.** Tests first: rewrite `ProductDetailViewModelTests` (catalog/search: skeleton state, load, cancellation, failure → error, 404, Retry, view event after success, gallery, saving disabled/enabled) and `ProductDetailSavedTests` (skeleton first, success with price note, failure → snapshot fallback + event `snapshot` + load_failed `showing_snapshot: true`, 404 fallback, Retry, unsave during fallback). Implement; Analytics.md in the same commit.
+- [x] **Task 3 — view.** Full-screen skeleton (placeholder product, redacted, pulse), error state for list routes, Saved fallback with the existing status view, bookmark enabled rule. Build only (no view tests).
+- [x] **Task 4 — docs + verify.** ProductSpecification § 4.3/4.4 (AC-D1, AC-D4), Architecture § 7, D-83 (D-62, D-63, D-81, D-82 marked updated), README, AILog, review log with manual checks; clean Debug/Release 0 warnings, full tests.
+
+## Deviations
+
+- Tasks 1–3 landed in one commit (`87222b6`) with Analytics.md: the route change doesn't compile without the view model, and the view event's timing is analytics code.
+- `ProductSummary.displayProduct` stays: `SavedProduct.displayProduct` (Saved's fallback) builds on it.
+- A cancelled Retry returns to the failure it started from, and from Saved the snapshot stays on screen while a Retry runs ("Updating…"); found while rewriting the Saved tests.
+- VoiceOver reads the whole skeleton as one element, "Loading product details" (the gallery skeleton's own label went into it).

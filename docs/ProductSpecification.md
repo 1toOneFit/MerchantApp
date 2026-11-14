@@ -109,7 +109,7 @@ Category, brand, discount and availability are deliberately **not** on the card,
 
 ### 4.3 Product details
 
-List pages carry only a summary of each product (title, price, thumbnail, rating, category), so details always load the full product from `/products/{id}` when they open (D-81). From the catalog or search, the header (title, category, rating, price) shows at once from the list item, with a skeleton where the gallery will be; the images replace the skeleton and every section appears when the response arrives (the skeleton also shows from Saved, under the snapshot's "Updating…"). If the request fails, the header stays with a "Couldn't load details" banner and **Retry**; a 404 says "This product is no longer available." without Retry. When opened from Saved, the screen shows the saved snapshot immediately and fetches `/products/{id}` for fresh data; if that fetch fails, the snapshot stays visible with a "Couldn't refresh — showing saved info" banner and Retry.
+List pages carry only a summary of each product (title, price, thumbnail, rating, category); details open with just the product's id and always load the full product from `/products/{id}` (D-81, D-83). Until it arrives, the whole screen is a skeleton: the gallery's square with a spinner and the layout of every part (header, chips, sections) as pulsing placeholders; no list data is shown. Then the full product shows at once. From the catalog or search, a failure is a full-screen error with **Retry** (offline, timeout or server wording); a 404 says the product is no longer available, without Retry. From Saved, a failure shows the saved snapshot instead (found in Saved by id) with a "Couldn't refresh — showing saved info" banner and Retry.
 
 **Layout (top to bottom)**
 1. **Gallery** — paged images (1–6 per product; page indicator hidden when there is one image), loading placeholder and failure state per image; each image loads only while its page is on screen. A product without images has no gallery.
@@ -123,17 +123,17 @@ List pages carry only a summary of each product (title, price, thumbnail, rating
 
 Save/unsave is a toolbar button (a bookmark); state stays consistent with the grid and Saved tab.
 
-**Opened from Saved (as built, S5; skeleton since S7):** the snapshot shows title, category, rating and price at once, labeled "Saved information · Saved 3 Nov", with a gallery skeleton (the gallery never shows the card thumbnail) while "Updating…" fetches `/products/{id}`. Success replaces it with the full product; if the price differs from the snapshot's, Pricing adds "Price changed since you saved it" and "Price when saved: $9.99". A failure keeps the snapshot with "Couldn't refresh — showing saved info" and **Retry**. A 404 keeps the snapshot with "This product is no longer available." and no Retry (the product can still be unsaved). The stored snapshot is never overwritten by fresh data, so "price when saved" stays the price when saved (D-67).
+**Opened from Saved (as built, S5; by id since D-83):** the skeleton shows while `/products/{id}` loads, as from the catalog. Success shows the full product; if the price differs from the snapshot's, Pricing adds "Price changed since you saved it" and "Price when saved: $9.99". A failure shows the snapshot (title, category, rating, price, no gallery), labeled "Saved information · Saved 3 Nov", with "Couldn't refresh — showing saved info" and **Retry** ("Updating…" while it retries). A 404 shows the snapshot with "This product is no longer available." and no Retry (the product can still be unsaved). On a slow but not absent connection the snapshot appears only when the request fails (up to the 15 s timeout). The stored snapshot is never overwritten by fresh data, so "price when saved" stays the price when saved (D-67).
 
 Details open from a card tap in the browse grid or search results, on the Catalog tab's stack. Going back shows the catalog exactly as it was: scroll position, loaded pages, search text, results and sort (AC-C6); a search stays active even if the system deactivated the search field for the push (D-54).
 
 **Insight rule:** only facts present in the data. No invented score, margin, recommendation or "best seller" claim.
 
 **Acceptance criteria**
-- AC-D1 Opening a product from the grid shows its header (title, category, rating, price) at once and the full details as soon as `/products/{id}` returns; a failure keeps the header with Retry (D-81; before D-81: full content without a request).
+- AC-D1 Opening a product from the grid shows a skeleton, then the full details as soon as `/products/{id}` returns; a failure shows an error with Retry (D-83; before D-81: full content without a request).
 - AC-D2 Sections with no data are omitted, never shown empty.
 - AC-D3 Save on details updates the grid card and Saved tab immediately.
-- AC-D4 Opening from Saved while offline shows the snapshot plus the refresh-failed banner.
+- AC-D4 Opening from Saved while offline shows the snapshot plus the refresh-failed banner (after the failed request, D-83).
 
 ### 4.4 Saved products
 
