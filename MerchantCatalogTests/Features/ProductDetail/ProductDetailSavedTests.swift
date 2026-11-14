@@ -15,12 +15,14 @@ struct ProductDetailSavedTests {
 
     private static let savedAt = date("2026-11-10T10:00:00Z")
     private static let snapshot = SavedProduct(
-        id: 1,
-        title: "Volume Mascara",
-        thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/1/thumbnail.webp"),
-        price: Decimal(string: "9.99")!,
-        rating: 4.94,
-        category: "beauty",
+        summary: ProductSummary(
+            id: 1,
+            title: "Volume Mascara",
+            price: Decimal(string: "9.99")!,
+            thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/1/thumbnail.webp"),
+            rating: 4.94,
+            category: "beauty"
+        ),
         savedAt: savedAt
     )
     private static let images = (1...3).compactMap { URL(string: "https://cdn.dummyjson.com/products/1/\($0).webp") }
@@ -283,15 +285,7 @@ struct ProductDetailSavedTests {
         now.advance(by: 60)
         viewModel.saveToggled()
 
-        let resaved = SavedProduct(
-            id: 1,
-            title: Self.snapshot.title,
-            thumbnailURL: Self.snapshot.thumbnailURL,
-            price: Self.snapshot.price,
-            rating: Self.snapshot.rating,
-            category: Self.snapshot.category,
-            savedAt: now.date
-        )
+        let resaved = SavedProduct(summary: Self.snapshot.summary, savedAt: now.date)
         #expect(store.items == [resaved])
         #expect(viewModel.isSaved)
     }

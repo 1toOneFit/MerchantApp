@@ -64,12 +64,15 @@ struct RouterTests {
 
     /// D-62: a list route carries the list's product and source; a Saved route the snapshot.
     @Test func routeExposesIDAndSource() {
-        let snapshot = SavedProduct(summary(9), savedAt: date("2026-11-13T10:00:00Z"))
+        let snapshot = SavedProduct(summary: summary(9), savedAt: date("2026-11-13T10:00:00Z"))
 
         #expect(ProductDetailRoute.list(summary(4), source: .search).productID == 4)
         #expect(ProductDetailRoute.list(summary(4), source: .search).source == .search)
         #expect(ProductDetailRoute.saved(snapshot).productID == 9)
         #expect(ProductDetailRoute.saved(snapshot).source == .saved)
         #expect(Route.productDetail(.saved(snapshot)).logDescription == "productDetail(id: 9, source: saved)")
+        // D-82: both routes hand details the same piece of data.
+        #expect(ProductDetailRoute.list(summary(4), source: .search).summary == summary(4))
+        #expect(ProductDetailRoute.saved(snapshot).summary == summary(9))
     }
 }

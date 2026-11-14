@@ -55,10 +55,7 @@ final class ProductDetailViewModel {
         self.repository = repository
         self.savedProducts = savedProducts
         self.analytics = analytics
-        product = switch route {
-        case .list(let summary, _): summary.displayProduct
-        case .saved(let snapshot): snapshot.displayProduct
-        }
+        product = route.summary.displayProduct
     }
 
     isolated deinit {
@@ -82,8 +79,8 @@ final class ProductDetailViewModel {
     /// The price when saved, once the fresh product shows a different one ("Price changed since you
     /// saved it", ProductSpecification § 4.4).
     var savedPriceIfChanged: Decimal? {
-        guard refresh == .refreshed, let savedSnapshot, savedSnapshot.price != product.price else { return nil }
-        return savedSnapshot.price
+        guard refresh == .refreshed, let savedSnapshot, savedSnapshot.summary.price != product.price else { return nil }
+        return savedSnapshot.summary.price
     }
 
     /// A skeleton stands where the gallery will be until the full product arrives (not after a

@@ -224,7 +224,7 @@ struct ProductDetailViewModelTests {
     /// `saved_product_revisited` (D-64).
     @Test func detailsViewedReportsTheSavedDate() async {
         let savedAt = date("2026-11-10T10:00:00Z")
-        let store = await loadedSavedStore([SavedProduct(Self.mascara.summary, savedAt: savedAt)])
+        let store = await loadedSavedStore([SavedProduct(summary: Self.mascara.summary, savedAt: savedAt)])
 
         _ = await loadedViewModel(store: store)
 

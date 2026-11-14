@@ -84,14 +84,14 @@ struct SavedAnalyticsEventTests {
     }
 
     @Test func savedChangeBecomesProductSaved() {
-        let snapshot = SavedProduct(makeSummary(id: 4, category: "beauty"), savedAt: date("2026-11-13T10:00:00Z"))
+        let snapshot = SavedProduct(summary: makeSummary(id: 4, category: "beauty"), savedAt: date("2026-11-13T10:00:00Z"))
 
         #expect(SavedProductsChange.saved(snapshot, countAfter: 2).event(surface: .catalogCard, position: 3)
-            == .productSaved(productID: 4, surface: .catalogCard, category: "beauty", price: snapshot.price, position: 3, savedCountAfter: 2))
+            == .productSaved(productID: 4, surface: .catalogCard, category: "beauty", price: snapshot.summary.price, position: 3, savedCountAfter: 2))
     }
 
     @Test func removedChangeBecomesProductUnsaved() {
-        let snapshot = SavedProduct(summary(4), savedAt: date("2026-11-13T10:00:00Z"))
+        let snapshot = SavedProduct(summary: summary(4), savedAt: date("2026-11-13T10:00:00Z"))
 
         #expect(SavedProductsChange.removed(snapshot, savedDurationS: 90, countAfter: 0).event(surface: .details, position: nil)
             == .productUnsaved(productID: 4, surface: .details, savedDurationS: 90, savedCountAfter: 0))

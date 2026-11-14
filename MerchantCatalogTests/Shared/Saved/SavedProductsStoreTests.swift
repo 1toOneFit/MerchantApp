@@ -16,7 +16,7 @@ struct SavedProductsStoreTests {
     }
 
     private func saved(_ id: Int, at iso: String) -> SavedProduct {
-        SavedProduct(summary(id), savedAt: date(iso))
+        SavedProduct(summary: summary(id), savedAt: date(iso))
     }
 
     private func loadedStore() async -> SavedProductsStore {
@@ -57,7 +57,7 @@ struct SavedProductsStoreTests {
         let change = store.save(summary(4))
         await store.writeTask?.value
 
-        let snapshot = SavedProduct(summary(4), savedAt: clock.date)
+        let snapshot = SavedProduct(summary: summary(4), savedAt: clock.date)
         #expect(change == .saved(snapshot, countAfter: 1))
         #expect(store.items == [snapshot])
         #expect(repository.writes == [[snapshot]])

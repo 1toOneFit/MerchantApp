@@ -7,12 +7,14 @@ import Testing
 struct SavedRowModelTests {
     @Test func rowShowsSavedInformation() {
         let item = SavedProduct(
-            id: 7,
-            title: "Desk Lamp",
-            thumbnailURL: URL(string: "https://example.com/7.webp"),
-            price: Decimal(string: "9.99")!,
-            rating: 4.5,
-            category: "home-decoration",
+            summary: ProductSummary(
+                id: 7,
+                title: "Desk Lamp",
+                price: Decimal(string: "9.99")!,
+                thumbnailURL: URL(string: "https://example.com/7.webp"),
+                rating: 4.5,
+                category: "home-decoration"
+            ),
             savedAt: date("2026-11-13T10:00:00Z")
         )
 

@@ -14,7 +14,7 @@ struct SavedViewModelTests {
     private let now = TestNow()
 
     private func saved(_ id: Int, at iso: String) -> SavedProduct {
-        SavedProduct(summary(id), savedAt: date(iso))
+        SavedProduct(summary: summary(id), savedAt: date(iso))
     }
 
     private var items: [SavedProduct] {

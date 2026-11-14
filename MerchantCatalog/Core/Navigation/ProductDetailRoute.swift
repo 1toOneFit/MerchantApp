@@ -8,6 +8,15 @@ enum ProductDetailRoute: Hashable {
     case list(ProductSummary, source: ProductSource)
     case saved(SavedProduct)
 
+    /// The piece of data both routes hand details (D-82): the list item, or the summary that was
+    /// saved.
+    var summary: ProductSummary {
+        switch self {
+        case .list(let summary, _): summary
+        case .saved(let snapshot): snapshot.summary
+        }
+    }
+
     var productID: Product.ID {
         switch self {
         case .list(let product, _): product.id
