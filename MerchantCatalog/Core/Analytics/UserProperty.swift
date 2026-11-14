@@ -1,0 +1,68 @@
+import Foundation
+
+/// User properties from Analytics.md § 2. They describe the installation rather than one event and
+/// are set when their value changes.
+enum UserProperty: Equatable, Sendable {
+    case appVersion(String)
+    case buildNumber(String)
+    case osVersion(String)
+    case deviceModel(String)
+    /// The installation date; sent as `yyyy-MM-dd` in UTC.
+    case firstSeenDate(Date)
+    case isDebugBuild(Bool)
+    /// Set by `SavedProductsStore` after the launch load and after every save or removal.
+    case savedProductsCount(Int)
+    /// Experiment id → the variant this launch uses; set by `LocalExperimentService` (D-69).
+    case experimentAssignments([String: String])
+
+    var name: String {
+        switch self {
+        case .appVersion: "app_version"
+        case .buildNumber: "build_number"
+        case .osVersion: "os_version"
+        case .deviceModel: "device_model"
+        case .firstSeenDate: "first_seen_date"
+        case .isDebugBuild: "is_debug_build"
+        case .savedProductsCount: "saved_products_count"
+        case .experimentAssignments: "experiment_assignments"
+        }
+    }
+
+    var value: AnalyticsValue {
+        switch self {
+        case .appVersion(let value), .buildNumber(let value), .osVersion(let value), .deviceModel(let value):
+            .string(value)
+        case .firstSeenDate(let date):
+            .string(date.formatted(Self.dayStyle))
+        case .isDebugBuild(let value):
+            .bool(value)
+        case .savedProductsCount(let count):
+            .int(count)
+        case .experimentAssignments(let assignments):
+            .stringMap(assignments)
+        }
+    }
+
+    /// `yyyy-MM-dd` in UTC.
+    private static let dayStyle = Date.ISO8601FormatStyle(timeZone: .gmt).year().month().day()
+
+    /// The properties set at every launch, in the order Analytics.md § 2 lists them.
+    static func launchProperties(app: AppInfo, firstSeenDate: Date) -> [UserProperty] {
+        [
+            .appVersion(app.appVersion),
+            .buildNumber(app.buildNumber),
+            .osVersion(app.osVersion),
+            .deviceModel(app.deviceModel),
+            .firstSeenDate(firstSeenDate),
+            .isDebugBuild(app.isDebugBuild),
+        ]
+    }
+}
+
+/// A user property's change as providers receive it; `oldValue` is `nil` the first time it is set
+/// in this process.
+struct UserPropertyChange: Equatable, Sendable {
+    let name: String
+    let oldValue: AnalyticsValue?
+    let newValue: AnalyticsValue
+}

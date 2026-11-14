@@ -41,11 +41,11 @@ A review/fix cycle may continue in the same conversation; a new stage starts in 
 ## Architecture at a glance
 
 - Clean Architecture + MVVM. Folders: `App/`, `Core/`, `Networking/`, `Shared/<Area>/{Domain,Data}`, `Features/<Feature>/{Domain,Presentation}`, `DesignSystem/`.
-- **Protocol-first infrastructure.** Consumers depend only on protocols: `APIClientType` (network), `AnalyticsTracking` (analytics), repository protocols. Concrete types (`URLSessionAPIClient`, `AnalyticsService` + `AnalyticsProvider`s) are swappable without changing the protocol or call sites. Register services in the container under their protocol type.
+- **Protocol-first infrastructure.** Consumers depend only on protocols: `APIClientType` (network), `ImageLoading` (images), `AnalyticsTracking` (analytics), repository protocols. Concrete types (`URLSessionAPIClient`, `AnalyticsService` + `AnalyticsProvider`s) are swappable without changing the protocol or call sites. Register services in the container under their protocol type.
 - View models (`@MainActor @Observable`) call protocols, emit analytics, and ask the router to navigate. Views render state and call view-model intents.
 - DI: `ServiceContainer` configured in `AppContext`; per-scene **Configurators** resolve and inject via initializers. View models never touch the container.
 - Navigation: `NavigationStack`/`navigationDestination` **only** in `App/AppTabView.swift`; no `NavigationLink` (enforced by `NavigationRuleTests`).
-- Images: `AsyncImage`, rendered only while its cell is visible, so loading starts on appear and is torn down on disappear.
+- Images: `ProductImageView` loads through `ImageLoading` (`URLSessionImageLoader`, own session, no cache) in `.task(id: url)`: it starts on appear and SwiftUI cancels it on disappear, which cancels the request (D-78).
 
 Details: [docs/Architecture.md](docs/Architecture.md).
 
@@ -58,7 +58,7 @@ xcodebuild -project MerchantCatalog.xcodeproj -scheme MerchantCatalog \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.0' test
 ```
 
-`iPhone 17` because this machine has several simulators named `iPhone 17 Pro`. Commands are verified in stage S0.
+`iPhone 17` because this machine has several simulators named `iPhone 17 Pro`. Both commands verified on 2026-11-13 in S0.
 
 ## Docs map
 

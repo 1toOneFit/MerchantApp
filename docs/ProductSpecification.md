@@ -48,9 +48,11 @@ Out of scope: see [§ 8 Deliberate exclusions](#8-deliberate-exclusions).
 | Title (max 2 lines) | ✓ | ✓ |
 | Price | ✓ | ✓ |
 | Save/unsave button | ✓ | ✓ |
-| Rating (★ 4.6) | — | ✓ |
+| Rating: the product's API rating, one decimal (★ + e.g. 4.96 → 5.0, D-71) | — | ✓ |
 
 Category, brand, discount and availability are deliberately **not** on the card, to keep the experiment's single variable clean; they appear on the details screen.
+
+**Rating on the card (as built, S6):** under the price, a filled star and the product's API rating formatted to one decimal (e.g. 4.94 → "★ 4.9", 4.96 → "★ 5.0", D-71), in the secondary color. The control card lays out the same row, invisible, so both arms have the same card height (D-21). VoiceOver reads the same value in the card's label, e.g. "rated 4.9 of 5" (§ 4.5). The variant is the installation's assignment for the launch (D-69).
 
 **Behavior**
 - First page loads on first display (20 items). The next page is requested when the user scrolls within ~5 items of the end. Only one page request is in flight at a time. Items are de-duplicated by `id` when appended.
@@ -68,6 +70,7 @@ Category, brand, discount and availability are deliberately **not** on the card,
 | Load-more failed | Page ≥ 2 failed | Inline footer with message + **Retry** (content stays) |
 | Refreshing | Pull-to-refresh in flight | System refresh control; content stays |
 | Empty | Successful response, 0 items (browse) | Empty-state message + **Reload** |
+| No results | Successful search, 0 items | "No products match "…"" + **Clear search** |
 | Failed (no content) | First page failed | Full-screen error, reason-specific message (offline / timeout / server), **Retry** |
 
 **Acceptance criteria**
@@ -81,18 +84,21 @@ Category, brand, discount and availability are deliberately **not** on the card,
 ### 4.2 Search and sort
 
 **Search**
-- `.searchable` field at the top of the Catalog tab, prompt "Search products".
-- Requests start **300 ms after the last keystroke** (debounce). Leading/trailing whitespace is trimmed; an empty query returns to browse.
+- `.searchable` field at the top of the Catalog tab, prompt "Search products", always visible under an inline "Catalog" title (D-47).
+- Requests start **300 ms after the last keystroke** (debounce). Leading/trailing whitespace is trimmed; an empty query, or **Cancel** on the search field, returns to browse at once. An edit that leaves the trimmed query unchanged (e.g. a trailing space) sends nothing.
+- While the user types, the list on screen stays; once the request starts, the results area shows the skeleton until the results arrive (D-50).
 - A new query cancels the in-flight one; a response is applied **only if it belongs to the latest query** (stale-response protection, even if cancellation loses a race).
 - Search uses the server endpoint (`/products/search`) with the current sort and pagination — verified to work together, see [Networking.md § API facts](Networking.md#1-verified-api-facts).
 - No results: "No products match "…"" with a **Clear search** action.
-- Clearing search restores the previous browse list (pages, sort, scroll position) from memory without refetching.
+- The keyboard can be put away without ending the search: starting to scroll the grid (either direction) or the keyboard's **Search** key dismisses it with an animation; the query, results and sort stay, and tapping the field brings it back (D-79). Only **Cancel** ends the search.
+- Clearing search restores the previous browse list (pages, sort, scroll position) from memory without refetching: the browse grid stays loaded, hidden, under the search results (D-47).
+- A failed search shows the full-screen error with **Retry**; pull-to-refresh and loading more work as in browse.
 
 **Sort**
 - Options: **Default** (the API's default order, by product id — not a curated ranking), **Price: Low to High**, **Price: High to Low**, **Rating: High to Low**.
-- The current sort is always visible in the toolbar control's label.
-- Changing sort reloads page 1 server-side for the current mode (browse or search) and scrolls to top. The app **never sorts locally**, so ordering is always across the whole catalog/result set, never just the loaded page.
-- The sort choice is kept when entering/leaving search. It is not persisted across launches (deliberate: avoid surprising state on a new session).
+- The control is a menu at the toolbar's leading edge. Its label always shows the current sort in short form ("Default", "Lowest price", "Highest price", "Top rated"); the menu lists the options above and marks the current one (D-44).
+- Changing sort reloads page 1 server-side for the current mode (browse or search) and scrolls to top: the skeleton shows until the new order arrives, and a failure shows the full-screen error with Retry (D-45). The app **never sorts locally**, so ordering is always across the whole catalog/result set, never just the loaded page.
+- A search starts in the sort on screen. A sort change while searching applies to the search only; clearing returns to the browse list in its own sort (D-46, AC-S4). The sort is not persisted across launches (deliberate: avoid surprising state on a new session).
 
 **Acceptance criteria**
 - AC-S1 Typing "phone" quickly sends at most one request after typing stops.
@@ -103,37 +109,41 @@ Category, brand, discount and availability are deliberately **not** on the card,
 
 ### 4.3 Product details
 
-Content renders **immediately** from the product already loaded in the list (the list endpoint returns full product objects). When opened from Saved, the screen shows the saved snapshot immediately and fetches `/products/{id}` for fresh data; if that fetch fails, the snapshot stays visible with a "Couldn't refresh — showing saved info" banner and Retry.
+List pages carry only a summary of each product (title, price, thumbnail, rating, category); details open with just the product's id and always load the full product from `/products/{id}` (D-81, D-83). Until it arrives, the whole screen is a skeleton: the gallery's square with a spinner and the layout of every part (header, chips, sections) as pulsing placeholders; no list data is shown. Then the full product shows at once. From the catalog or search, a failure is a full-screen error with **Retry** (offline, timeout or server wording); a 404 says the product is no longer available, without Retry. From Saved, a failure shows the saved snapshot instead (found in Saved by id) with a "Couldn't refresh — showing saved info" banner and Retry.
 
 **Layout (top to bottom)**
-1. **Gallery** — paged images (1–6 per product; page indicator hidden when there is one image), loading placeholder and failure state per image.
+1. **Gallery** — paged images (1–6 per product; page indicator hidden when there is one image), loading placeholder and failure state per image; each image loads only while its page is on screen. A product without images has no gallery.
 2. **Header** — title, brand (when present; 92 of 194 demo products have none), category.
-3. **At a Glance** — compact factual chips, only for fields that exist: rating with review count, availability (+ stock units), minimum order quantity, shipping information, return policy, warranty.
-4. **Pricing** — price; discount percentage as provided by the API (see [§ 6 Data semantics](#6-data-semantics)).
+3. **At a Glance** — compact factual chips, only for fields that exist: rating (without a review count: the aggregate rating isn't based on the 3 returned reviews, § 6, D-55), availability (+ stock units), minimum order quantity, shipping information, return policy, warranty.
+4. **Pricing** — price; discount percentage as provided by the API, with up to 2 fraction digits, e.g. "−7.17%", shown only when greater than 0 (see [§ 6 Data semantics](#6-data-semantics), D-58).
 5. **Overview** — description, tags.
-6. **Product information** — SKU, brand, category, weight, dimensions, warranty.
+6. **Product information** — SKU, brand, category, weight, dimensions, warranty. Weight and dimensions are shown as the API gives them, without units, because the API states none ([Networking.md A14](Networking.md#1-verified-api-facts), D-58).
 7. **Shipping & availability** — availability status, stock, shipping information, minimum order quantity, return policy.
 8. **Reviews** — "Recent reviews" (the API returns 3 per product): rating, comment, reviewer name, date. Reviewer email is never displayed or logged.
 
-Save/unsave is a toolbar button; state stays consistent with the grid and Saved tab.
+Save/unsave is a toolbar button (a bookmark); state stays consistent with the grid and Saved tab.
+
+**Opened from Saved (as built, S5; by id since D-83):** the skeleton shows while `/products/{id}` loads, as from the catalog. Success shows the full product; if the price differs from the snapshot's, Pricing adds "Price changed since you saved it" and "Price when saved: $9.99". A failure shows the snapshot (title, category, rating, price, no gallery), labeled "Saved information · Saved 3 Nov", with "Couldn't refresh — showing saved info" and **Retry** ("Updating…" while it retries). A 404 shows the snapshot with "This product is no longer available." and no Retry (the product can still be unsaved). On a slow but not absent connection the snapshot appears only when the request fails (up to the 15 s timeout). The stored snapshot is never overwritten by fresh data, so "price when saved" stays the price when saved (D-67).
+
+Details open from a card tap in the browse grid or search results, on the Catalog tab's stack. Going back shows the catalog exactly as it was: scroll position, loaded pages, search text, results and sort (AC-C6); a search stays active even if the system deactivated the search field for the push (D-54).
 
 **Insight rule:** only facts present in the data. No invented score, margin, recommendation or "best seller" claim.
 
 **Acceptance criteria**
-- AC-D1 Opening a product from the grid shows full content without a spinner.
+- AC-D1 Opening a product from the grid shows a skeleton, then the full details as soon as `/products/{id}` returns; a failure shows an error with Retry (D-83; before D-81: full content without a request).
 - AC-D2 Sections with no data are omitted, never shown empty.
 - AC-D3 Save on details updates the grid card and Saved tab immediately.
-- AC-D4 Opening from Saved while offline shows the snapshot plus the refresh-failed banner.
+- AC-D4 Opening from Saved while offline shows the snapshot plus the refresh-failed banner (after the failed request, D-83).
 
 ### 4.4 Saved products
 
-- Save/unsave from the catalog card, details toolbar, and swipe-to-delete in the Saved list.
-- Persisted locally as **snapshots**: `id, title, thumbnailURL, price, rating, category, savedAt`. Snapshots let the Saved tab render instantly and offline; they are labeled as **saved information**, e.g. "Price when saved: $9.99 · Saved 3 Nov".
+- Save/unsave from the catalog card (a bookmark button over the thumbnail's top-trailing corner, D-60), details toolbar, and swipe-to-delete in the Saved list.
+- Persisted locally as **snapshots**: the list item's summary (`id, title, thumbnailURL, price, rating, category`, the same data a list hands to details) plus `savedAt` (D-82). Snapshots let the Saved tab render instantly and offline; they are labeled as **saved information**, e.g. "Price when saved: $9.99 · Saved 3 Nov".
 - Saved data is treated as a durable *selection*, not as current truth: details always refetch, and if the fresh price differs from the snapshot the details screen shows "Price changed since you saved it" (factual, no judgement).
 - Saved row: thumbnail, title, price when saved, saved date. No rating (identical in both experiment arms).
 - Order: most recently saved first.
-- Empty state: explanation + **Browse catalog** button that switches to the Catalog tab.
-- Survives relaunch; a corrupt store file is moved aside, logged, and the app starts with an empty list rather than crashing.
+- Empty state: explanation + **Browse catalog** button that switches to the Catalog tab (D-61).
+- Survives relaunch; a corrupt store file is moved aside, logged, and the app starts with an empty list rather than crashing. A file with an unknown format version (e.g. from a newer build) is left in place, logged, and the app starts empty; the next save overwrites it (D-65).
 
 **Acceptance criteria**
 - AC-V1 Saving from any surface updates all surfaces (card icon, details toolbar, Saved list, tab badge) at once.
@@ -145,10 +155,16 @@ Save/unsave is a toolbar button; state stays consistent with the grid and Saved 
 
 - Error messages are specific and actionable: offline ("You're offline. Check your connection and try again."), timeout, server error, unexpected data.
 - Offline messaging appears **only** where saved content really exists (Saved snapshots — the user's data, not a cache). The app does no caching, so the catalog needs a connection (see [Networking.md § 3](Networking.md#3-caching--deliberately-not-implemented)).
-- Images load **only while visible**: loading starts when a cell appears, and an in-flight load stops when the cell disappears. Placeholder while loading, neutral icon on failure, retried on the next appearance. No image cache, so a scrolled-back image downloads again (see [Networking.md § 4](Networking.md#4-image-loading)).
+- Images load **only while visible**: loading starts when a cell appears, and an in-flight load is cancelled when the cell disappears, e.g. on fast scrolling (D-78). Placeholder while loading, neutral icon on failure, retried on the next appearance. No image cache, so a scrolled-back image downloads again (see [Networking.md § 4](Networking.md#4-image-loading)).
 - Dynamic Type supported on all text (cards allow 2-line titles, grid stays usable at accessibility sizes by switching to 1 column at AX sizes).
 - VoiceOver: each card reads as one element: "Title, price[, rating], saved/not saved" with a custom action for save/unsave. Buttons have labels; images are decorative unless in the gallery.
 - Tap targets ≥ 44 × 44 pt. Dark mode supported via system colors.
+
+**As built (S7):**
+- **Dynamic Type:** all text uses system text styles. The catalog grid and its loading skeleton have two columns up to the largest standard size (xxxLarge) and one column at every accessibility size (AX1–AX5), so titles keep a readable line length (D-75). Card titles keep two lines with reserved space; the rating row keeps cards of equal height at every size.
+- **VoiceOver:** each catalog card is one element, e.g. "Essence Mascara Lash Princess, $9.99, rated 2.6 of 5, not saved" (the rating only in the treatment arm), with the button trait (opens details) and a custom action "Save" / "Remove from Saved"; the visible bookmark is not a separate stop (D-60). Saved rows and the details status lines read as one element each.
+- **Tap targets:** the card bookmark and the refresh banner's close button have a 44 × 44 pt tappable frame inside the button; standalone bordered buttons (Retry, Reload, Clear search, Browse catalog, the details banner's Retry) use the system's large control size (D-76); toolbar items use the system's sizing.
+- **Dark mode:** only system colors, materials and semantic styles (`.primary`, `.secondary`, `.tint`, `.orange`), no fixed colors, so every screen follows the system appearance. Checked manually, not by tests.
 
 ## 5. Analytics and experiment
 
@@ -176,7 +192,7 @@ Defined in [Analytics.md](Analytics.md) (event taxonomy, user properties, instal
 - Builds and runs in the iOS Simulator with no setup beyond opening the project (no keys, no package resolution).
 - No third-party dependencies in 1.0.
 - Unit tests deterministic, no live network; no UI snapshot tests.
-- Main thread never blocks on networking, JSON decoding or file I/O (image loading and decoding are handled by `AsyncImage`).
+- Main thread never blocks on networking, JSON decoding or file I/O (image download and decoding run off the main actor in `URLSessionImageLoader`, D-78).
 - No HTTP or custom caching ([Networking.md § 3](Networking.md#3-caching--deliberately-not-implemented)).
 
 ## 8. Deliberate exclusions
