@@ -1,6 +1,6 @@
 # MerchantCatalog
 
-A SwiftUI product catalog for merchants who run their business from a phone, in short sessions and often on unreliable networks. It's built on the public [DummyJSON Products API](https://dummyjson.com/docs/products) and supports the journey **Discover → Evaluate → Save → Revisit**.
+A SwiftUI product catalog for merchants who run their business from a phone, in short sessions and often on unreliable networks. It's built on the public [DummyJSON Products API](https://dummyjson.com/docs/products) and supports the journey **Discover → Evaluate → Save → Revisit**. Its first screen answers **"Which products need my attention?"**: every card shows its stock status, and one tap lists the low and out-of-stock products.
 
 Prices, stock, shipping and return terms are demo data from a mock API.
 
@@ -13,11 +13,26 @@ Prices, stock, shipping and return terms are demo data from a mock API.
 - **Measure:** a typed analytics taxonomy, an anonymous installation id, sessions, user properties and one local A/B experiment (`product_card_density_v1`: the rating on catalog cards). A DEBUG Diagnostics sheet shows events, user properties and logs, and can force a variant or slow the network.
 - **Accessibility:** Dynamic Type on all text, one VoiceOver element per card with a save action, 44 pt tap targets, dark mode through system colors.
 
+## Needs attention (S8)
+
+**Why.** A browsable grid of 194 products doesn't tell a merchant what to do next. The most actionable fact in the data is stock: a product that's out of stock or nearly gone needs a decision. So the catalog leads with it: each card shows "Out of stock", "Low stock · 4 left" or "In stock", the top of the grid has **All products | Needs attention** with a count, and details put price and stock right under the title.
+
+**How stock status is determined.** One policy on the product's `stock`, in one type (`StockStatus`, unit-tested): **0 → Out of stock, 1–10 → Low stock, more than 10 → In stock**; unknown stock shows no status. The API also sends an `availabilityStatus`, but list pages don't load it and it disagrees with `stock` for 10 of the 194 demo products (some with 7 units are "In Stock", others "Low Stock"; [Networking.md A16](docs/Networking.md#1-verified-api-facts)), so the app doesn't use it. Cards, Needs attention, details and analytics all use the same rule.
+
+**What the count covers.** DummyJSON has no inventory endpoint or stock filter, so Needs attention looks only at the products already loaded, with no extra request. The UI says so: "Based on 20 of 194 products loaded so far.", with **Load more products** to look further; the count grows as pages load. Saved snapshots don't keep stock, so Saved never shows an old count as current.
+
+**Why no inventory or ordering flow.** The data is a read-only demo API: there is no stock to change, no supplier to order from and no merchant account. Restock buttons, order forms or an inventory dashboard would be fake behavior presented as real, so they're left out on purpose.
+
+**UI tests with deterministic fixtures.** `MerchantCatalogUITests` (XCUITest) launches the app with `-ui-testing`. In DEBUG builds that argument swaps the API for `FixtureProductRepository` (four fixed products: in stock, low stock, out of stock, in stock; no images) through the same `AppContext` registration the app uses, and starts with fresh settings and an empty Saved list. Release builds don't contain this path. Five tests cover launch with the Needs attention count, the attention list, details (title and stock), search and saving, and they find elements by accessibility identifier (`catalog.needsAttention`, `catalog.productCard.<id>`, `productDetail.stockStatus`, …).
+
+**Next product step.** For a real merchant app: a server-side stock query (a filter such as stock ≤ threshold, or a "needs attention" endpoint) so the count covers the whole catalog without loading it, per-product reorder thresholds the merchant sets, and then a restock action that creates a real order with the supplier. Instrument it first (opening Needs attention, opening a product from it) to see whether merchants use it.
+
 ## Requirements and running
 
 - **Xcode 26.0**, iOS 26 Simulator. No accounts, keys or packages.
-- Open `MerchantCatalog.xcodeproj`, select the `MerchantCatalog` scheme and an iPhone simulator, then Run. Tests: ⌘U, or from Terminal:
+- Open `MerchantCatalog.xcodeproj`, select the `MerchantCatalog` scheme and an iPhone simulator, then Run. Tests (unit and UI): ⌘U, or from Terminal:
   `xcodebuild -project MerchantCatalog.xcodeproj -scheme MerchantCatalog -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.0' test`
+  Add `-only-testing:MerchantCatalogTests` for the unit tests alone or `-only-testing:MerchantCatalogUITests` for the UI tests.
 - Diagnostics (DEBUG builds): the stethoscope button on the Catalog tab.
 
 ## Key decisions
@@ -61,7 +76,7 @@ Against the release completion criteria of the original brief ([MasterSpecificat
 | No fabricated research, metrics, experiment outcomes or performance numbers | Met. Unverified platform behavior is labeled as expected. |
 | Current stable Xcode | **Not met.** Built with Xcode 26.0; the current release is 27.2, which needs a macOS update that didn't fit the assignment window. Opening in newer Xcode is expected to work but unverified. |
 
-**Known limitations:** details opened from the catalog or search need a connection (offline they show the header with Retry; Saved shows its snapshot); image cancellation is unit-tested down to the request, while SwiftUI cancelling the task on disappear is Apple-documented and checked manually ([Networking.md § 4](docs/Networking.md#verification)); `URLError` codes outside the documented table count as "unknown", not "offline"; categories show as the API slug in words ("Mens Shirts"); sort labels are short ("Top rated"); details opened from Saved show the snapshot's price as "Price" under a "Saved information" note until the refresh arrives; an experiment override applies at the next launch.
+**Known limitations:** Needs attention counts only the products loaded so far (the API has no stock filter); details opened from the catalog or search need a connection (offline they show the header with Retry; Saved shows its snapshot); image cancellation is unit-tested down to the request, while SwiftUI cancelling the task on disappear is Apple-documented and checked manually ([Networking.md § 4](docs/Networking.md#verification)); `URLError` codes outside the documented table count as "unknown", not "offline"; categories show as the API slug in words ("Mens Shirts"); sort labels are short ("Top rated"); details opened from Saved show the snapshot's price as "Price" under a "Saved information" note until the refresh arrives; an experiment override applies at the next launch.
 
 ## AI assistance
 
@@ -78,7 +93,7 @@ I drafted the spec with ChatGPT. Analysis, API verification, planning and implem
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | Entry point and rules for AI coding sessions |
 | [docs/ImplementationPlan.md](docs/ImplementationPlan.md) | Stages, status, git flow, decisions, review log |
-| [docs/plans/](docs/plans/) | Task-level plan of each stage, with deviations |
+| [docs/plans/](docs/plans/) | Task-level plan of each stage, with deviations (S8: [Needs attention](docs/plans/S8-needs-attention.md)) |
 | [docs/ProductSpecification.md](docs/ProductSpecification.md) | Behavior, states, acceptance criteria, accessibility |
 | [docs/Architecture.md](docs/Architecture.md) | Layers, protocols, DI, navigation, concurrency, testing, trade-offs |
 | [docs/Networking.md](docs/Networking.md) | Verified API facts, no-caching decision, image loading |
