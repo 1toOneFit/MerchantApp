@@ -46,7 +46,8 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
   Networking/
     APIClientType.swift (protocol), URLSessionAPIClient.swift, TargetType.swift, HTTPMethod.swift,
     APIConfig.swift, AppError.swift, RequestDelay.swift (DEBUG slow-network delay, Mutex), NetworkLogger.swift,
-    ImageLoading.swift (protocol), URLSessionImageLoader.swift (cancellable, no cache) [S7]
+    ImageLoading.swift (protocol), URLSessionImageLoader.swift (cancellable, no cache) [S7],
+    NetworkLogFormatter.swift (DEBUG: full request/response log lines) [S7]
   Shared/
     Products/
       Domain/      Product (+ ProductAvailability), ProductPage, ProductSort, ProductRepository (protocol),
@@ -234,7 +235,9 @@ There is no `cache` category (no caching). Image requests log to `network` like 
 
 `NetworkLogger` writes one line when a request starts (`[<id>] GET <url>`) and one when it ends (`[<id>] 200 in 312 ms, 48213 bytes`, an error, or `cancelled after … ms`). The `q` value is replaced by `<private>` before logging, so the URL itself is logged as public. Errors are logged only as a summary (`URLError -1009`, `DecodingError.typeMismatch at products.0.price`, or a type name), never as their description, which can contain the full request URL. `CatalogViewModel` logs first-page latency to `performance` (info).
 
-Rules: search terms and product titles are interpolated with `privacy: .private` (redacted outside a debugger); status codes, ids and durations are `.public`. No tokens or full payloads are logged. `debug` messages aren't persisted by the system by default, which keeps production noise low. The DEBUG Diagnostics panel reads `OSLogStore(scope: .currentProcessIdentifier)` to show the app subsystem's entries from the last hour (newest 200). Expected, not verified by a test: debug-level entries are normally not kept, so `analytics` and `navigation` lines may be missing there; the Diagnostics event log (from `InMemoryAnalyticsProvider`) and Console.app show them.
+**DEBUG extended network logging (S7, D-80):** after the summary lines, DEBUG builds log every field of each request and response, one debug message per line tagged `[<id>]`: the query parameters, headers set by the app, timeout and body of the request; the status, MIME type, size, headers and body of the response. JSON bodies are pretty-printed with sorted keys and split into chunks of at most 800 UTF-8 bytes (`body 1/n:`), because long unified-log messages are expected to be truncated (not measured); image bodies are logged only by size and type. Redacted: the search term (`q=<private>`, D-18), credential headers (`Authorization`, `Cookie`, `Set-Cookie`, …) and every JSON value under a key containing "email" (reviewer emails, ProductSpecification § 4.3). `URLSession`'s own default request headers (e.g. `User-Agent`) are added when sending and don't appear. `NetworkLogFormatter` is compiled only in DEBUG (unit-tested in `NetworkLogFormatterTests`).
+
+Rules: search terms and product titles are interpolated with `privacy: .private` (redacted outside a debugger); status codes, ids and durations are `.public`. Release builds log no tokens and no payloads; DEBUG builds log payloads only as described above. `debug` messages aren't persisted by the system by default, which keeps production noise low. The DEBUG Diagnostics panel reads `OSLogStore(scope: .currentProcessIdentifier)` to show the app subsystem's entries from the last hour (newest 200). Expected, not verified by a test: debug-level entries are normally not kept, so `analytics` and `navigation` lines may be missing there; the Diagnostics event log (from `InMemoryAnalyticsProvider`) and Console.app show them.
 
 **Analytics vs logs:** analytics events describe meaningful user behavior and outcomes: low volume, stable schema, documented in Analytics.md. Logs describe technical behavior: high volume, free-form, for debugging. A network request is logged, never tracked as an analytics event.
 
