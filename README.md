@@ -57,7 +57,7 @@ Against the release completion criteria of the original brief ([MasterSpecificat
 | Core journey, search, sorting, pagination, saved products, loading/error states | Met. Each acceptance criterion is covered by view-model or model tests where testable; rendering is checked manually. |
 | Coherent analytics and one reviewable experiment | Met. Every documented event is implemented, and a test keeps code and taxonomy equal. The experiment's assignment, exposure and metrics are documented. |
 | TDD for testable behaviors | Met. Each stage wrote failing tests first and recorded it in the review log; no live network in unit tests. |
-| Understandable documentation and a verified review trail | Met for S0–S6: an independent Codex review and my approval gated each stage ([review log](docs/ImplementationPlan.md#review-log)). S7's review is the last gate before release. |
+| Understandable documentation and a verified review trail | Met. An independent Codex review and my approval gated every stage, S0–S7 ([review log](docs/ImplementationPlan.md#review-log)). |
 | No fabricated research, metrics, experiment outcomes or performance numbers | Met. Unverified platform behavior is labeled as expected. |
 | Current stable Xcode | **Not met.** Built with Xcode 26.0; the current release is 27.2, which needs a macOS update that didn't fit the assignment window. Opening in newer Xcode is expected to work but unverified. |
 

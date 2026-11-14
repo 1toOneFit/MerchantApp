@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S7 — Release readiness (`READY_FOR_REVIEW`) |
+| Current stage | S7 — Release readiness (`APPROVED`, awaiting merge into `develop`) |
 | Current branch | `feature/release-readiness` (from `develop` at `efc5c89`) |
 | Last completed stage | S6 — Card rating experiment (merged into `develop` with `--no-ff` at `efc5c89`, 2026-11-13) |
-| Next authorized stage | S7 — Release readiness (authorized by the developer, 2026-11-13) |
-| Pending human action | Independent Codex review of S7 and the manual Simulator smoke checklist (S7 review log); after approval, merge into `develop`, then `develop` → `main` |
+| Next authorized stage | — (S7 is the last stage; release follows) |
+| Pending human action | Merge `feature/release-readiness` into `develop` with `--no-ff`, then `develop` → `main` for the 1.0 release |
 | Open review findings | — |
 | Blockers | — |
 
@@ -28,7 +28,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | COMPLETED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13); merged into `develop` with `--no-ff` at `efc5c89` |
-| S7 | Release readiness | `feature/release-readiness` | READY_FOR_REVIEW | `87222b6` + docs commits | Awaiting the developer's Codex review (incl. the change requests D-78–D-83) |
+| S7 | Release readiness | `feature/release-readiness` | APPROVED | `87222b6` + docs commits | Approved: developer's own review, Claude and Codex reviews, no findings (2026-11-14) |
 
 The stages run strictly in order, S0 → S7. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
 
@@ -917,3 +917,8 @@ Answering the open question from the final self-check (partial sections while de
 - **Known limitation:** from Saved on a slow but not absent connection, the snapshot appears only when the request fails (up to the 15 s timeout).
 - **Open questions:** none from this change; the self-check's question 1 is answered by it.
 - Status stays `READY_FOR_REVIEW`.
+
+#### S7 review result (2026-11-14)
+
+- The developer reviewed S7 themself and ran independent reviews with Claude and Codex (run by the developer): **no findings** ("everything is fine"). Developer's final approval: **approved**. No individual manual-check results beyond the ones recorded above (keyboard dismissal and its animation, the network log) were shared with the agent; Networking.md § 4's image-cancellation result is still to be recorded there.
+- Status → `APPROVED`. The developer merges `feature/release-readiness` into `develop` with `--no-ff`, then `develop` → `main` for the 1.0 release; a later conversation records S7 `COMPLETED` once it confirms the merge. S7 is the last planned stage.
