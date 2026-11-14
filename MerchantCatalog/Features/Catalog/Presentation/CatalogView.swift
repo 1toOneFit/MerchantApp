@@ -29,12 +29,12 @@ struct CatalogView: View {
     var body: some View {
         let isShowingSearch = viewModel.searchList != nil
         ZStack {
-            CatalogListView(content: viewModel.browseList, context: .browse, viewModel: viewModel, clearSearch: clearSearch)
+            CatalogListView(content: viewModel.browseList, context: .browse, viewModel: viewModel, clearSearch: clearSearch, dismissKeyboard: dismissKeyboard)
                 .opacity(isShowingSearch ? 0 : 1)
                 .allowsHitTesting(!isShowingSearch)
                 .accessibilityHidden(isShowingSearch)
             if let searchList = viewModel.searchList {
-                CatalogListView(content: searchList, context: .search, viewModel: viewModel, clearSearch: clearSearch)
+                CatalogListView(content: searchList, context: .search, viewModel: viewModel, clearSearch: clearSearch, dismissKeyboard: dismissKeyboard)
             }
         }
         .navigationTitle("Catalog")
@@ -47,7 +47,7 @@ struct CatalogView: View {
         )
         .searchFocused($isSearchFocused)
         // The keyboard's Search key puts the keyboard away; the debounce still decides when to search.
-        .onSubmit(of: .search) { isSearchFocused = false }
+        .onSubmit(of: .search) { dismissKeyboard() }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 CatalogSortMenu(sort: viewModel.sort) { viewModel.sortSelected($0) }
@@ -76,6 +76,16 @@ struct CatalogView: View {
     }
 
     /// The no-results state's Clear search: back to browse, and the search field is dismissed.
+    /// Puts the search keyboard away, animated, without ending the search (D-79): only the field's
+    /// focus changes, never `isSearchPresented`. Called by the Search key and when the user starts
+    /// scrolling a grid.
+    private func dismissKeyboard() {
+        guard isSearchFocused else { return }
+        withAnimation {
+            isSearchFocused = false
+        }
+    }
+
     private func clearSearch() {
         viewModel.clearSearch()
         isSearchPresented = false
@@ -88,6 +98,7 @@ private struct CatalogListView: View {
     let context: ListContext
     let viewModel: CatalogViewModel
     let clearSearch: () -> Void
+    let dismissKeyboard: () -> Void
 
     var body: some View {
         switch content.phase {
@@ -97,7 +108,7 @@ private struct CatalogListView: View {
             // A new list (sort change, new query, Retry, Reload) gets a new grid, and a new scroll
             // view starts at the top. A page 1 shows the skeleton in between, which replaces the
             // grid too; the identity makes the reset independent of that frame being drawn.
-            CatalogGrid(cards: content.cards, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel)
+            CatalogGrid(cards: content.cards, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel, dismissKeyboard: dismissKeyboard)
                 .id(content.listID)
         case .empty:
             ContentUnavailableView {
@@ -164,6 +175,7 @@ private struct CatalogGrid: View {
     let footer: CatalogFooter
     let refreshError: AppError?
     let viewModel: CatalogViewModel
+    let dismissKeyboard: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -204,8 +216,15 @@ private struct CatalogGrid: View {
             CatalogFooterView(footer: footer) { viewModel.retryPage() }
                 .padding()
         }
-        // Scrolling the grid puts the search keyboard away; the search stays (D-79).
-        .scrollDismissesKeyboard(.immediately)
+        // Starting to scroll (a finger drag, either direction) puts the search keyboard away,
+        // animated; the search stays (D-79). The system's own dismissal is off so this is the only
+        // path (the developer saw `.immediately` hide it without animation).
+        .scrollDismissesKeyboard(.never)
+        .onScrollPhaseChange { _, newPhase in
+            if newPhase == .interacting {
+                dismissKeyboard()
+            }
+        }
         .refreshable { await viewModel.refresh() }
         .safeAreaInset(edge: .top) {
             if let refreshError {
