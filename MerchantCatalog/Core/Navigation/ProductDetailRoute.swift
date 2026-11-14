@@ -1,11 +1,11 @@
 /// What the details screen needs to open (D-62):
-/// - `list`: the product as the browse grid or search results loaded it (the list endpoint returns
-///   full products, Networking.md A7), and which list it came from;
-/// - `saved`: the saved snapshot, shown first while `/products/{id}` refreshes it
-///   (ProductSpecification § 4.3).
+/// - `list`: the list item the browse grid or search results loaded (a summary, D-81), and which list
+///   it came from;
+/// - `saved`: the saved snapshot.
+/// Either shows first while `/products/{id}` loads the full product (ProductSpecification § 4.3).
 enum ProductDetailRoute: Hashable {
     /// `source`: `.catalog` or `.search`.
-    case list(Product, source: ProductSource)
+    case list(ProductSummary, source: ProductSource)
     case saved(SavedProduct)
 
     var productID: Product.ID {

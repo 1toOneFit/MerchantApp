@@ -1,36 +1,36 @@
 import Foundation
 import Observation
 
-/// Where the refresh of details opened from Saved stands.
+/// Where the request for the full product stands (`/products/{id}`, every route, D-81).
 enum DetailRefreshState: Equatable {
-    /// Not started, or cancelled (the next appearance starts it again). Details from a list stay
-    /// here: they need no request (Networking.md A7).
+    /// Not started, or cancelled (the next appearance starts it again).
     case idle
     case loading
-    /// The fresh product replaced the snapshot.
+    /// The full product replaced the list item's summary or the snapshot.
     case refreshed
-    /// The snapshot stays, with a banner and Retry.
+    /// The summary or snapshot stays, with a banner and Retry.
     case failed(AppError)
-    /// HTTP 404: the product is gone. The snapshot stays; no Retry (D-67).
+    /// HTTP 404: the product is gone. The summary or snapshot stays; no Retry (D-67).
     case unavailable
 }
 
 /// The details screen's state and intents (ProductSpecification § 4.3).
 ///
-/// - From a list, the content is the list's product, complete at once with no request (AC-D1,
-///   Networking.md A7).
-/// - From Saved, the snapshot shows first and `/products/{id}` refreshes it: `start()` runs from the
-///   view's `.task`, so leaving the screen cancels it. Retry runs from a tap, so the view model keeps
-///   that task and cancels it when it goes away. A cancelled request applies nothing, even when its
-///   response won the race. A failure keeps the snapshot (AC-D4). The stored snapshot is never
+/// - The list item's summary (catalog, search) or the saved snapshot shows first, and
+///   `/products/{id}` loads the full product (D-81): `start()` runs from the view's `.task`, so
+///   leaving the screen cancels it. Retry runs from a tap, so the view model keeps that task and
+///   cancels it when it goes away. A cancelled request applies nothing, even when its response won
+///   the race. A failure keeps what is shown, with a banner (AC-D4). The stored snapshot is never
 ///   overwritten (D-67).
 /// - The toolbar's save button toggles the shared store (AC-D3).
 /// - Analytics go through `AnalyticsTracking` only: `product_details_viewed` once per screen, which
-///   is once per push, and `product_gallery_interacted` at the first swipe to another image (D-59).
+///   is once per push (from a list when the full product arrives, D-81; from Saved at the first
+///   appearance, D-63), and `product_gallery_interacted` at the first swipe to another image (D-59).
 @MainActor
 @Observable
 final class ProductDetailViewModel {
-    /// What the screen shows: the list's product, the snapshot, or the fresh product.
+    /// What the screen shows: the list item's summary or the snapshot (as a product with only those
+    /// facts), then the full product.
     private(set) var product: Product
     /// The gallery image on screen.
     private(set) var galleryIndex = 0
@@ -56,7 +56,7 @@ final class ProductDetailViewModel {
         self.savedProducts = savedProducts
         self.analytics = analytics
         product = switch route {
-        case .list(let product, _): product
+        case .list(let summary, _): summary.displayProduct
         case .saved(let snapshot): snapshot.displayProduct
         }
     }
@@ -86,16 +86,28 @@ final class ProductDetailViewModel {
         return savedSnapshot.price
     }
 
+    /// The status line under the header while the full product isn't shown, or `nil`. Saved keeps
+    /// its wording about the saved information.
+    var statusMessage: String? {
+        let fromSaved = savedSnapshot != nil
+        return switch refresh {
+        case .idle, .refreshed: nil
+        case .loading: fromSaved ? "Updating…" : "Loading details…"
+        case .failed: fromSaved ? "Couldn't refresh — showing saved info" : "Couldn't load details"
+        case .unavailable: AppError.notFound.userMessage
+        }
+    }
+
     var isSaved: Bool {
         savedProducts.isSaved(product.id)
     }
 
     // MARK: - Intents
 
-    /// Refreshes details opened from Saved; does nothing for details from a list, or once the
-    /// refresh has run. Called from the view's `.task`.
+    /// Loads the full product; does nothing once the request has run. Called from the view's
+    /// `.task`, so a cancelled load (the screen left) runs again at the next appearance.
     func start() async {
-        guard savedSnapshot != nil, refresh == .idle else { return }
+        guard refresh == .idle else { return }
         refresh = .loading
         let result = await Self.fetch(product.id, from: repository)
         finishRefresh(Task.isCancelled ? .failure(CancellationError()) : result)
@@ -120,28 +132,18 @@ final class ProductDetailViewModel {
     func saveToggled() {
         let change = savedProducts.isSaved(product.id)
             ? savedProducts.remove(id: product.id)
-            : savedProducts.save(product)
+            : savedProducts.save(product.summary)
         if let change {
             analytics.track(change.event(surface: .details, position: nil))
         }
     }
 
-    /// The details content appeared. Only the first appearance counts: tab switches and returning
-    /// to the screen don't re-send (D-59). From Saved, the snapshot is what appeared (D-63).
+    /// The details content appeared. From Saved, the snapshot is what appeared, so it is the view
+    /// (D-63); from a list, the view is reported when the full product arrives (D-81). Only the
+    /// first counts: tab switches and returning to the screen don't re-send (D-59).
     func contentAppeared() {
-        guard !hasTrackedView else { return }
-        hasTrackedView = true
-        let fromSnapshot = savedSnapshot != nil
-        analytics.track(.productDetailsViewed(
-            productID: product.id,
-            source: route.source,
-            category: product.category,
-            availability: fromSnapshot ? nil : product.availability,
-            hasDiscount: fromSnapshot ? nil : (product.discountPercentage ?? 0) > 0,
-            imageCount: fromSnapshot ? nil : product.imageURLs.count,
-            savedAt: savedProducts.item(id: product.id)?.savedAt,
-            contentOrigin: fromSnapshot ? .snapshot : .list
-        ))
+        guard savedSnapshot != nil else { return }
+        trackViewIfNeeded()
     }
 
     /// The gallery shows image `index`. The first change away from the image on screen is the
@@ -161,6 +163,9 @@ final class ProductDetailViewModel {
         case .success(let fresh):
             product = fresh
             refresh = .refreshed
+            if savedSnapshot == nil {
+                trackViewIfNeeded()
+            }
         case .failure(let error) where error is CancellationError:
             refresh = .idle
         case .failure(let error):
@@ -173,6 +178,24 @@ final class ProductDetailViewModel {
                 showingSnapshot: isShowingSnapshot
             ))
         }
+    }
+
+    /// `product_details_viewed` once per screen: the snapshot's facts from Saved, every property once
+    /// the full product shows.
+    private func trackViewIfNeeded() {
+        guard !hasTrackedView else { return }
+        hasTrackedView = true
+        let fromSnapshot = savedSnapshot != nil
+        analytics.track(.productDetailsViewed(
+            productID: product.id,
+            source: route.source,
+            category: product.category,
+            availability: fromSnapshot ? nil : product.availability,
+            hasDiscount: fromSnapshot ? nil : (product.discountPercentage ?? 0) > 0,
+            imageCount: fromSnapshot ? nil : product.imageURLs.count,
+            savedAt: savedProducts.item(id: product.id)?.savedAt,
+            contentOrigin: fromSnapshot ? .snapshot : .network
+        ))
     }
 
     /// The product's fresh data, without referencing the view model.

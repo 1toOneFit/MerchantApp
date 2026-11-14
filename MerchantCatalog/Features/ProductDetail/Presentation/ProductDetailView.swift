@@ -22,12 +22,14 @@ struct ProductDetailView: View {
                 }
                 ProductDetailHeaderView(header: viewModel.header)
                     .padding(.horizontal)
-                if let snapshot = viewModel.savedSnapshot {
-                    SavedStatusView(snapshot: snapshot, refresh: viewModel.refresh, isShowingSnapshot: viewModel.isShowingSnapshot) {
-                        viewModel.retry()
-                    }
-                    .padding(.horizontal)
+                DetailStatusView(
+                    snapshot: viewModel.isShowingSnapshot ? viewModel.savedSnapshot : nil,
+                    refresh: viewModel.refresh,
+                    message: viewModel.statusMessage
+                ) {
+                    viewModel.retry()
                 }
+                .padding(.horizontal)
                 Group {
                     if !insights.atAGlance.isEmpty {
                         DetailSection("At a Glance") {
@@ -106,17 +108,19 @@ private struct ProductDetailHeaderView: View {
     }
 }
 
-/// Details opened from Saved: labels the snapshot as saved information while it shows, and reports
-/// the refresh: in progress, failed with Retry, or the product gone (ProductSpecification § 4.3).
-private struct SavedStatusView: View {
-    let snapshot: SavedProduct
+/// Under the header until the full product shows (D-81): from Saved, the snapshot labeled as saved
+/// information; then the request's state: in progress, failed with Retry, or the product gone
+/// (ProductSpecification § 4.3). The wording comes from the view model.
+private struct DetailStatusView: View {
+    /// The snapshot while it is what the screen shows; `nil` from a list or once refreshed.
+    let snapshot: SavedProduct?
     let refresh: DetailRefreshState
-    let isShowingSnapshot: Bool
+    let message: String?
     let retry: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if isShowingSnapshot {
+            if let snapshot {
                 Text("Saved information · \(SavedProductFormat.savedDate(snapshot.savedAt))")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -127,19 +131,19 @@ private struct SavedStatusView: View {
             case .loading:
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("Updating…")
+                    Text(message ?? "")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)
             case .failed:
-                StatusBanner(systemImage: "exclamationmark.triangle.fill", message: "Couldn't refresh — showing saved info") {
+                StatusBanner(systemImage: "exclamationmark.triangle.fill", message: message ?? "") {
                     Button("Retry", action: retry)
                         .buttonStyle(.bordered)
                         .controlSize(.large)
                 }
             case .unavailable:
-                StatusBanner(systemImage: "xmark.circle.fill", message: AppError.notFound.userMessage) {
+                StatusBanner(systemImage: "xmark.circle.fill", message: message ?? "") {
                     EmptyView()
                 }
             }

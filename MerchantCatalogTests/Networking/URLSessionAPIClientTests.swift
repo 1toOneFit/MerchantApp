@@ -117,7 +117,7 @@ struct URLSessionAPIClientTests {
             delay: nil
         )
 
-        #expect(request.url?.absoluteString == "https://dummyjson.com/products?limit=20&skip=0")
+        #expect(request.url?.absoluteString == "https://dummyjson.com/products?limit=20&skip=0&select=title,price,thumbnail,rating,category")
         #expect(request.httpMethod == "GET")
         #expect(request.timeoutInterval == 15)
         #expect(request.cachePolicy == .reloadIgnoringLocalCacheData)
@@ -130,7 +130,7 @@ struct URLSessionAPIClientTests {
             delay: nil
         )
 
-        #expect(request.url?.absoluteString == "https://dummyjson.com/products/search?q=phone&limit=20&skip=20&sortBy=price&order=desc")
+        #expect(request.url?.absoluteString == "https://dummyjson.com/products/search?q=phone&limit=20&skip=20&select=title,price,thumbnail,rating,category&sortBy=price&order=desc")
     }
 
     /// The API decodes `+` as a space (A13) and `URLComponents` leaves it unencoded, so `+` is sent
@@ -141,7 +141,7 @@ struct URLSessionAPIClientTests {
             delay: nil
         )
 
-        #expect(request.url?.absoluteString == "https://dummyjson.com/products/search?q=a%2Bb%20%26%20c%3Dd&limit=20&skip=0")
+        #expect(request.url?.absoluteString == "https://dummyjson.com/products/search?q=a%2Bb%20%26%20c%3Dd&limit=20&skip=0&select=title,price,thumbnail,rating,category")
     }
 
     @Test func slowNetworkDelayAddsQueryItem() throws {
@@ -150,7 +150,7 @@ struct URLSessionAPIClientTests {
             delay: .milliseconds(2000)
         )
 
-        #expect(request.url?.absoluteString == "https://dummyjson.com/products?limit=20&skip=0&delay=2000")
+        #expect(request.url?.absoluteString == "https://dummyjson.com/products?limit=20&skip=0&select=title,price,thumbnail,rating,category&delay=2000")
     }
 
     /// The client reads the shared `RequestDelay` on every request, so the DEBUG toggle applies

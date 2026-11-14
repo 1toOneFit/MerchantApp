@@ -1,8 +1,9 @@
 import Foundation
 
-/// The list response: `{ products, total, skip, limit }` (Networking.md A1).
+/// The list response: `{ products, total, skip, limit }` (Networking.md A1). Its items are
+/// summaries: list and search pages select only the summary fields (D-81).
 struct ProductListResponseDTO: Decodable, Sendable {
-    let products: [ProductDTO]
+    let products: [ProductSummaryDTO]
     let total: Int
     let skip: Int
     let limit: Int
@@ -12,7 +13,29 @@ struct ProductListResponseDTO: Decodable, Sendable {
     }
 }
 
-/// A product as the API sends it. Only the fields `Product` maps are decoded; everything beyond
+/// A list item with the fields `select=title,price,thumbnail,rating,category` returns (`id` is
+/// always included). Blank strings count as missing; a thumbnail without a web host is dropped.
+struct ProductSummaryDTO: Decodable, Sendable {
+    let id: Int
+    let title: String
+    let price: Decimal
+    let thumbnail: String?
+    let rating: Double?
+    let category: String?
+
+    func toDomain() -> ProductSummary {
+        ProductSummary(
+            id: id,
+            title: title,
+            price: price,
+            thumbnailURL: thumbnail.flatMap(ProductDTO.webURL),
+            rating: rating,
+            category: category.flatMap(ProductDTO.nonBlank)
+        )
+    }
+}
+
+/// A product as the API sends it from `/products/{id}`. Only the fields `Product` maps are decoded; everything beyond
 /// `id`, `title` and `price` is optional so an unusual product never fails a whole page. Blank
 /// strings count as missing.
 struct ProductDTO: Decodable, Sendable {
@@ -101,7 +124,7 @@ struct ProductDTO: Decodable, Sendable {
     }
 
     /// The string, or `nil` when it is only whitespace.
-    private static func nonBlank(_ string: String) -> String? {
+    static func nonBlank(_ string: String) -> String? {
         string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : string
     }
 
@@ -115,7 +138,7 @@ struct ProductDTO: Decodable, Sendable {
     }
 
     /// An absolute `http(s)` URL with a host, or `nil` (`https:foo`, `https://` are rejected).
-    private static func webURL(_ string: String) -> URL? {
+    static func webURL(_ string: String) -> URL? {
         guard
             let url = URL(string: string),
             let scheme = url.scheme?.lowercased(),

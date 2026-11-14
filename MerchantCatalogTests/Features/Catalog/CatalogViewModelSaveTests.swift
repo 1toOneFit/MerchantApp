@@ -35,11 +35,11 @@ struct CatalogViewModelSaveTests {
             .productSaved(productID: 4, surface: .catalogCard, category: nil, price: product(4).price, position: 3, savedCountAfter: 1),
         ])
         #expect(viewModel.isSaved(4))
-        #expect(store.item(id: 4) == SavedProduct(product(4), savedAt: now.date))
+        #expect(store.item(id: 4) == SavedProduct(summary(4), savedAt: now.date))
     }
 
     @Test func unsavingACardTracksTheDuration() async {
-        let store = await makeStore([SavedProduct(product(4), savedAt: now.date - 120)])
+        let store = await makeStore([SavedProduct(summary(4), savedAt: now.date - 120)])
         let viewModel = await browsingViewModel(store: store)
 
         viewModel.saveToggled(id: 4, in: .browse)
@@ -96,7 +96,7 @@ struct CatalogViewModelSaveTests {
         let store = await makeStore()
         let viewModel = await browsingViewModel(store: store)
 
-        store.save(product(2))
+        store.save(summary(2))
         #expect(viewModel.isSaved(2))
 
         store.remove(id: 2)

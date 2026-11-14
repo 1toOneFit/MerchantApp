@@ -8,7 +8,7 @@ struct ProductCardModelTests {
     private static let enUS = Locale(identifier: "en_US")
 
     @Test func exposesThumbnailURL() {
-        let card = ProductCardModel(product: product(7), variant: .control, locale: Self.enUS)
+        let card = ProductCardModel(product: summary(7), variant: .control, locale: Self.enUS)
 
         #expect(card.id == 7)
         #expect(card.title == "Product 7")
@@ -21,13 +21,13 @@ struct ProductCardModelTests {
             Issue.record("not a decimal: \(price)")
             return
         }
-        let product = makeProduct(id: 1, title: "Item", price: value, thumbnailURL: .some(nil))
+        let product = makeSummary(id: 1, title: "Item", price: value, thumbnailURL: .some(nil))
 
         #expect(ProductCardModel(product: product, variant: .control, locale: Self.enUS).price == expected)
     }
 
     @Test func treatmentCardShowsTheRating() {
-        let card = ProductCardModel(product: makeProduct(id: 1, rating: 4.94), variant: .treatment, locale: Self.enUS)
+        let card = ProductCardModel(product: makeSummary(id: 1, rating: 4.94), variant: .treatment, locale: Self.enUS)
 
         #expect(card.rating == 4.94)
         #expect(card.ratingText == "4.9")
@@ -36,20 +36,20 @@ struct ProductCardModelTests {
     /// One fraction digit, rounded: 4.96 shows as "5.0" (D-71).
     @Test(arguments: [(2.51, "2.5"), (4.96, "5.0"), (3.0, "3.0")])
     func ratingHasOneFractionDigit(rating: Double, text: String) {
-        let card = ProductCardModel(product: makeProduct(id: 1, rating: rating), variant: .treatment, locale: Self.enUS)
+        let card = ProductCardModel(product: makeSummary(id: 1, rating: rating), variant: .treatment, locale: Self.enUS)
 
         #expect(card.ratingText == text)
     }
 
     @Test func controlCardHasNoRating() {
-        let card = ProductCardModel(product: makeProduct(id: 1, rating: 4.94), variant: .control, locale: Self.enUS)
+        let card = ProductCardModel(product: makeSummary(id: 1, rating: 4.94), variant: .control, locale: Self.enUS)
 
         #expect(card.rating == nil)
         #expect(card.ratingText == nil)
     }
 
     @Test func treatmentWithoutRatingShowsNone() {
-        let card = ProductCardModel(product: makeProduct(id: 1, rating: nil), variant: .treatment, locale: Self.enUS)
+        let card = ProductCardModel(product: makeSummary(id: 1, rating: nil), variant: .treatment, locale: Self.enUS)
 
         #expect(card.rating == nil)
         #expect(card.ratingText == nil)

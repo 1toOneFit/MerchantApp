@@ -55,9 +55,26 @@ func makeProduct(
     )
 }
 
-/// A page holding the products `ids`, as the server would report it at `skip`.
+/// The list item of `product(id)`: title "Product <id>", price `<id>.99`, a thumbnail URL.
+func summary(_ id: Int) -> ProductSummary {
+    product(id).summary
+}
+
+/// A list item with every field settable.
+func makeSummary(
+    id: Int,
+    title: String? = nil,
+    price: Decimal? = nil,
+    thumbnailURL: URL?? = nil,
+    rating: Double? = nil,
+    category: String? = nil
+) -> ProductSummary {
+    makeProduct(id: id, title: title, price: price, thumbnailURL: thumbnailURL, category: category, rating: rating).summary
+}
+
+/// A page holding the list items `ids`, as the server would report it at `skip`.
 func page(_ ids: ClosedRange<Int>, total: Int, skip: Int) -> ProductPage {
-    ProductPage(products: ids.map(product), total: total, skip: skip, limit: ids.count)
+    ProductPage(products: ids.map(summary), total: total, skip: skip, limit: ids.count)
 }
 
 /// An empty page (no matches, or an inconsistent server response).

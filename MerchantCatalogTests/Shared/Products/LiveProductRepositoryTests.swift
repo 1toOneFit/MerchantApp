@@ -8,7 +8,7 @@ import Testing
 struct LiveProductRepositoryTests {
     @Test func requestsListTargetAndMapsPage() async throws {
         let client = FakeAPIClient()
-        client.responseJSON = Data(ProductJSON.page.utf8)
+        client.responseJSON = Data(ProductJSON.summaryPage.utf8)
 
         let page = try await LiveProductRepository(client: client).products(sort: .priceAscending, skip: 40, limit: 20)
 
@@ -16,6 +16,7 @@ struct LiveProductRepositoryTests {
             FakeAPIClient.Request(path: "/products", queryItems: [
                 URLQueryItem(name: "limit", value: "20"),
                 URLQueryItem(name: "skip", value: "40"),
+                URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category"),
                 URLQueryItem(name: "sortBy", value: "price"),
                 URLQueryItem(name: "order", value: "asc"),
             ]),
@@ -26,7 +27,7 @@ struct LiveProductRepositoryTests {
 
     @Test func requestsSearchTargetAndMapsPage() async throws {
         let client = FakeAPIClient()
-        client.responseJSON = Data(ProductJSON.page.utf8)
+        client.responseJSON = Data(ProductJSON.summaryPage.utf8)
 
         let page = try await LiveProductRepository(client: client).search(query: "phone", sort: .ratingDescending, skip: 40, limit: 20)
 
@@ -35,6 +36,7 @@ struct LiveProductRepositoryTests {
                 URLQueryItem(name: "q", value: "phone"),
                 URLQueryItem(name: "limit", value: "20"),
                 URLQueryItem(name: "skip", value: "40"),
+                URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category"),
                 URLQueryItem(name: "sortBy", value: "rating"),
                 URLQueryItem(name: "order", value: "desc"),
             ]),

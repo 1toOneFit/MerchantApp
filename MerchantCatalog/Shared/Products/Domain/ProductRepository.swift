@@ -13,7 +13,8 @@ protocol ProductRepository: Sendable {
     /// - Throws: `AppError`, or `CancellationError` when the calling task is cancelled.
     func search(query: String, sort: ProductSort, skip: Int, limit: Int) async throws -> ProductPage
 
-    /// One product, fresh from the server (details opened from Saved, ProductSpecification § 4.3).
+    /// One product with all its details, fresh from the server. Details fetch it whenever they open
+    /// (ProductSpecification § 4.3, D-81).
     ///
     /// - Throws: `AppError` (`.notFound` for an unknown id, Networking.md A6), or
     ///   `CancellationError` when the calling task is cancelled.

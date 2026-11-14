@@ -77,7 +77,7 @@ final class SavedProductsStore {
 
     /// Saves a snapshot of `product`, now; `nil` if it is already saved.
     @discardableResult
-    func save(_ product: Product) -> SavedProductsChange? {
+    func save(_ product: ProductSummary) -> SavedProductsChange? {
         guard !isSaved(product.id) else { return nil }
         let snapshot = SavedProduct(product, savedAt: now())
         items.insert(snapshot, at: 0)

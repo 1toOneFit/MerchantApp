@@ -196,16 +196,16 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 #### `product_details_viewed`
 - **Status:** Active
 - **Meaning:** product details were shown to the user.
-- **Trigger:** details content first displayed for a navigation push: the details screen's first appearance (D-59).
-- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (omitted when unknown); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (whether the product is saved when details appear); `content_origin` `list` | `snapshot`: `list` when opened from a list (the list's product, Networking.md A7), `snapshot` when opened from Saved (the saved snapshot shows first, then `/products/{id}` refreshes it). With `snapshot`, `availability`, `has_discount` and `image_count` are omitted: the snapshot doesn't have them (D-63). There is no `network` value: the fresh data never shows first.
+- **Trigger:** product details first shown for a navigation push. From the catalog or search: when `/products/{id}` returns and the full product replaces the list item's summary (D-81); none if the request fails or the user leaves first (`product_details_load_failed` or nothing). From Saved: the screen's first appearance, with the saved snapshot (D-59, D-63).
+- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (omitted when unknown); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (whether the product is saved when details appear); `content_origin` `network` | `snapshot`: `network` when opened from the catalog or search (the full product from `/products/{id}`, D-81), `snapshot` when opened from Saved (the saved snapshot shows first, then `/products/{id}` refreshes it). With `snapshot`, `availability`, `has_discount` and `image_count` are omitted: the snapshot doesn't have them (D-63). The former `list` value is gone: list pages carry only summaries (D-81).
 - **Note:** `AnalyticsService` follows it with `saved_product_revisited` when the product was saved before the current session (D-64); the event carries the save date for that, but sends only `is_saved`.
 - **Screen:** Product details. **Dedup:** once per push: tab switches and returning to the screen don't re-send; a new push does. **Privacy:** none.
 
 #### `product_details_load_failed`
 - **Status:** Active
-- **Meaning:** fresh product data could not be loaded for the details screen.
-- **Trigger:** `/products/{id}` request fails (Saved → details, or Retry); cancellations (leaving the screen) excluded.
-- **Properties:** `product_id` Int; `source`; `error_type` (`not_found` when the product is gone: the screen keeps the snapshot and says it is no longer available, without Retry, D-67); `showing_snapshot` Bool (the snapshot stays on screen).
+- **Meaning:** the full product could not be loaded for the details screen.
+- **Trigger:** the details screen's `/products/{id}` request fails (any source since D-81, or its Retry); cancellations (leaving the screen) excluded.
+- **Properties:** `product_id` Int; `source`; `error_type` (`not_found` when the product is gone: the screen keeps the snapshot and says it is no longer available, without Retry, D-67); `showing_snapshot` Bool (`true` from Saved: the snapshot stays on screen; `false` from the catalog or search: only the list item's header shows, with "Couldn't load details").
 - **Note:** the banner's Retry sends `retry_requested` (`failed_surface: details`).
 - **Screen:** Product details. **Dedup:** once per failed request. **Privacy:** none.
 

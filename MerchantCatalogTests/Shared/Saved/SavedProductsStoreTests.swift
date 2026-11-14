@@ -16,7 +16,7 @@ struct SavedProductsStoreTests {
     }
 
     private func saved(_ id: Int, at iso: String) -> SavedProduct {
-        SavedProduct(product(id), savedAt: date(iso))
+        SavedProduct(summary(id), savedAt: date(iso))
     }
 
     private func loadedStore() async -> SavedProductsStore {
@@ -54,10 +54,10 @@ struct SavedProductsStoreTests {
     @Test func saveReturnsTheChangeAndPersists() async {
         let store = await loadedStore()
 
-        let change = store.save(product(4))
+        let change = store.save(summary(4))
         await store.writeTask?.value
 
-        let snapshot = SavedProduct(product(4), savedAt: clock.date)
+        let snapshot = SavedProduct(summary(4), savedAt: clock.date)
         #expect(change == .saved(snapshot, countAfter: 1))
         #expect(store.items == [snapshot])
         #expect(repository.writes == [[snapshot]])
@@ -67,18 +67,18 @@ struct SavedProductsStoreTests {
     @Test func newSavesGoFirst() async {
         let store = await loadedStore()
 
-        store.save(product(1))
+        store.save(summary(1))
         clock.advance(by: 5)
-        store.save(product(2))
+        store.save(summary(2))
 
         #expect(store.items.map(\.id) == [2, 1])
     }
 
     @Test func savingASavedProductIsIgnored() async {
         let store = await loadedStore()
-        store.save(product(4))
+        store.save(summary(4))
 
-        #expect(store.save(product(4)) == nil)
+        #expect(store.save(summary(4)) == nil)
         #expect(store.count == 1)
     }
 
@@ -115,8 +115,8 @@ struct SavedProductsStoreTests {
     @Test func countPropertyFollowsChanges() async {
         let store = await loadedStore()
 
-        store.save(product(1))
-        store.save(product(2))
+        store.save(summary(1))
+        store.save(summary(2))
         store.remove(id: 1)
 
         #expect(analytics.userProperties == [.savedProductsCount(1), .savedProductsCount(2), .savedProductsCount(1)])
@@ -127,9 +127,9 @@ struct SavedProductsStoreTests {
         let store = await loadedStore()
         repository.holdsWrites = true
 
-        store.save(product(1))
+        store.save(summary(1))
         store.remove(id: 1)
-        store.save(product(2))
+        store.save(summary(2))
         while repository.writes.count < 3 {
             await Task.yield()
             repository.resumeWritesNewestFirst()
@@ -148,9 +148,9 @@ struct SavedProductsStoreTests {
         let load = Task { await store.load() }
         await repository.waitForPendingLoad()
 
-        store.save(product(1))
+        store.save(summary(1))
         clock.advance(by: 5)
-        store.save(product(2))
+        store.save(summary(2))
         #expect(repository.writes.isEmpty, "nothing is written before the stored list is known")
         #expect(analytics.userProperties.isEmpty)
 

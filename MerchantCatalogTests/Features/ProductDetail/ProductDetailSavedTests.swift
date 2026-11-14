@@ -69,6 +69,20 @@ struct ProductDetailSavedTests {
         #expect(repository.productRequests.isEmpty)
     }
 
+    /// Saved keeps its own wording: the snapshot is being updated, or still shown (D-81 leaves it).
+    @Test func statusCopySpeaksOfTheSavedInfo() async {
+        let viewModel = makeViewModel(store: await savedStore())
+        #expect(viewModel.statusMessage == nil)
+
+        let task = Task { await viewModel.start() }
+        await repository.waitForPendingProductRequests(1)
+        #expect(viewModel.statusMessage == "Updating…")
+
+        repository.resumeNextProduct(with: .failure(AppError.offline))
+        await task.value
+        #expect(viewModel.statusMessage == "Couldn't refresh — showing saved info")
+    }
+
     /// D-63: from Saved, the event describes the snapshot.
     @Test func savedRouteViewedEventUsesTheSnapshot() async {
         let viewModel = makeViewModel(store: await savedStore())

@@ -16,44 +16,27 @@ struct SavedProduct: Identifiable, Hashable, Sendable {
 }
 
 extension SavedProduct {
-    /// A snapshot of `product`, saved at `savedAt`.
-    init(_ product: Product, savedAt: Date) {
+    /// A snapshot of a list item or of the product on the details screen (`Product.summary`),
+    /// saved at `savedAt`.
+    init(_ summary: ProductSummary, savedAt: Date) {
         self.init(
-            id: product.id,
-            title: product.title,
-            thumbnailURL: product.thumbnailURL,
-            price: product.price,
-            rating: product.rating,
-            category: product.category,
+            id: summary.id,
+            title: summary.title,
+            thumbnailURL: summary.thumbnailURL,
+            price: summary.price,
+            rating: summary.rating,
+            category: summary.category,
             savedAt: savedAt
         )
     }
 
-    /// The snapshot as a product for the details screen: only the snapshot's facts, so every other
-    /// section is omitted (AC-D2). No gallery: the gallery never shows the thumbnail (D-67).
+    /// The snapshot's fields as a list item has them.
+    var summary: ProductSummary {
+        ProductSummary(id: id, title: title, price: price, thumbnailURL: thumbnailURL, rating: rating, category: category)
+    }
+
+    /// The snapshot as a product for the details screen: only the snapshot's facts (D-67).
     var displayProduct: Product {
-        Product(
-            id: id,
-            title: title,
-            price: price,
-            brand: nil,
-            availability: nil,
-            thumbnailURL: thumbnailURL,
-            imageURLs: [],
-            productDescription: nil,
-            category: category,
-            tags: [],
-            rating: rating,
-            discountPercentage: nil,
-            stock: nil,
-            sku: nil,
-            weight: nil,
-            dimensions: nil,
-            warranty: nil,
-            shipping: nil,
-            returnPolicy: nil,
-            minimumOrderQuantity: nil,
-            reviews: []
-        )
+        summary.displayProduct
     }
 }

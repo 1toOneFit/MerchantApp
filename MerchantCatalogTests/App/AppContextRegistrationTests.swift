@@ -76,7 +76,7 @@ struct AppContextRegistrationTests {
         let directory = TemporaryDirectory()
         let context = AppContext.configure(defaults: store.defaults, appInfo: Self.appInfo, savedProductsDirectory: directory.url)
         let repository = try #require(context.container.resolve() as (any SavedProductsRepository)?)
-        let item = SavedProduct(product(3), savedAt: date("2026-11-13T10:00:00Z"))
+        let item = SavedProduct(summary(3), savedAt: date("2026-11-13T10:00:00Z"))
 
         await repository.save([item])
         await context.savedProducts.load()
