@@ -15,7 +15,7 @@
 - Neutral naming (`MerchantCatalog`); no caching; no third-party dependencies; Swift 6 strict concurrency, zero warnings.
 - Status policy, verbatim: `stock == 0` → Out of stock; `stock in 1...10` → Low stock; `stock > 10` → In stock. One place, unit-tested.
 - No basket, checkout, editing, ordering, restocking, notifications, inventory dashboard or new tabs.
-- Needs attention uses only loaded products; the limitation is stated in the UI ("Based on …") and docs.
+- Needs attention uses only loaded products; the limitation is stated in the UI ("Checked … of … products.", originally "Based on …"; D-90) and docs.
 - Fixture code compiles only in DEBUG and only runs with `-ui-testing`; Release and normal launches are unchanged.
 - The agent never drives the Simulator by hand; UI tests run only through `xcodebuild test`.
 

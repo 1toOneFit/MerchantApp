@@ -175,10 +175,11 @@ Details open from a card tap in the browse grid or search results, on the Catalo
 
 The catalog answers "Which products need my attention?" within the first seconds: low and out-of-stock products, from the data the app already has.
 
-- **Control:** two chips at the top of the grid, **All products** and **Needs attention** with a count (D-85). They apply to the list on screen: the browse catalog, or the results of the current search. The selected chip is filled; both are at least 44 pt tall and stack at large text sizes.
+- **Control:** two chips at the top of the grid, **All products** and **Needs attention** with a count (D-85). They apply to the list on screen: the browse catalog, or the results of the current search. The selected chip is filled; both are at least 44 pt tall and stack at large text sizes. The chips are **pinned**: the cards scroll under them and they never scroll away (D-90).
+- **Scroll position:** All products and Needs attention each keep their own scroll position; switching back shows the list where it was (D-90). A new list (sort change, new search, Retry, Reload) starts both at the top.
 - **What counts:** a loaded product whose stock status (§ 4.1) is Low stock or Out of stock. A product with unknown stock never counts.
-- **Count:** the number of such products among the products of the list **loaded so far**; it grows as more pages load (scrolling in All products, or Load more products). It shows once the list has products.
-- **Needs attention view:** the same cards, in the server's order (and the current sort), only those products; the footer says what the count is based on — "Based on 20 of 194 products loaded so far." or "Based on all 194 products." — with **Load more products** while more pages exist (spinner while loading, message and Retry on failure). Cards don't load pages automatically in this view. With none to show: "Nothing needs attention" / "None of the loaded products is low or out of stock."
+- **Count:** the number of such products among the products of the list **loaded so far**; it grows as more pages load (scrolling in All products, or Check 20 more products). It shows once the list has products.
+- **Needs attention view:** the same cards, in the server's order (and the current sort), only those products; the footer says how many products the count has checked — "Checked 120 of 194 products." or "Checked all 194 products." — with **Check 20 more products** (the next page, or what is left: "Check 14 more products") while more pages exist (spinner while loading, message and Retry on failure). Cards don't load pages automatically in this view. With none to show: "Nothing needs attention" / "None of the checked products is low or out of stock." Wording simplified at the developer's request (2026-11-14).
 - **Honest limitation:** the API has no inventory endpoint and no stock filter, so the app looks only at the products it loaded; it makes no extra request and doesn't claim a complete count until every page is loaded. A full inventory or ordering flow is out of scope (§ 8).
 - Search, sort, pull-to-refresh, pagination, details and saving behave as in All products; switching the scope sends no request and keeps the loaded pages.
 
@@ -187,6 +188,7 @@ The catalog answers "Which products need my attention?" within the first seconds
 - AC-A2 Needs attention shows only low and out-of-stock products; an in-stock product is never included; All products shows every loaded product again.
 - AC-A3 Loading another page updates the count and the Needs attention list.
 - AC-A4 Details show title, price, stock status, category and rating before the other sections.
+- AC-A5 The All products / Needs attention chips stay visible while the grid scrolls, and switching between them keeps each one's scroll position.
 
 ## 5. Analytics and experiment
 
