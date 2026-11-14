@@ -157,13 +157,28 @@ private struct DetailStatusView: View {
 }
 
 /// Where the gallery will be while the full product loads: the image placeholder's fill at the
-/// gallery's square size, so the images replace it without moving the content below.
+/// gallery's square size, so the images replace it without moving the content below. A spinner and
+/// a slow pulse show that it is loading; with Reduce Motion the pulse is off and the spinner stays.
 private struct GallerySkeleton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isDimmed = false
+
     var body: some View {
         Rectangle()
             .fill(.fill.tertiary)
+            .opacity(isDimmed ? 0.4 : 1)
+            .overlay {
+                ProgressView()
+                    .controlSize(.large)
+            }
             .aspectRatio(1, contentMode: .fit)
             .frame(maxWidth: .infinity)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                    isDimmed = true
+                }
+            }
             .accessibilityElement()
             .accessibilityLabel("Loading product images")
     }
