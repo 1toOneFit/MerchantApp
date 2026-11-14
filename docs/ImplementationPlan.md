@@ -11,7 +11,7 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Current branch | `feature/needs-attention` (from `develop` at `26dcca2`) |
 | Last completed stage | S7 — Release readiness (merged into `develop` with `--no-ff` at `26dcca2`; released to `main` at `aae71db`, 2026-11-14) |
 | Next authorized stage | S8 (authorized by the developer, 2026-11-14) |
-| Pending human action | Independent Codex review of `feature/needs-attention`, the manual Simulator checks in the S8 review log, then approval or findings |
+| Pending human action | Re-review of `feature/needs-attention` after the fixes for the three S8 review findings, the manual Simulator checks in the S8 review log, then approval or further findings |
 | Open review findings | — |
 | Blockers | — |
 
@@ -29,7 +29,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | COMPLETED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13); merged into `develop` with `--no-ff` at `efc5c89` |
 | S7 | Release readiness | `feature/release-readiness` | COMPLETED | `87222b6` + docs commits | Approved: developer's own review, Claude and Codex reviews, no findings (2026-11-14); merged into `develop` with `--no-ff` at `26dcca2`; 1.0 released to `main` at `aae71db` |
-| S8 | Needs attention | `feature/needs-attention` | READY_FOR_REVIEW | `b53bc31` + docs commits | Awaiting the developer's Codex review |
+| S8 | Needs attention | `feature/needs-attention` | READY_FOR_REVIEW | `b16fb72` + docs commits | Review round 1: 3 findings fixed (2026-11-14); awaiting re-review |
 
 The stages run strictly in order, S0 → S8. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
 
@@ -986,3 +986,15 @@ Answering the open question from the final self-check (partial sections while de
   1. Track Needs attention? A minimal option: `catalog_scope_changed { scope, attention_count, loaded_count }` and a `scope` property on `product_selected` / `product_saved`. Left out because the request kept analytics out of the product story.
   2. Agent decisions D-84–D-89 (above), in particular: the scope over a section (D-85), dropping `availabilityStatus` everywhere including analytics (D-84), and 10 as the low-stock limit (from the request).
 - **Findings and resolution:** awaiting the developer's Codex review.
+
+#### S8 review — findings and resolution (2026-11-14)
+
+The developer shared three findings from the review of `ad194b2`. All three accepted; status `CHANGES_REQUESTED` → fixes on the same branch → `READY_FOR_REVIEW`.
+
+1. **Coverage claimed "all" after an empty page** (accepted, defect). `CatalogFeed.coverage` used `!list.canLoadMore`, which also turns false after an empty page while `nextSkip < total`, so the footer could say "Based on all 20 products." with 174 never loaded. Fix `d41ab2a`: complete only when `pagesLoaded > 0 && nextSkip >= total`; paging, the footer's end state and Retry unchanged, no request added. Test first: `coverageIsNotCompleteAfterAnEmptyPageBeforeTheEnd` failed (`isComplete: true`), then passed.
+2. **Analytics positions in Needs attention came from the unfiltered list** (accepted, defect). `cardSelected` and `saveToggled` indexed `feed.list.items`. Fix `b16fb72`: both count `CatalogFeed.cards(in: scope)`, the cards on screen; saving still stores the loaded `ProductSummary`; a card outside the scope is ignored like one of a hidden list. All products and search keep their positions (the cards there are the loaded list, 1:1). Analytics.md updated in the same commit. Tests first, each failed on the old position: `selectingInNeedsAttentionReportsTheVisiblePosition` (id 9 → 3, was 8), `savingInNeedsAttentionReportsTheVisiblePosition` (position 3, the loaded snapshot), `positionsAfterPaginationCountTheListOnScreen` (id 40 → 39 in All products, 8 in the scope), `searchResultsInNeedsAttentionReportTheVisiblePosition` (104 → 1, hidden browse card ignored), `cardOutsideTheScopeIsIgnored`. The S8 gate's known limitation about `position` no longer applies; the scope is still not recorded on the events (open question 1 stands).
+3. **Stock copy inconsistent** (accepted, docs). The code and tests already used "Low stock · 4 left" on screen and "Low stock, 4 left" for VoiceOver; the task plan had a lowercase "low stock, 4 left" label and ProductSpecification § 4.5 gave a product that is in stock (stock 99 in the 2026-11-14 data) a low-stock reading. Fix `8ca9eca`: § 4.1 names both forms (spoken form canonical), § 4.5's example corrected, the plan and README aligned, `StockLabelTests` pins the 4-left case. No visible text changed.
+
+- **Verification** (2026-11-14, after the fixes): `git diff --check` and `git diff --check develop..HEAD` clean. `xcodebuild … clean build` (Debug): succeeded, result bundle 0 warnings / 0 errors / 0 analyzer warnings. `xcodebuild … test`: **452 passed, 0 failed, 0 skipped** (447 Swift Testing tests in 65 suites, +6; 5 XCUITests, 43.9 s); no compiler warnings in the test log.
+- **No live network in the UI tests:** shown by code paths, not by a network capture. Only `LiveProductRepository` uses `APIClientType`; with `-ui-testing` the registered repository is `FixtureProductRepository` (`UITestLaunchTests.contextUsesTheFixture`); fixture products have no thumbnail or image URLs, and `ProductImageModel.load` returns before calling the loader for a `nil` URL. Reading the simulator's unified log to confirm it at run time was not permitted in this session.
+- **Not changed:** basket, inventory, ordering, the analytics architecture (no new event or property), navigation.
