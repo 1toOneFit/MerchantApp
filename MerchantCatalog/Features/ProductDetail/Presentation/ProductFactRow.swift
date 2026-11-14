@@ -56,7 +56,7 @@ struct ProductFactRow: Equatable {
         self.systemImage = systemImage
     }
 
-    private static func title(of availability: ProductAvailability) -> String {
+    private static func title(of availability: StockStatus) -> String {
         switch availability {
         case .inStock: "In stock"
         case .lowStock: "Low stock"

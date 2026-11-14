@@ -11,7 +11,7 @@ struct ProductInsights: Equatable, Sendable {
         /// The aggregate rating, without a review count (D-55).
         case rating(Double)
         /// `units`: the stock count, shown with the status in At a Glance.
-        case availability(ProductAvailability, units: Int?)
+        case availability(StockStatus, units: Int?)
         case stock(Int)
         case minimumOrder(Int)
         case shipping(String)
@@ -43,7 +43,7 @@ struct ProductInsights: Equatable, Sendable {
     let reviews: [ProductReview]
 
     init(_ product: Product) {
-        let availability = product.availability
+        let availability = product.stockStatus
         atAGlance = [
             product.rating.map(Fact.rating),
             availability.map { Fact.availability($0, units: product.stock) },

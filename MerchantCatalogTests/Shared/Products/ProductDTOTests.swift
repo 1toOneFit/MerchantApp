@@ -26,7 +26,8 @@ struct ProductDTOTests {
             price: Decimal(string: "9.99")!,
             thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/1/thumbnail.webp"),
             rating: 4.94,
-            category: "beauty"
+            category: "beauty",
+            stock: 5
         ))
     }
 
@@ -38,6 +39,7 @@ struct ProductDTOTests {
         #expect(summary.category == nil)
         #expect(summary.thumbnailURL == nil)
         #expect(summary.rating == nil)
+        #expect(summary.stock == nil)
     }
 
     /// A full list item (as before `select`) still decodes as a summary of the same values.
@@ -55,7 +57,6 @@ struct ProductDTOTests {
         #expect(product.title == "Volume Mascara")
         #expect(product.price == Decimal(string: "9.99"))
         #expect(product.brand == "Acme")
-        #expect(product.availability == .lowStock)
         #expect(product.thumbnailURL == URL(string: "https://cdn.dummyjson.com/products/1/thumbnail.webp"))
         #expect(product.imageURLs.map(\.absoluteString) == [
             "https://cdn.dummyjson.com/products/1/1.webp",
@@ -73,18 +74,20 @@ struct ProductDTOTests {
         #expect(try Self.product { $0["brand"] = nil }.brand == nil)
     }
 
-    @Test(arguments: [
-        ("In Stock", ProductAvailability?.some(.inStock)),
-        ("Low Stock", .lowStock),
-        ("Out of Stock", .outOfStock),
-        ("Discontinued", nil),
-    ])
-    func availabilityMapping(status: String, expected: ProductAvailability?) throws {
-        #expect(try Self.product { $0["availabilityStatus"] = status }.availability == expected)
+    /// D-84: the status follows `stock`, never the API's `availabilityStatus`, which disagrees with
+    /// the stock for some demo products (Networking.md A16).
+    @Test(arguments: [("In Stock", 7, StockStatus.lowStock), ("Low Stock", 40, .inStock), ("In Stock", 0, .outOfStock)])
+    func statusComesFromStockNotAvailabilityStatus(apiStatus: String, stock: Int, expected: StockStatus) throws {
+        let product = try Self.product {
+            $0["availabilityStatus"] = apiStatus
+            $0["stock"] = stock
+        }
+
+        #expect(product.stockStatus == expected)
     }
 
-    @Test func missingAvailabilityIsNil() throws {
-        #expect(try Self.product { $0["availabilityStatus"] = nil }.availability == nil)
+    @Test func missingStockHasNoStatus() throws {
+        #expect(try Self.product { $0["stock"] = nil }.stockStatus == nil)
     }
 
     @Test func invalidImageURLsAreDropped() throws {

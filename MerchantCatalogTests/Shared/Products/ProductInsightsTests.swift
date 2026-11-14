@@ -12,7 +12,6 @@ struct ProductInsightsTests {
         id: 1,
         price: 9.99,
         brand: "Acme",
-        availability: .lowStock,
         productDescription: "A lengthening mascara.",
         category: "beauty",
         tags: ["beauty", "mascara"],
@@ -86,16 +85,17 @@ struct ProductInsightsTests {
     }
 
     @Test func availabilityCarriesStock() {
-        let insights = ProductInsights(makeProduct(id: 5, availability: .outOfStock, stock: 0))
+        let insights = ProductInsights(makeProduct(id: 5, stock: 0))
 
         #expect(insights.atAGlance == [.availability(.outOfStock, units: 0)])
         #expect(insights.shippingAndAvailability == [.availability(.outOfStock, units: nil), .stock(0)])
     }
 
-    @Test func unknownAvailabilityKeepsStock() {
-        let insights = ProductInsights(makeProduct(id: 6, stock: 7))
+    /// D-84: availability follows the stock; without a stock there is neither.
+    @Test func missingStockHasNoAvailability() {
+        let insights = ProductInsights(makeProduct(id: 6, shipping: "Ships overnight"))
 
-        #expect(insights.atAGlance.isEmpty)
-        #expect(insights.shippingAndAvailability == [.stock(7)])
+        #expect(insights.atAGlance == [.shipping("Ships overnight")])
+        #expect(insights.shippingAndAvailability == [.shipping("Ships overnight")])
     }
 }

@@ -1,9 +1,10 @@
 import Foundation
 @testable import MerchantCatalog
 
-/// A product whose fields derive from `id`: title "Product <id>", price `<id>.99`, a thumbnail URL.
+/// A product whose fields derive from `id`: title "Product <id>", price `<id>.99`, a thumbnail URL,
+/// 50 in stock (in stock, D-84).
 func product(_ id: Int) -> Product {
-    makeProduct(id: id, availability: .inStock)
+    makeProduct(id: id, stock: 50)
 }
 
 /// A product with every field settable; unset details fields are absent (`nil` or empty).
@@ -12,7 +13,6 @@ func makeProduct(
     title: String? = nil,
     price: Decimal? = nil,
     brand: String? = nil,
-    availability: ProductAvailability? = nil,
     thumbnailURL: URL?? = nil,
     imageURLs: [URL] = [],
     productDescription: String? = nil,
@@ -35,7 +35,6 @@ func makeProduct(
         title: title ?? "Product \(id)",
         price: price ?? Decimal(id) + Decimal(sign: .plus, exponent: -2, significand: 99),
         brand: brand,
-        availability: availability,
         thumbnailURL: thumbnailURL ?? URL(string: "https://cdn.dummyjson.com/products/\(id)/thumbnail.webp"),
         imageURLs: imageURLs,
         productDescription: productDescription,
@@ -55,7 +54,7 @@ func makeProduct(
     )
 }
 
-/// The list item of `product(id)`: title "Product <id>", price `<id>.99`, a thumbnail URL.
+/// The list item of `product(id)`: title "Product <id>", price `<id>.99`, a thumbnail URL, stock 50.
 func summary(_ id: Int) -> ProductSummary {
     product(id).summary
 }
@@ -67,9 +66,10 @@ func makeSummary(
     price: Decimal? = nil,
     thumbnailURL: URL?? = nil,
     rating: Double? = nil,
-    category: String? = nil
+    category: String? = nil,
+    stock: Int? = nil
 ) -> ProductSummary {
-    makeProduct(id: id, title: title, price: price, thumbnailURL: thumbnailURL, category: category, rating: rating).summary
+    makeProduct(id: id, title: title, price: price, thumbnailURL: thumbnailURL, category: category, rating: rating, stock: stock).summary
 }
 
 /// A page holding the list items `ids`, as the server would report it at `skip`.
