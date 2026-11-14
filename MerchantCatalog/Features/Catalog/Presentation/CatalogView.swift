@@ -200,7 +200,7 @@ private struct CatalogGrid: View {
                         }
                     }
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(ProductCardAccessibility.label(title: card.title, price: card.price, rating: card.rating, isSaved: isSaved))
+                    .accessibilityLabel(ProductCardAccessibility.label(title: card.title, price: card.price, stock: card.stock?.accessibilityText, rating: card.rating, isSaved: isSaved))
                     .accessibilityAddTraits(.isButton)
                     .accessibilityAction {
                         viewModel.cardSelected(id: card.id, in: context)
