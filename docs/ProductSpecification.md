@@ -90,7 +90,7 @@ Category, brand, discount and availability are deliberately **not** on the card,
 - A new query cancels the in-flight one; a response is applied **only if it belongs to the latest query** (stale-response protection, even if cancellation loses a race).
 - Search uses the server endpoint (`/products/search`) with the current sort and pagination — verified to work together, see [Networking.md § API facts](Networking.md#1-verified-api-facts).
 - No results: "No products match "…"" with a **Clear search** action.
-- The keyboard can be put away without ending the search: scrolling the grid or the keyboard's **Search** key dismisses it; the query, results and sort stay, and tapping the field brings it back (D-79). Only **Cancel** ends the search.
+- The keyboard can be put away without ending the search: starting to scroll the grid (either direction) or the keyboard's **Search** key dismisses it with an animation; the query, results and sort stay, and tapping the field brings it back (D-79). Only **Cancel** ends the search.
 - Clearing search restores the previous browse list (pages, sort, scroll position) from memory without refetching: the browse grid stays loaded, hidden, under the search results (D-47).
 - A failed search shows the full-screen error with **Retry**; pull-to-refresh and loading more work as in browse.
 
