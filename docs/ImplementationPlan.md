@@ -746,7 +746,7 @@ The developer shared two remaining findings and asked for both fixes on the bran
 - **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator): succeeded; result bundle **0 warnings**, 0 errors, 0 analyzer warnings. `xcodebuild … -configuration Release build`: succeeded; 0 warnings, 0 errors. The test action's log has no compiler warnings (only the `appintentsmetadataprocessor` "Metadata extraction skipped" tool line). `git diff --check develop..HEAD` clean.
 - **Tests:** `xcodebuild … test`: **361 passed, 0 failed, 0 skipped** in 57 suites (result bundle summary; +5 since S6). New suite `CatalogLayoutTests` 3; `TaxonomyDocumentationTests` 3 → 5; `ProductCardAccessibilityTests` stays 3 (two single cases became one parameterized test, plus a locale test). Counts are test functions.
 - **Red first / mutation checks:** `CatalogLayoutTests` failed on compilation first. The label and taxonomy tests lock existing behavior, so they passed at once and were mutation-checked (details in the task plan's deviations). The 44 pt changes are view code without unit tests.
-- **Release criteria** (MasterSpecification § 1): assessed in README § Release status. Not met: the current stable Xcode (D-1). Pending the developer: the Simulator smoke checklist below and the `AsyncImage` cancellation check (Networking.md § 4).
+- **Release criteria** (MasterSpecification § 1): assessed in README § Release status. Not met: the current stable Xcode (D-1). Pending the developer: the Simulator smoke checklist below. Image cancellation (D-78): request-level cancellation is verified by `URLSessionImageLoaderTests.cancellationStopsTheRequest` and `ProductImageModelTests`; the only remaining manual expectation is that SwiftUI cancels a cell's `.task` when the cell disappears during scrolling (check 17).
 - **Manual Simulator checks for the developer — 1.0 smoke checklist** (the agent did not run the app). Events and user properties are in Diagnostics (newest first).
   1. **Launch and browse (AC-C1):** skeleton, then a 2-column grid of 20 products; `session_started`, `catalog_viewed`, `catalog_load_completed`, one `experiment_exposed`.
   2. **Paginate (AC-C2):** scroll to the end: spinner footer per page, 194 products, no duplicates, "You've reached the end", no further `catalog_page_requested`.
@@ -764,14 +764,14 @@ The developer shared two remaining findings and asked for both fixes on the bran
   14. **Largest Dynamic Type (D-75):** Settings → Accessibility → Display & Text Size → Larger Text, largest size (AX5): the catalog and the skeleton show **one column**; titles wrap at two lines; prices and ratings stay readable; the sort menu, search field and buttons stay usable. At the largest non-AX size (xxxLarge) the grid keeps two columns. Check Saved rows and details too.
   15. **44 pt targets (D-76):** with Accessibility Inspector (Xcode → Open Developer Tool), the Retry, Reload, Clear search, Browse catalog and details-banner Retry buttons are at least 44 pt tall; the card bookmark and the refresh banner's close button have a 44 × 44 pt frame.
   16. **Dark mode:** switch the Simulator to dark (Features → Toggle Appearance): every screen (grid, skeleton, cards with ratings, bookmark circle, banners, details, Saved, Diagnostics) is legible with no fixed light backgrounds.
-  17. **Image cancellation** (Networking.md § 4; superseded by the D-78 change below, see its check 1).
+  17. **Image cancellation on scrolling** (D-78): run check 1 of the D-78 change below (Console `network` log, `cancelled after … ms` for cells that scrolled away). It checks the one remaining expectation, SwiftUI cancelling the cell's `.task` on disappear; request-level cancellation is already verified by unit tests.
   18. **Release build:** Edit Scheme → Run → Release: the app runs without Diagnostics.
   19. ⌘U in Xcode: 361 tests pass.
 - **Known limitations:**
   - Rendering at each text size, hit areas, VoiceOver focus and dark mode are SwiftUI behavior checked manually (checks 13–16), not by unit tests (no snapshot tests).
   - Saved rows keep their horizontal layout at accessibility sizes (out of S7 scope by the developer's choice).
   - The behaviors behind the closed open questions stay as built (D-77): other `URLError` codes count as unknown, short sort labels, slug category names, "Price" on the snapshot row.
-  - `AsyncImage` cancellation is expected, not verified (check 17).
+  - Image cancellation (D-78): request-level cancellation is verified by `URLSessionImageLoaderTests.cancellationStopsTheRequest` (cancelling the loading task stops the `URLSession` load) and `ProductImageModelTests` (a cancelled load keeps the placeholder and drops late results). The only remaining expectation is SwiftUI's `.task` cancellation when a cell disappears during scrolling (Apple-documented; check 17).
   - Built with Xcode 26.0, not the current 27.2 (D-1).
 - **Open questions:** none.
 - **Findings and resolution:** awaiting the developer's Codex review.
@@ -789,5 +789,5 @@ The developer asked at the gate why image cancellation wasn't working and to imp
   3. **Gallery:** open a product with several images and swipe quickly through the pages: only the pages you stop on load; a page you swiped past mid-load logs `cancelled`.
   4. **Saved tab and details from Saved:** thumbnails and the gallery still load; offline, rows show the placeholder icon (failure) and load when the network returns and the row reappears.
   5. **Failure icon:** with the network off, scroll to new cells: the neutral photo icon; network on, scroll away and back: the image loads.
-- **Remaining limitation:** that SwiftUI cancels `.task` on disappear is Apple-documented behavior, not proven by a unit test; in a lazy grid "disappear" happens when the cell leaves the grid's render window, slightly past the visible edge.
+- **Verified vs expected:** request-level cancellation is verified by `URLSessionImageLoaderTests.cancellationStopsTheRequest` and `ProductImageModelTests` (above). **Remaining expectation:** that SwiftUI cancels `.task` when a cell disappears during scrolling is Apple-documented behavior, not proven by a unit test, and is what manual check 1 confirms; in a lazy grid "disappear" happens when the cell leaves the grid's render window, slightly past the visible edge.
 - Status stays `READY_FOR_REVIEW`, awaiting the developer's Codex review of S7 including this change.
