@@ -34,14 +34,11 @@ private struct ProductCardStock: View {
         if let label {
             StockStatusView(label: label)
         } else {
-            StockStatusView(label: Self.sizing)
+            StockStatusView(label: .placeholder)
                 .hidden()
                 .accessibilityHidden(true)
         }
     }
-
-    /// Lays out the hidden row.
-    private static let sizing = StockLabel(stock: 99)!
 }
 
 /// "★ 4.9", or an invisible row of the same height when the card has no rating (control).

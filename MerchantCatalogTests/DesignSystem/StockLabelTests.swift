@@ -18,6 +18,11 @@ struct StockLabelTests {
         #expect(label.accessibilityText == spoken)
     }
 
+    /// Lays out hidden rows and skeletons; never shown as text.
+    @Test func placeholderIsAnInStockLabel() {
+        #expect(StockLabel.placeholder == StockLabel(stock: StockStatus.lowStockLimit + 1))
+    }
+
     @Test func unknownStockHasNoLabel() {
         #expect(StockLabel(stock: nil) == nil)
     }

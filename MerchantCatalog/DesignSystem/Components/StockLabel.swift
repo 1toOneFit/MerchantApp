@@ -25,6 +25,15 @@ struct StockLabel: Hashable, Sendable {
             accessibilityText = text
         }
     }
+
+    /// "In stock", for layout only: hidden rows of the same height and the redacted skeleton.
+    static let placeholder = StockLabel(status: .inStock, text: "In stock", accessibilityText: "In stock")
+
+    private init(status: StockStatus, text: String, accessibilityText: String) {
+        self.status = status
+        self.text = text
+        self.accessibilityText = accessibilityText
+    }
 }
 
 /// A stock label with its status symbol and color: a compact row on cards, a capsule badge on

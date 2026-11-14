@@ -48,6 +48,6 @@ struct ProductCardModel: Identifiable, Equatable {
     /// Stand-in text for the redacted skeleton grid. No rating: the row's height is reserved in
     /// both arms anyway. A stock row, so the skeleton has the card's shape.
     static func placeholder(id: Int) -> ProductCardModel {
-        ProductCardModel(id: id, title: "Product name placeholder", price: "$00.00", thumbnailURL: nil, rating: nil, ratingText: nil, stock: StockLabel(stock: 99))
+        ProductCardModel(id: id, title: "Product name placeholder", price: "$00.00", thumbnailURL: nil, rating: nil, ratingText: nil, stock: .placeholder)
     }
 }
