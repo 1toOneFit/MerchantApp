@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// The product details screen (ProductSpecification § 4.3): gallery, header, At a Glance, Pricing,
-/// Overview, Product information, Shipping & availability and Recent reviews, top to bottom. It
-/// renders at once from the list's product (AC-D1), or from the saved snapshot while `/products/{id}`
-/// refreshes it (§ 4.4, AC-D4); a section without data is left out (AC-D2). The toolbar's save
+/// Overview, Product information, Shipping & availability and Recent reviews, top to bottom. The
+/// header shows at once from the list item's summary or the saved snapshot, with a gallery skeleton,
+/// while `/products/{id}` loads the full product (AC-D1, D-81; § 4.4, AC-D4); a section without data is left out (AC-D2). The toolbar's save
 /// button follows the shared store (AC-D3). It owns its view model; `AppTabView` pushes it through
 /// `ProductDetailConfigurator`.
 struct ProductDetailView: View {
@@ -19,6 +19,8 @@ struct ProductDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 if !viewModel.gallery.imageURLs.isEmpty {
                     ProductGalleryView(gallery: viewModel.gallery, selection: gallerySelection)
+                } else if viewModel.showsGallerySkeleton {
+                    GallerySkeleton()
                 }
                 ProductDetailHeaderView(header: viewModel.header)
                     .padding(.horizontal)
@@ -129,13 +131,16 @@ private struct DetailStatusView: View {
             case .idle, .refreshed:
                 EmptyView()
             case .loading:
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text(message ?? "")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                // From a list the gallery skeleton shows the loading; Saved adds "Updating…".
+                if let message {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
-                .accessibilityElement(children: .combine)
             case .failed:
                 StatusBanner(systemImage: "exclamationmark.triangle.fill", message: message ?? "") {
                     Button("Retry", action: retry)
@@ -148,6 +153,19 @@ private struct DetailStatusView: View {
                 }
             }
         }
+    }
+}
+
+/// Where the gallery will be while the full product loads: the image placeholder's fill at the
+/// gallery's square size, so the images replace it without moving the content below.
+private struct GallerySkeleton: View {
+    var body: some View {
+        Rectangle()
+            .fill(.fill.tertiary)
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .accessibilityElement()
+            .accessibilityLabel("Loading product images")
     }
 }
 

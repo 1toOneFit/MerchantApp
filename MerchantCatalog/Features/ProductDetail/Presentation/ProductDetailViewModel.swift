@@ -86,13 +86,19 @@ final class ProductDetailViewModel {
         return savedSnapshot.price
     }
 
-    /// The status line under the header while the full product isn't shown, or `nil`. Saved keeps
-    /// its wording about the saved information.
+    /// A skeleton stands where the gallery will be until the full product arrives (not after a
+    /// failure); then the images replace it, so the layout doesn't jump.
+    var showsGallerySkeleton: Bool {
+        refresh == .idle || refresh == .loading
+    }
+
+    /// The status line under the header while the full product isn't shown, or `nil`. From a list
+    /// the gallery skeleton shows the loading; Saved keeps its wording about the saved information.
     var statusMessage: String? {
         let fromSaved = savedSnapshot != nil
         return switch refresh {
         case .idle, .refreshed: nil
-        case .loading: fromSaved ? "Updating…" : "Loading details…"
+        case .loading: fromSaved ? "Updating…" : nil
         case .failed: fromSaved ? "Couldn't refresh — showing saved info" : "Couldn't load details"
         case .unavailable: AppError.notFound.userMessage
         }

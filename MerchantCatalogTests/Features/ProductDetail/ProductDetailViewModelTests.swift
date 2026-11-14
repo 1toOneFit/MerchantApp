@@ -60,6 +60,7 @@ struct ProductDetailViewModelTests {
         #expect(viewModel.product == Self.mascara.summary.displayProduct)
         #expect(viewModel.header == ProductDetailHeader(title: "Volume Mascara", brand: nil, category: "Beauty"))
         #expect(viewModel.gallery.imageURLs.isEmpty)
+        #expect(viewModel.showsGallerySkeleton)
         #expect(viewModel.refresh == .idle)
         #expect(!viewModel.isShowingSnapshot)
         #expect(repository.productRequests.isEmpty)
@@ -80,17 +81,22 @@ struct ProductDetailViewModelTests {
         #expect(viewModel.gallery == ProductGalleryModel(Self.mascara))
     }
 
-    @Test func showsLoadingWhileTheRequestIsInFlight() async {
+    /// While the request runs, a skeleton stands where the gallery will be, instead of a text line;
+    /// the images replace it when the product arrives.
+    @Test func showsTheGallerySkeletonWhileLoading() async {
         let viewModel = makeViewModel()
         let task = Task { await viewModel.start() }
 
         await repository.waitForPendingProductRequests(1)
         #expect(viewModel.refresh == .loading)
-        #expect(viewModel.statusMessage == "Loading details…")
+        #expect(viewModel.showsGallerySkeleton)
+        #expect(viewModel.statusMessage == nil)
 
         repository.resumeNextProduct(with: .success(Self.mascara))
         await task.value
         #expect(viewModel.refresh == .refreshed)
+        #expect(!viewModel.showsGallerySkeleton)
+        #expect(viewModel.gallery.imageURLs == Self.images)
     }
 
     /// Leaving the screen cancels the request; a response that wins the race is dropped and the next
@@ -127,6 +133,7 @@ struct ProductDetailViewModelTests {
 
         #expect(viewModel.refresh == .failed(.offline))
         #expect(viewModel.product == Self.mascara.summary.displayProduct)
+        #expect(!viewModel.showsGallerySkeleton)
         #expect(viewModel.statusMessage == "Couldn't load details")
         #expect(analytics.events == [
             .productDetailsLoadFailed(productID: 1, source: .search, error: .offline, showingSnapshot: false),
@@ -140,6 +147,7 @@ struct ProductDetailViewModelTests {
         await viewModel.start()
 
         #expect(viewModel.refresh == .unavailable)
+        #expect(!viewModel.showsGallerySkeleton)
         #expect(analytics.events == [
             .productDetailsLoadFailed(productID: 1, source: .catalog, error: .notFound, showingSnapshot: false),
         ])

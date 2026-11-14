@@ -77,10 +77,12 @@ struct ProductDetailSavedTests {
         let task = Task { await viewModel.start() }
         await repository.waitForPendingProductRequests(1)
         #expect(viewModel.statusMessage == "Updating…")
+        #expect(viewModel.showsGallerySkeleton)
 
         repository.resumeNextProduct(with: .failure(AppError.offline))
         await task.value
         #expect(viewModel.statusMessage == "Couldn't refresh — showing saved info")
+        #expect(!viewModel.showsGallerySkeleton)
     }
 
     /// D-63: from Saved, the event describes the snapshot.
