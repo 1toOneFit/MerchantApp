@@ -138,7 +138,7 @@ Details open from a card tap in the browse grid or search results, on the Catalo
 ### 4.4 Saved products
 
 - Save/unsave from the catalog card (a bookmark button over the thumbnail's top-trailing corner, D-60), details toolbar, and swipe-to-delete in the Saved list.
-- Persisted locally as **snapshots**: `id, title, thumbnailURL, price, rating, category, savedAt`. Snapshots let the Saved tab render instantly and offline; they are labeled as **saved information**, e.g. "Price when saved: $9.99 · Saved 3 Nov".
+- Persisted locally as **snapshots**: the list item's summary (`id, title, thumbnailURL, price, rating, category`, the same data a list hands to details) plus `savedAt` (D-82). Snapshots let the Saved tab render instantly and offline; they are labeled as **saved information**, e.g. "Price when saved: $9.99 · Saved 3 Nov".
 - Saved data is treated as a durable *selection*, not as current truth: details always refetch, and if the fresh price differs from the snapshot the details screen shows "Price changed since you saved it" (factual, no judgement).
 - Saved row: thumbnail, title, price when saved, saved date. No rating (identical in both experiment arms).
 - Order: most recently saved first.

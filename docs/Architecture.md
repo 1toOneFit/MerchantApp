@@ -54,7 +54,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
                    ProductRepository (protocol), ProductInsights (facts builder)
       Data/        ProductsTarget, ProductDTO + ProductSummaryDTO (+ mapping), LiveProductRepository
     Saved/
-      Domain/      SavedProduct (snapshot), SavedProductsRepository (protocol)
+      Domain/      SavedProduct (snapshot: a ProductSummary + savedAt, D-82), SavedProductsRepository (protocol)
       Data/        FileSavedProductsRepository (atomic writes, corrupt-file quarantine)
       SavedProductsStore.swift         # @MainActor @Observable source of truth shared by all screens
       SavedProductFormat.swift         # "Price when saved" / saved-date copy
@@ -213,6 +213,7 @@ enum CatalogFooter: Equatable { case idle, loading, failed(AppError), end }
 - A file that fails to decode is renamed `saved-products.corrupt-<timestamp>.json` and logged at `.error`; the app continues with an empty list.
 - `SavedProductsStore` (`@MainActor @Observable`) is the in-memory source of truth every screen observes, which keeps state consistent everywhere without notifications.
 - **As built (S5):** the file is `{ "version": 1, "items": [{ id, title, thumbnailURL, price, rating, category, savedAt }] }` with the price as a decimal string and `savedAt` as ISO 8601 with milliseconds, so both round-trip exactly. Invalid JSON is moved to `saved-products.corrupt-<yyyyMMdd'T'HHmmss'Z'>.json`; an unknown `version` is left in place (D-65); both log `.error` and load an empty list. The repository never throws: storage problems are logged. The store loads once from the root view's `.task`; a save made before that finishes is kept and merged (D-66). Each later change writes the whole list in a task chained after the previous write (a tap starts it, so it is unstructured; the store keeps the handle), so the file always ends with the latest list. `save`/`remove` return a `SavedProductsChange` (snapshot, `saved_duration_s`, count after), from which view models build `product_saved` / `product_unsaved` with their surface; the store sets `saved_products_count`.
+- **Since D-82 (S7):** `SavedProduct` is `{ summary: ProductSummary, savedAt }`, the same summary a list hands to details, so `ProductDetailRoute.summary` is one piece of data for both routes. The file keeps the flat version-1 fields above; `FileSavedProductsRepository` maps them to and from the summary, so files written before D-82 load unchanged (tested).
 - Installation ID, session bookkeeping and experiment assignments live in `UserDefaults` (small, non-sensitive). See [Analytics.md § 2](Analytics.md#2-identity-sessions-and-user-properties).
 
 ## 10. Logging and observability
