@@ -109,7 +109,7 @@ Category, brand, discount and availability are deliberately **not** on the card,
 
 ### 4.3 Product details
 
-Content renders **immediately** from the product already loaded in the list (the list endpoint returns full product objects). When opened from Saved, the screen shows the saved snapshot immediately and fetches `/products/{id}` for fresh data; if that fetch fails, the snapshot stays visible with a "Couldn't refresh — showing saved info" banner and Retry.
+List pages carry only a summary of each product (title, price, thumbnail, rating, category), so details always load the full product from `/products/{id}` when they open (D-81). From the catalog or search, the header (title, category, rating, price) shows at once from the list item with "Loading details…"; the gallery and every section appear when the response arrives. If the request fails, the header stays with a "Couldn't load details" banner and **Retry**; a 404 says "This product is no longer available." without Retry. When opened from Saved, the screen shows the saved snapshot immediately and fetches `/products/{id}` for fresh data; if that fetch fails, the snapshot stays visible with a "Couldn't refresh — showing saved info" banner and Retry.
 
 **Layout (top to bottom)**
 1. **Gallery** — paged images (1–6 per product; page indicator hidden when there is one image), loading placeholder and failure state per image; each image loads only while its page is on screen. A product without images has no gallery.
@@ -130,7 +130,7 @@ Details open from a card tap in the browse grid or search results, on the Catalo
 **Insight rule:** only facts present in the data. No invented score, margin, recommendation or "best seller" claim.
 
 **Acceptance criteria**
-- AC-D1 Opening a product from the grid shows full content without a spinner.
+- AC-D1 Opening a product from the grid shows its header (title, category, rating, price) at once and the full details as soon as `/products/{id}` returns; a failure keeps the header with Retry (D-81; before D-81: full content without a request).
 - AC-D2 Sections with no data are omitted, never shown empty.
 - AC-D3 Save on details updates the grid card and Saved tab immediately.
 - AC-D4 Opening from Saved while offline shows the snapshot plus the refresh-failed banner.
