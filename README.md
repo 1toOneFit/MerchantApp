@@ -25,10 +25,11 @@ Prices, stock, shipping and return terms are demo data from a mock API.
 | Decision | Instead of | Why |
 |---|---|---|
 | Clean Architecture + MVVM, `@Observable`, Swift 6 strict concurrency | TCA; `ObservableObject` + Combine | An architecture I can explain and extend live, with modern concurrency guarantees |
-| Protocol-first infrastructure (`APIClientType`, `AnalyticsTracking` + providers, repositories, `ExperimentService`) | Concrete singletons | Swap the HTTP stack or add an analytics vendor without touching callers |
+| Protocol-first infrastructure (`APIClientType`, `ImageLoading`, `AnalyticsTracking` + providers, repositories, `ExperimentService`) | Concrete singletons | Swap the HTTP stack or add an analytics vendor without touching callers |
 | `ServiceContainer` + per-scene Configurators | Pure init injection | Consistent with my established architecture; a test guards against missing registrations |
 | Moya-style `TargetType` over native `URLSession` | Alamofire | No dependency |
 | Server-side search, sort and pagination (verified to combine) | Client-side sorting | Never misrepresent the order of the whole catalog |
+| Lists download only summaries (`select`); details fetch `/products/{id}` when opened | Full products in every page | Most listed products are never opened; details always show fresh data |
 | Saved items as local snapshots | IDs only + refetch | Instant, offline Saved tab; details always refetch fresh data |
 | A small cancellable image loader (`.task(id:)` + `URLSession`, no cache) | `AsyncImage` | `AsyncImage` can't cancel or report its request; ours starts on appear, is cancelled on disappear (fast scrolling) and is unit-tested |
 
@@ -56,11 +57,11 @@ Against the release completion criteria of the original brief ([MasterSpecificat
 | Core journey, search, sorting, pagination, saved products, loading/error states | Met. Each acceptance criterion is covered by view-model or model tests where testable; rendering is checked manually. |
 | Coherent analytics and one reviewable experiment | Met. Every documented event is implemented, and a test keeps code and taxonomy equal. The experiment's assignment, exposure and metrics are documented. |
 | TDD for testable behaviors | Met. Each stage wrote failing tests first and recorded it in the review log; no live network in unit tests. |
-| Understandable documentation and a verified review trail | Met. An independent Codex review and my approval gate every stage ([review log](docs/ImplementationPlan.md#review-log)). |
+| Understandable documentation and a verified review trail | Met for S0–S6: an independent Codex review and my approval gated each stage ([review log](docs/ImplementationPlan.md#review-log)). S7's review is the last gate before release. |
 | No fabricated research, metrics, experiment outcomes or performance numbers | Met. Unverified platform behavior is labeled as expected. |
 | Current stable Xcode | **Not met.** Built with Xcode 26.0; the current release is 27.2, which needs a macOS update that didn't fit the assignment window. Opening in newer Xcode is expected to work but unverified. |
 
-**Known limitations:** image cancellation is unit-tested down to the request, while SwiftUI cancelling the task on disappear is Apple-documented and checked manually ([Networking.md § 4](docs/Networking.md#verification)); `URLError` codes outside the documented table count as "unknown", not "offline"; categories show as the API slug in words ("Mens Shirts"); sort labels are short ("Top rated"); details opened from Saved show the snapshot's price as "Price" under a "Saved information" note until the refresh arrives; an experiment override applies at the next launch.
+**Known limitations:** details opened from the catalog or search need a connection (offline they show the header with Retry; Saved shows its snapshot); image cancellation is unit-tested down to the request, while SwiftUI cancelling the task on disappear is Apple-documented and checked manually ([Networking.md § 4](docs/Networking.md#verification)); `URLError` codes outside the documented table count as "unknown", not "offline"; categories show as the API slug in words ("Mens Shirts"); sort labels are short ("Top rated"); details opened from Saved show the snapshot's price as "Price" under a "Saved information" note until the refresh arrives; an experiment override applies at the next launch.
 
 ## AI assistance
 
