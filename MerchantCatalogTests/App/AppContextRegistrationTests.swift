@@ -52,6 +52,17 @@ struct AppContextRegistrationTests {
         #expect(container.resolve() as (any ProductRepository)? != nil)
     }
 
+    /// The image loader is registered by its protocol, and the app puts that same instance into the
+    /// SwiftUI environment for `ProductImageView` (D-78).
+    @Test func imageLoaderIsRegisteredByProtocolAndExposed() throws {
+        let context = configure()
+
+        let resolved: (any ImageLoading)? = context.container.resolve()
+        let registered = try #require(resolved as? URLSessionImageLoader)
+        let exposed = try #require(context.imageLoader as? URLSessionImageLoader)
+        #expect(registered === exposed)
+    }
+
     /// Review finding 2: the saved repository is registered by its protocol, like every other
     /// infrastructure service (Architecture § 4).
     @Test func savedRepositoryIsRegisteredByProtocol() {
@@ -65,7 +76,7 @@ struct AppContextRegistrationTests {
         let directory = TemporaryDirectory()
         let context = AppContext.configure(defaults: store.defaults, appInfo: Self.appInfo, savedProductsDirectory: directory.url)
         let repository = try #require(context.container.resolve() as (any SavedProductsRepository)?)
-        let item = SavedProduct(product(3), savedAt: date("2026-11-13T10:00:00Z"))
+        let item = SavedProduct(summary: summary(3), savedAt: date("2026-11-13T10:00:00Z"))
 
         await repository.save([item])
         await context.savedProducts.load()

@@ -52,10 +52,11 @@ enum ProductSource: String, Sendable {
     case saved
 }
 
-/// What the details screen showed first (`content_origin`): the product the list loaded
-/// (Networking.md A7), or the saved snapshot (details opened from Saved, D-63).
+/// What `product_details_viewed` describes (`content_origin`): the full product from
+/// `/products/{id}` (details from the catalog or search, sent when it arrives, D-81), or the saved
+/// snapshot (details from Saved, sent at the first appearance, D-63).
 enum ContentOrigin: String, Sendable {
-    case list
+    case network
     case snapshot
 }
 

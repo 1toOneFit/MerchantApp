@@ -1,24 +1,9 @@
-/// What the details screen needs to open (D-62):
-/// - `list`: the product as the browse grid or search results loaded it (the list endpoint returns
-///   full products, Networking.md A7), and which list it came from;
-/// - `saved`: the saved snapshot, shown first while `/products/{id}` refreshes it
-///   (ProductSpecification § 4.3).
-enum ProductDetailRoute: Hashable {
-    /// `source`: `.catalog` or `.search`.
-    case list(Product, source: ProductSource)
-    case saved(SavedProduct)
-
-    var productID: Product.ID {
-        switch self {
-        case .list(let product, _): product.id
-        case .saved(let snapshot): snapshot.id
-        }
-    }
-
-    var source: ProductSource {
-        switch self {
-        case .list(_, let source): source
-        case .saved: .saved
-        }
-    }
+/// What the details screen needs to open (D-83): the product's id and where it was opened from.
+/// Details load the full product from `/products/{id}` and show a skeleton until it arrives; from
+/// Saved, a failed request falls back to the saved snapshot, which details find in the store by id
+/// (ProductSpecification § 4.3).
+struct ProductDetailRoute: Hashable {
+    let productID: Product.ID
+    /// `.catalog`, `.search` or `.saved`.
+    let source: ProductSource
 }

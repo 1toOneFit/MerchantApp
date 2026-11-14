@@ -20,7 +20,7 @@ struct DetailsAnalyticsEventTests {
             ["product_id": .int(1), "source": .string("catalog"), "position": .int(0), "sort": .string("default_order")]
         ),
         (
-            AnalyticsEvent.productDetailsViewed(productID: 1, source: .catalog, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, savedAt: nil, contentOrigin: .list),
+            AnalyticsEvent.productDetailsViewed(productID: 1, source: .catalog, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, savedAt: nil, contentOrigin: .network),
             "product_details_viewed",
             [
                 "product_id": .int(1),
@@ -30,11 +30,11 @@ struct DetailsAnalyticsEventTests {
                 "has_discount": .bool(true),
                 "image_count": .int(3),
                 "is_saved": .bool(false),
-                "content_origin": .string("list"),
+                "content_origin": .string("network"),
             ]
         ),
         (
-            AnalyticsEvent.productDetailsViewed(productID: 2, source: .search, category: nil, availability: nil, hasDiscount: false, imageCount: 1, savedAt: nil, contentOrigin: .list),
+            AnalyticsEvent.productDetailsViewed(productID: 2, source: .search, category: nil, availability: nil, hasDiscount: false, imageCount: 1, savedAt: nil, contentOrigin: .network),
             "product_details_viewed",
             [
                 "product_id": .int(2),
@@ -42,11 +42,11 @@ struct DetailsAnalyticsEventTests {
                 "has_discount": .bool(false),
                 "image_count": .int(1),
                 "is_saved": .bool(false),
-                "content_origin": .string("list"),
+                "content_origin": .string("network"),
             ]
         ),
         (
-            AnalyticsEvent.productDetailsViewed(productID: 3, source: .catalog, category: "groceries", availability: .inStock, hasDiscount: true, imageCount: 0, savedAt: nil, contentOrigin: .list),
+            AnalyticsEvent.productDetailsViewed(productID: 3, source: .catalog, category: "groceries", availability: .inStock, hasDiscount: true, imageCount: 0, savedAt: nil, contentOrigin: .network),
             "product_details_viewed",
             [
                 "product_id": .int(3),
@@ -56,11 +56,11 @@ struct DetailsAnalyticsEventTests {
                 "has_discount": .bool(true),
                 "image_count": .int(0),
                 "is_saved": .bool(false),
-                "content_origin": .string("list"),
+                "content_origin": .string("network"),
             ]
         ),
         (
-            AnalyticsEvent.productDetailsViewed(productID: 4, source: .catalog, category: "vehicle", availability: .outOfStock, hasDiscount: false, imageCount: 6, savedAt: date("2026-11-10T10:00:00Z"), contentOrigin: .list),
+            AnalyticsEvent.productDetailsViewed(productID: 4, source: .catalog, category: "vehicle", availability: .outOfStock, hasDiscount: false, imageCount: 6, savedAt: date("2026-11-10T10:00:00Z"), contentOrigin: .network),
             "product_details_viewed",
             [
                 "product_id": .int(4),
@@ -70,7 +70,7 @@ struct DetailsAnalyticsEventTests {
                 "has_discount": .bool(false),
                 "image_count": .int(6),
                 "is_saved": .bool(true),
-                "content_origin": .string("list"),
+                "content_origin": .string("network"),
             ]
         ),
         (

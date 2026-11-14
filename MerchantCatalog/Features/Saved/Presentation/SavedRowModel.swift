@@ -13,9 +13,9 @@ struct SavedRowModel: Identifiable, Equatable {
 
     init(_ item: SavedProduct, locale: Locale = .current, timeZone: TimeZone = .current) {
         id = item.id
-        title = item.title
-        thumbnailURL = item.thumbnailURL
-        priceWhenSaved = SavedProductFormat.priceWhenSaved(item.price, locale: locale)
+        title = item.summary.title
+        thumbnailURL = item.summary.thumbnailURL
+        priceWhenSaved = SavedProductFormat.priceWhenSaved(item.summary.price, locale: locale)
         savedDate = SavedProductFormat.savedDate(item.savedAt, locale: locale, timeZone: timeZone)
     }
 }

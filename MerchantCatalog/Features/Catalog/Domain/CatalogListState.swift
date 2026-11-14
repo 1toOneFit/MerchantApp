@@ -3,13 +3,13 @@
 ///
 /// Screen state, not a cache: it lives as long as the screen and is never persisted or shared.
 struct CatalogListState: Equatable, Sendable {
-    private(set) var items: [Product] = []
+    private(set) var items: [ProductSummary] = []
     /// Products in the whole result set, as the last page reported.
     private(set) var total = 0
     /// Offset of the next page: the raw count received so far, so dropped duplicates don't shift it.
     private(set) var nextSkip = 0
     private(set) var pagesLoaded = 0
-    private var ids: Set<Product.ID> = []
+    private var ids: Set<ProductSummary.ID> = []
     /// The last page was empty; asking again at the same offset would loop.
     private var lastPageWasEmpty = false
 

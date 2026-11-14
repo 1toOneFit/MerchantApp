@@ -36,6 +36,28 @@ enum ProductJSON {
     }
     """
 
+    /// A list item as the API sends it with `select=title,price,thumbnail,rating,category` (D-81).
+    static let summary = """
+    {
+      "id": 1,
+      "title": "Volume Mascara",
+      "price": 9.99,
+      "rating": 4.94,
+      "category": "beauty",
+      "thumbnail": "https://cdn.dummyjson.com/products/1/thumbnail.webp"
+    }
+    """
+
+    /// A list response with two copies of `summary` (ids 1 and 2).
+    static let summaryPage = """
+    {
+      "products": [\(summary), \(summary.replacingOccurrences(of: "\"id\": 1,", with: "\"id\": 2,"))],
+      "total": 194,
+      "skip": 40,
+      "limit": 2
+    }
+    """
+
     /// A list response with two copies of `product` (ids 1 and 2).
     static let page = """
     {

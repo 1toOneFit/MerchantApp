@@ -24,7 +24,7 @@ struct CatalogViewModelExperimentTests {
 
     /// Products `ids`, each rated `4 + id / 100`.
     private func ratedPage(_ ids: ClosedRange<Int>, total: Int, skip: Int) -> ProductPage {
-        let products = ids.map { makeProduct(id: $0, rating: 4 + Double($0) / 100) }
+        let products = ids.map { makeSummary(id: $0, rating: 4 + Double($0) / 100) }
         return ProductPage(products: products, total: total, skip: skip, limit: ids.count)
     }
 

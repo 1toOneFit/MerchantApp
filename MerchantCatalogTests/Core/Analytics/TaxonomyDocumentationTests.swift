@@ -4,7 +4,8 @@ import Testing
 
 /// `docs/Analytics.md` is the authoritative taxonomy. Every event there is a level-4 heading
 /// ``#### `event_name` `` followed by a `- **Status:**` line. Active events must equal
-/// `AnalyticsEventName` in code; Planned events must not exist in code yet.
+/// `AnalyticsEventName` in code; Planned events must not exist in code yet. Since release 1.0 (S7)
+/// every event is Active and events recorded as removed (§ 4) stay out of code.
 struct TaxonomyDocumentationTests {
     private struct DocumentedEvent {
         let name: String
@@ -40,6 +41,34 @@ struct TaxonomyDocumentationTests {
             return status.wholeMatch(of: /Active|Planned \(S[0-9]\)/) == nil
         }
         #expect(unrecognized.map(\.name) == [])
+    }
+
+    /// Release 1.0 (S7): the taxonomy is final, so every documented event is Active; an event that
+    /// isn't implemented is removed from § 3 and recorded as removed in § 4.
+    @Test func everyDocumentedEventIsActive() throws {
+        let events = try Self.documentedEvents()
+
+        #expect(events.filter { $0.status != "Active" }.map(\.name) == [])
+    }
+
+    /// Events recorded as removed in § 4 (rows whose decision starts with `**Removed`) stay out of code.
+    @Test func removedEventsStayOutOfCode() throws {
+        let root = try #require(RepositoryFiles.root(), "MerchantCatalog.xcodeproj not found above \(#filePath)")
+        let removed = Self.removedEvents(in: try RepositoryFiles.text(at: "docs/Analytics.md", root: root))
+
+        #expect(removed.contains("sort_options_opened"), "parser found \(removed)")
+        #expect(removed.isDisjoint(with: Self.codeNames))
+    }
+
+    /// Table rows ``| `name` | **Removed…`` → `name`.
+    private static func removedEvents(in text: String) -> Set<String> {
+        var names: Set<String> = []
+        for line in text.split(separator: "\n") {
+            if let match = line.firstMatch(of: /^\| `([a-z_]+)` \| \*\*Removed/) {
+                names.insert(String(match.1))
+            }
+        }
+        return names
     }
 
     private static func documentedEvents() throws -> [DocumentedEvent] {

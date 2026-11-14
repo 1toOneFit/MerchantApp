@@ -12,7 +12,7 @@ enum SavedProductsChange: Equatable, Sendable {
     func event(surface: SaveSurface, position: Int?) -> AnalyticsEvent {
         switch self {
         case .saved(let item, let countAfter):
-            .productSaved(productID: item.id, surface: surface, category: item.category, price: item.price, position: position, savedCountAfter: countAfter)
+            .productSaved(productID: item.id, surface: surface, category: item.summary.category, price: item.summary.price, position: position, savedCountAfter: countAfter)
         case .removed(let item, let savedDurationS, let countAfter):
             .productUnsaved(productID: item.id, surface: surface, savedDurationS: savedDurationS, savedCountAfter: countAfter)
         }
@@ -77,9 +77,9 @@ final class SavedProductsStore {
 
     /// Saves a snapshot of `product`, now; `nil` if it is already saved.
     @discardableResult
-    func save(_ product: Product) -> SavedProductsChange? {
+    func save(_ product: ProductSummary) -> SavedProductsChange? {
         guard !isSaved(product.id) else { return nil }
-        let snapshot = SavedProduct(product, savedAt: now())
+        let snapshot = SavedProduct(summary: product, savedAt: now())
         items.insert(snapshot, at: 0)
         didChange(product.id)
         return .saved(snapshot, countAfter: count)

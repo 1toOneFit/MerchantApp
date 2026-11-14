@@ -14,7 +14,7 @@ struct SavedViewModelTests {
     private let now = TestNow()
 
     private func saved(_ id: Int, at iso: String) -> SavedProduct {
-        SavedProduct(product(id), savedAt: date(iso))
+        SavedProduct(summary: summary(id), savedAt: date(iso))
     }
 
     private var items: [SavedProduct] {
@@ -31,7 +31,7 @@ struct SavedViewModelTests {
 
         #expect(viewModel.rows == items.map { SavedRowModel($0) })
 
-        store.save(product(9))
+        store.save(summary(9))
         #expect(viewModel.rows.map(\.id) == [9, 5, 2])
     }
 
@@ -62,7 +62,7 @@ struct SavedViewModelTests {
         viewModel.rowSelected(id: 2)
 
         #expect(analytics.events == [.productSelected(productID: 2, source: .saved, position: 1, sort: nil)])
-        #expect(router.path == [.productDetail(.saved(items[1]))])
+        #expect(router.path == [.productDetail(ProductDetailRoute(productID: items[1].id, source: .saved))])
     }
 
     @Test func unknownRowIsIgnored() async {

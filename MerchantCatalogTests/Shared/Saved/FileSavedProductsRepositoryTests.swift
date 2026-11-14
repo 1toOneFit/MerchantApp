@@ -21,21 +21,25 @@ struct FileSavedProductsRepositoryTests {
     }
 
     private static let lamp = SavedProduct(
-        id: 7,
-        title: "Desk Lamp",
-        thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/7/thumbnail.webp"),
-        price: Decimal(string: "9.99")!,
-        rating: 4.5,
-        category: "home-decoration",
+        summary: ProductSummary(
+            id: 7,
+            title: "Desk Lamp",
+            price: Decimal(string: "9.99")!,
+            thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/7/thumbnail.webp"),
+            rating: 4.5,
+            category: "home-decoration"
+        ),
         savedAt: date("2026-11-13T09:30:00Z") + 0.25
     )
     private static let watch = SavedProduct(
-        id: 3,
-        title: "Watch",
-        thumbnailURL: nil,
-        price: Decimal(string: "1899.99")!,
-        rating: nil,
-        category: nil,
+        summary: ProductSummary(
+            id: 3,
+            title: "Watch",
+            price: Decimal(string: "1899.99")!,
+            thumbnailURL: nil,
+            rating: nil,
+            category: nil
+        ),
         savedAt: date("2026-11-12T08:00:00Z")
     )
 
@@ -61,6 +65,17 @@ struct FileSavedProductsRepositoryTests {
         #expect(items.first?["id"] as? Int == 7)
         #expect(items.first?["price"] as? String == "9.99")
         #expect(items.first?["savedAt"] as? String == "2026-11-13T09:30:00.250Z")
+        // D-82 reshaped the type, not the file: the same flat fields as before.
+        #expect(Set(items.first?.keys ?? [:].keys) == ["id", "title", "thumbnailURL", "price", "rating", "category", "savedAt"])
+    }
+
+    /// A file written before D-82 (flat fields, version 1) loads into the summary-based type.
+    @Test func readsAFileWrittenBeforeTheSummaryShape() async throws {
+        try writeFile("""
+        {"version": 1, "items": [{"id": 7, "title": "Desk Lamp", "thumbnailURL": "https://cdn.dummyjson.com/products/7/thumbnail.webp", "price": "9.99", "rating": 4.5, "category": "home-decoration", "savedAt": "2026-11-13T09:30:00.250Z"}]}
+        """)
+
+        #expect(await makeRepository().load() == [Self.lamp])
     }
 
     @Test func saveReplacesPreviousContents() async {

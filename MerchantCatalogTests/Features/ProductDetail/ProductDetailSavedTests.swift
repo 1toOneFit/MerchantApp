@@ -2,10 +2,10 @@ import Foundation
 import Testing
 @testable import MerchantCatalog
 
-/// Details opened from Saved (ProductSpecification § 4.3, § 4.4; AC-D4): the snapshot first, then
-/// `/products/{id}`. A failure keeps the snapshot with a banner and Retry; a 404 says the product is
-/// no longer available; a different fresh price is pointed out. The stored snapshot never changes
-/// (D-67).
+/// Details opened from Saved (ProductSpecification § 4.3, § 4.4; AC-D4; D-83): opened by id, a
+/// skeleton until `/products/{id}` returns. A failure falls back to the saved snapshot from the store
+/// with a banner and Retry; a 404 says the product is no longer available; a different fresh price is
+/// pointed out. The stored snapshot never changes (D-67).
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProductDetailSavedTests {
@@ -15,12 +15,14 @@ struct ProductDetailSavedTests {
 
     private static let savedAt = date("2026-11-10T10:00:00Z")
     private static let snapshot = SavedProduct(
-        id: 1,
-        title: "Volume Mascara",
-        thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/1/thumbnail.webp"),
-        price: Decimal(string: "9.99")!,
-        rating: 4.94,
-        category: "beauty",
+        summary: ProductSummary(
+            id: 1,
+            title: "Volume Mascara",
+            price: Decimal(string: "9.99")!,
+            thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/1/thumbnail.webp"),
+            rating: 4.94,
+            category: "beauty"
+        ),
         savedAt: savedAt
     )
     private static let images = (1...3).compactMap { URL(string: "https://cdn.dummyjson.com/products/1/\($0).webp") }
@@ -40,7 +42,7 @@ struct ProductDetailSavedTests {
     }
 
     private func makeViewModel(store: SavedProductsStore) -> ProductDetailViewModel {
-        ProductDetailViewModel(route: .saved(Self.snapshot), repository: repository, savedProducts: store, analytics: analytics)
+        ProductDetailViewModel(route: ProductDetailRoute(productID: 1, source: .saved), repository: repository, savedProducts: store, analytics: analytics)
     }
 
     private func savedStore() async -> SavedProductsStore {
@@ -56,55 +58,54 @@ struct ProductDetailSavedTests {
         return viewModel
     }
 
-    @Test func savedRouteShowsTheSnapshotFirst() async {
+    private static let viewedFresh = AnalyticsEvent.productDetailsViewed(
+        productID: 1, source: .saved, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, savedAt: savedAt, contentOrigin: .network
+    )
+    private static let viewedSnapshot = AnalyticsEvent.productDetailsViewed(
+        productID: 1, source: .saved, category: "beauty", availability: nil, hasDiscount: nil, imageCount: nil, savedAt: savedAt, contentOrigin: .snapshot
+    )
+
+    /// D-83: opened by id, the skeleton shows first; the snapshot is found in the store, kept for a
+    /// failure and the price note.
+    @Test func savedRouteStartsWithTheSkeleton() async {
         let viewModel = makeViewModel(store: await savedStore())
 
-        #expect(viewModel.product == Self.snapshot.displayProduct)
-        #expect(viewModel.header == ProductDetailHeader(title: "Volume Mascara", brand: nil, category: "Beauty"))
-        #expect(viewModel.insights.pricing == [.price(Decimal(string: "9.99")!)])
-        #expect(viewModel.gallery.imageURLs.isEmpty)
-        #expect(viewModel.isShowingSnapshot)
+        #expect(viewModel.screen == .skeleton)
         #expect(viewModel.savedSnapshot == Self.snapshot)
-        #expect(viewModel.refresh == .idle)
+        #expect(!viewModel.isShowingSnapshot)
+        #expect(viewModel.statusMessage == nil)
+        #expect(viewModel.load == .idle)
         #expect(repository.productRequests.isEmpty)
+        #expect(analytics.events.isEmpty)
     }
 
-    /// D-63: from Saved, the event describes the snapshot.
-    @Test func savedRouteViewedEventUsesTheSnapshot() async {
-        let viewModel = makeViewModel(store: await savedStore())
-
-        viewModel.contentAppeared()
-
-        #expect(analytics.events == [
-            .productDetailsViewed(productID: 1, source: .saved, category: "beauty", availability: nil, hasDiscount: nil, imageCount: nil, savedAt: Self.savedAt, contentOrigin: .snapshot),
-        ])
-    }
-
-    @Test func refreshReplacesTheSnapshot() async {
+    @Test func loadShowsTheFullProductAndReportsTheView() async {
         let viewModel = makeViewModel(store: await savedStore())
         repository.enqueueProduct(.success(Self.fresh()))
 
         await viewModel.start()
 
         #expect(repository.productRequests == [1])
-        #expect(viewModel.refresh == .refreshed)
-        #expect(viewModel.product == Self.fresh())
+        #expect(viewModel.load == .loaded)
+        #expect(viewModel.screen == .content(Self.fresh()))
         #expect(viewModel.gallery.imageURLs == Self.images)
         #expect(!viewModel.isShowingSnapshot)
         #expect(viewModel.savedPriceIfChanged == nil)
-        #expect(analytics.events.isEmpty)
+        #expect(analytics.events == [Self.viewedFresh])
     }
 
-    @Test func refreshIsLoadingWhileInFlight() async {
+    @Test func skeletonWhileLoading() async {
         let viewModel = makeViewModel(store: await savedStore())
         let start = Task { await viewModel.start() }
         await repository.waitForPendingProductRequests(1)
 
-        #expect(viewModel.refresh == .loading)
+        #expect(viewModel.load == .loading)
+        #expect(viewModel.screen == .skeleton)
+        #expect(viewModel.statusMessage == nil)
 
         repository.resumeNextProduct(with: .success(Self.fresh()))
         await start.value
-        #expect(viewModel.refresh == .refreshed)
+        #expect(viewModel.load == .loaded)
     }
 
     @Test func priceChangeIsReported() async {
@@ -116,17 +117,33 @@ struct ProductDetailSavedTests {
         #expect(viewModel.savedPriceIfChanged == Decimal(string: "9.99"))
     }
 
-    /// AC-D4: offline, the snapshot stays with the refresh-failed banner.
-    @Test func refreshFailureKeepsTheSnapshot() async {
+    /// AC-D4: offline, the snapshot from the store shows with the refresh-failed banner, and that
+    /// is the view (offline revisits keep counting, D-64).
+    @Test func failureFallsBackToTheSnapshot() async {
         let viewModel = makeViewModel(store: await savedStore())
         repository.enqueueProduct(.failure(AppError.offline))
 
         await viewModel.start()
 
-        #expect(viewModel.refresh == .failed(.offline))
+        #expect(viewModel.load == .failed(.offline))
         #expect(viewModel.isShowingSnapshot)
-        #expect(viewModel.product == Self.snapshot.displayProduct)
-        #expect(analytics.events == [.productDetailsLoadFailed(productID: 1, source: .saved, error: .offline, showingSnapshot: true)])
+        #expect(viewModel.screen == .content(Self.snapshot.displayProduct))
+        #expect(viewModel.statusMessage == "Couldn't refresh — showing saved info")
+        #expect(analytics.events == [
+            .productDetailsLoadFailed(productID: 1, source: .saved, error: .offline, showingSnapshot: true),
+            Self.viewedSnapshot,
+        ])
+    }
+
+    /// Unsaved meanwhile: no snapshot to fall back on, so the error shows as from a list.
+    @Test func withoutASnapshotTheErrorShows() async {
+        let viewModel = makeViewModel(store: await loadedSavedStore(now: now.now))
+        repository.enqueueProduct(.failure(AppError.offline))
+
+        await viewModel.start()
+
+        #expect(viewModel.screen == .failed(.offline))
+        #expect(analytics.events == [.productDetailsLoadFailed(productID: 1, source: .saved, error: .offline, showingSnapshot: false)])
     }
 
     @Test func retryTracksAndRefetches() async {
@@ -134,12 +151,12 @@ struct ProductDetailSavedTests {
         repository.enqueueProduct(.success(Self.fresh()))
 
         viewModel.retry()
-        #expect(viewModel.refresh == .loading)
+        #expect(viewModel.load == .loading)
         await viewModel.retryTask?.value
 
         #expect(analytics.events == [.retryRequested(failedSurface: .details, error: .offline)])
         #expect(repository.productRequests == [1, 1])
-        #expect(viewModel.refresh == .refreshed)
+        #expect(viewModel.load == .loaded)
     }
 
     @Test func failedRetryReportsAgain() async {
@@ -153,7 +170,7 @@ struct ProductDetailSavedTests {
             .retryRequested(failedSurface: .details, error: .offline),
             .productDetailsLoadFailed(productID: 1, source: .saved, error: .timeout, showingSnapshot: true),
         ])
-        #expect(viewModel.refresh == .failed(.timeout))
+        #expect(viewModel.load == .failed(.timeout))
     }
 
     /// A 404 (A6) is final: "no longer available", no Retry, the snapshot stays.
@@ -164,9 +181,13 @@ struct ProductDetailSavedTests {
         await viewModel.start()
         viewModel.retry()
 
-        #expect(viewModel.refresh == .unavailable)
+        #expect(viewModel.load == .unavailable)
         #expect(viewModel.isShowingSnapshot)
-        #expect(analytics.events == [.productDetailsLoadFailed(productID: 1, source: .saved, error: .notFound, showingSnapshot: true)])
+        #expect(viewModel.statusMessage == AppError.notFound.userMessage)
+        #expect(analytics.events == [
+            .productDetailsLoadFailed(productID: 1, source: .saved, error: .notFound, showingSnapshot: true),
+            Self.viewedSnapshot,
+        ])
         #expect(repository.productRequests == [1])
     }
 
@@ -180,12 +201,12 @@ struct ProductDetailSavedTests {
         repository.resumeNextProduct(with: .failure(CancellationError()))
         await start.value
 
-        #expect(viewModel.refresh == .idle)
+        #expect(viewModel.load == .idle)
         #expect(analytics.events.isEmpty)
 
         repository.enqueueProduct(.success(Self.fresh()))
         await viewModel.start()
-        #expect(viewModel.refresh == .refreshed)
+        #expect(viewModel.load == .loaded)
     }
 
     /// Review finding 1: the response arrives after the screen's task was cancelled. Cancellation
@@ -199,9 +220,8 @@ struct ProductDetailSavedTests {
         repository.resumeNextProduct(with: .success(Self.fresh(price: "12.49")))
         await start.value
 
-        #expect(viewModel.refresh == .idle)
-        #expect(viewModel.product == Self.snapshot.displayProduct)
-        #expect(viewModel.isShowingSnapshot)
+        #expect(viewModel.load == .idle)
+        #expect(viewModel.screen == .skeleton)
         #expect(analytics.events.isEmpty)
     }
 
@@ -215,8 +235,8 @@ struct ProductDetailSavedTests {
         repository.resumeNextProduct(with: .success(Self.fresh(price: "12.49")))
         await viewModel.retryTask?.value
 
-        #expect(viewModel.refresh != .refreshed)
-        #expect(viewModel.product == Self.snapshot.displayProduct)
+        #expect(viewModel.load != .loaded)
+        #expect(viewModel.screen == .content(Self.snapshot.displayProduct))
         #expect(analytics.events == [.retryRequested(failedSurface: .details, error: .offline)])
     }
 
@@ -267,15 +287,7 @@ struct ProductDetailSavedTests {
         now.advance(by: 60)
         viewModel.saveToggled()
 
-        let resaved = SavedProduct(
-            id: 1,
-            title: Self.snapshot.title,
-            thumbnailURL: Self.snapshot.thumbnailURL,
-            price: Self.snapshot.price,
-            rating: Self.snapshot.rating,
-            category: Self.snapshot.category,
-            savedAt: now.date
-        )
+        let resaved = SavedProduct(summary: Self.snapshot.summary, savedAt: now.date)
         #expect(store.items == [resaved])
         #expect(viewModel.isSaved)
     }

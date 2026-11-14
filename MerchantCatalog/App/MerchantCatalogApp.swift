@@ -16,6 +16,8 @@ struct MerchantCatalogApp: App {
     var body: some Scene {
         WindowGroup {
             AppTabView(container: context.container, savedProducts: context.savedProducts)
+                // Every `ProductImageView` loads through the registered loader (D-78).
+                .environment(\.imageLoader, context.imageLoader)
                 // Reads the saved list once, off the main actor (Architecture § 9).
                 .task { await context.savedProducts.load() }
         }

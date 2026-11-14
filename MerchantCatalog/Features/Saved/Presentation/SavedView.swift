@@ -38,6 +38,7 @@ struct SavedView: View {
             } actions: {
                 Button("Browse catalog") { viewModel.browseCatalogTapped() }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
         case .content:
             List {

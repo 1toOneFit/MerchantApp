@@ -29,7 +29,7 @@ final class URLSessionAPIClient: APIClientType {
         let request = try Self.makeRequest(for: target, delay: delay.value)
         let id = NetworkLogger.makeRequestID()
         let start = ContinuousClock.now
-        NetworkLogger.started(request, id: id)
+        NetworkLogger.started(request, id: id, style: .detailed)
 
         let data: Data
         let response: URLResponse
@@ -38,20 +38,20 @@ final class URLSessionAPIClient: APIClientType {
         } catch {
             let latency = start.duration(to: .now)
             if Self.isCancellation(error) {
-                NetworkLogger.cancelled(id: id, latency: latency)
+                NetworkLogger.cancelled(request, id: id, latency: latency, style: .detailed)
                 throw CancellationError()
             }
             let appError = (error as? URLError).map(Self.appError(for:)) ?? .unknown
-            NetworkLogger.failed(id: id, error: appError, cause: NetworkLogger.summary(of: error), latency: latency)
+            NetworkLogger.failed(request, id: id, error: appError, cause: NetworkLogger.summary(of: error), latency: latency, style: .detailed)
             throw appError
         }
 
         let latency = start.duration(to: .now)
         guard let http = response as? HTTPURLResponse else {
-            NetworkLogger.failed(id: id, error: .unknown, cause: "not an HTTP response", latency: latency)
+            NetworkLogger.failed(request, id: id, error: .unknown, cause: "not an HTTP response", latency: latency, style: .detailed)
             throw AppError.unknown
         }
-        NetworkLogger.received(id: id, status: http.statusCode, latency: latency, bytes: data.count)
+        NetworkLogger.received(request, response: http, body: data, id: id, latency: latency, style: .detailed)
         if let error = Self.appError(forStatus: http.statusCode) {
             throw error
         }
@@ -59,7 +59,7 @@ final class URLSessionAPIClient: APIClientType {
         do {
             return try decoder.decode(Response.self, from: data)
         } catch {
-            NetworkLogger.failed(id: id, error: .decoding, cause: NetworkLogger.summary(of: error), latency: latency)
+            NetworkLogger.failed(request, id: id, error: .decoding, cause: NetworkLogger.summary(of: error), latency: latency, style: .detailed)
             throw AppError.decoding
         }
     }
@@ -93,12 +93,13 @@ final class URLSessionAPIClient: APIClientType {
         return request
     }
 
-    private static func isCancellation(_ error: any Error) -> Bool {
+    /// Also used by `URLSessionImageLoader`.
+    static func isCancellation(_ error: any Error) -> Bool {
         error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
     /// Transport errors (Networking.md § 2); codes outside the table are `.unknown` (D-43).
-    private static func appError(for error: URLError) -> AppError {
+    static func appError(for error: URLError) -> AppError {
         switch error.code {
         case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed: .offline
         case .timedOut: .timeout
@@ -107,7 +108,7 @@ final class URLSessionAPIClient: APIClientType {
     }
 
     /// `nil` for 2xx; otherwise the status's error.
-    private static func appError(forStatus status: Int) -> AppError? {
+    static func appError(forStatus status: Int) -> AppError? {
         switch status {
         case 200..<300: nil
         case 404: .notFound

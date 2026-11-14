@@ -15,6 +15,39 @@ struct ProductDTOTests {
         return try JSONDecoder().decode(ProductDTO.self, from: data).toDomain()
     }
 
+    /// A list item has only the selected fields and maps to a `ProductSummary`, never to a
+    /// `Product` that would look like a product without details (D-81).
+    @Test func summaryDecodesTheSelectedFields() throws {
+        let summary = try JSONDecoder().decode(ProductSummaryDTO.self, from: Data(ProductJSON.summary.utf8)).toDomain()
+
+        #expect(summary == ProductSummary(
+            id: 1,
+            title: "Volume Mascara",
+            price: Decimal(string: "9.99")!,
+            thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/1/thumbnail.webp"),
+            rating: 4.94,
+            category: "beauty"
+        ))
+    }
+
+    @Test func summaryMapsMissingAndBlankFieldsToNil() throws {
+        let json = #"{"id": 3, "title": "Lamp", "price": 5, "category": "  ", "thumbnail": "https:foo"}"#
+
+        let summary = try JSONDecoder().decode(ProductSummaryDTO.self, from: Data(json.utf8)).toDomain()
+
+        #expect(summary.category == nil)
+        #expect(summary.thumbnailURL == nil)
+        #expect(summary.rating == nil)
+    }
+
+    /// A full list item (as before `select`) still decodes as a summary of the same values.
+    @Test func fullItemDecodesAsTheSameSummary() throws {
+        let full = try JSONDecoder().decode(ProductSummaryDTO.self, from: Data(ProductJSON.product.utf8)).toDomain()
+        let slim = try JSONDecoder().decode(ProductSummaryDTO.self, from: Data(ProductJSON.summary.utf8)).toDomain()
+
+        #expect(full == slim)
+    }
+
     @Test func decodesProductFixture() throws {
         let product = try JSONDecoder().decode(ProductDTO.self, from: Data(ProductJSON.product.utf8)).toDomain()
 
@@ -186,7 +219,7 @@ struct ProductDTOTests {
     }
 
     @Test func pageMapping() throws {
-        let page = try JSONDecoder().decode(ProductListResponseDTO.self, from: Data(ProductJSON.page.utf8)).toDomain()
+        let page = try JSONDecoder().decode(ProductListResponseDTO.self, from: Data(ProductJSON.summaryPage.utf8)).toDomain()
 
         #expect(page.products.map(\.id) == [1, 2])
         #expect(page.total == 194)

@@ -15,7 +15,7 @@ struct ProductCardModel: Identifiable, Equatable {
     /// `rating` with one fraction digit, e.g. "4.9" (D-71).
     let ratingText: String?
 
-    init(product: Product, variant: ExperimentVariant, locale: Locale = .current) {
+    init(product: ProductSummary, variant: ExperimentVariant, locale: Locale = .current) {
         let rating = variant == .treatment ? product.rating : nil
         self.init(
             id: product.id,

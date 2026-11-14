@@ -125,11 +125,11 @@ private struct ItemDTO: Codable {
 
     init(_ item: SavedProduct) {
         id = item.id
-        title = item.title
-        thumbnailURL = item.thumbnailURL?.absoluteString
-        price = item.price.description
-        rating = item.rating
-        category = item.category
+        title = item.summary.title
+        thumbnailURL = item.summary.thumbnailURL?.absoluteString
+        price = item.summary.price.description
+        rating = item.summary.rating
+        category = item.summary.category
         savedAt = item.savedAt.formatted(Self.dateStyle)
     }
 
@@ -138,12 +138,14 @@ private struct ItemDTO: Codable {
             throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "price"))
         }
         return SavedProduct(
-            id: id,
-            title: title,
-            thumbnailURL: thumbnailURL.flatMap { URL(string: $0) },
-            price: price,
-            rating: rating,
-            category: category,
+            summary: ProductSummary(
+                id: id,
+                title: title,
+                price: price,
+                thumbnailURL: thumbnailURL.flatMap { URL(string: $0) },
+                rating: rating,
+                category: category
+            ),
             savedAt: try Date(savedAt, strategy: Self.dateStyle)
         )
     }

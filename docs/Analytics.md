@@ -1,6 +1,6 @@
 # Analytics — Event Taxonomy and User Properties
 
-**Status:** Approved by the developer (2026-11-13). This file is the **single authoritative taxonomy**. Code and this file must match: `TaxonomyDocumentationTests` fails if an `AnalyticsEvent` case has no matching level-4 heading ``#### `event_name` `` here, or such a heading has no case in code. Each event has a `Status` line: **Planned (S<n>)** until the stage that implements it switches it to **Active** in the same commit as the code; the test compares only Active events with code.
+**Status:** Approved by the developer (2026-11-13). This file is the **single authoritative taxonomy**. Code and this file must match: `TaxonomyDocumentationTests` fails if an `AnalyticsEvent` case has no matching level-4 heading ``#### `event_name` `` here, or such a heading has no case in code. Each event has a `Status` line: during development it was **Planned (S<n>)** until the stage that implemented it switched it to **Active** in the same commit as the code. **As of release 1.0 (S7) the taxonomy is final: every event in § 3 is Active**, and candidates that were not implemented are recorded in § 4 (`sort_options_opened` as removed). The test also fails if an event is not Active or a removed event appears in code.
 
 ## 1. Principles
 
@@ -196,16 +196,16 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 #### `product_details_viewed`
 - **Status:** Active
 - **Meaning:** product details were shown to the user.
-- **Trigger:** details content first displayed for a navigation push: the details screen's first appearance (D-59).
-- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (omitted when unknown); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (whether the product is saved when details appear); `content_origin` `list` | `snapshot`: `list` when opened from a list (the list's product, Networking.md A7), `snapshot` when opened from Saved (the saved snapshot shows first, then `/products/{id}` refreshes it). With `snapshot`, `availability`, `has_discount` and `image_count` are omitted: the snapshot doesn't have them (D-63). There is no `network` value: the fresh data never shows first.
+- **Trigger:** product content first shown for a navigation push (D-83): details open by id with a skeleton, so the event fires when `/products/{id}` returns the full product, from any source; from Saved, when that request fails and the saved snapshot shows instead (so offline revisits count, D-64). None while only the skeleton shows, or if the user leaves first.
+- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (omitted when unknown); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (whether the product is saved when details appear); `content_origin` `network` | `snapshot`: `network` when the full product from `/products/{id}` shows (any source), `snapshot` when Saved's request failed and the saved snapshot shows. With `snapshot`, `availability`, `has_discount` and `image_count` are omitted: the snapshot doesn't have them (D-63). The former `list` value is gone: list pages carry only summaries (D-81).
 - **Note:** `AnalyticsService` follows it with `saved_product_revisited` when the product was saved before the current session (D-64); the event carries the save date for that, but sends only `is_saved`.
 - **Screen:** Product details. **Dedup:** once per push: tab switches and returning to the screen don't re-send; a new push does. **Privacy:** none.
 
 #### `product_details_load_failed`
 - **Status:** Active
-- **Meaning:** fresh product data could not be loaded for the details screen.
-- **Trigger:** `/products/{id}` request fails (Saved → details, or Retry); cancellations (leaving the screen) excluded.
-- **Properties:** `product_id` Int; `source`; `error_type` (`not_found` when the product is gone: the screen keeps the snapshot and says it is no longer available, without Retry, D-67); `showing_snapshot` Bool (the snapshot stays on screen).
+- **Meaning:** the full product could not be loaded for the details screen.
+- **Trigger:** the details screen's `/products/{id}` request fails (any source since D-81, or its Retry); cancellations (leaving the screen) excluded.
+- **Properties:** `product_id` Int; `source`; `error_type` (`not_found` when the product is gone: the screen keeps the snapshot and says it is no longer available, without Retry, D-67); `showing_snapshot` Bool (`true` from Saved when the snapshot shows instead, followed by `product_details_viewed` with `content_origin: snapshot` the first time; `false` otherwise: a full-screen error with Retry, D-83).
 - **Note:** the banner's Retry sends `retry_requested` (`failed_surface: details`).
 - **Screen:** Product details. **Dedup:** once per failed request. **Privacy:** none.
 

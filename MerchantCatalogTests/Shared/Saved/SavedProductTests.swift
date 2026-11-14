@@ -7,52 +7,29 @@ import Testing
 struct SavedProductTests {
     private static let savedAt = date("2026-11-13T10:00:00Z")
 
-    @Test func snapshotKeepsTheSpecFields() {
-        let source = makeProduct(
-            id: 7,
-            title: "Desk Lamp",
-            price: Decimal(string: "24.99"),
-            brand: "Acme",
-            availability: .lowStock,
-            imageURLs: [URL(string: "https://cdn.dummyjson.com/products/7/1.webp")!],
-            category: "home-decoration",
-            rating: 4.5,
-            discountPercentage: 3
-        )
+    private static let summary = ProductSummary(
+        id: 7,
+        title: "Desk Lamp",
+        price: Decimal(string: "24.99")!,
+        thumbnailURL: URL(string: "https://example.com/7.webp"),
+        rating: 4.5,
+        category: "home-decoration"
+    )
 
-        let saved = SavedProduct(source, savedAt: Self.savedAt)
+    /// A saved product is the very summary that goes from a list to details, plus when it was saved
+    /// (D-82): opening it from Saved hands details the same piece of data.
+    @Test func snapshotIsTheSummaryPlusTheSaveDate() {
+        let saved = SavedProduct(summary: Self.summary, savedAt: Self.savedAt)
 
-        #expect(saved == SavedProduct(
-            id: 7,
-            title: "Desk Lamp",
-            thumbnailURL: URL(string: "https://cdn.dummyjson.com/products/7/thumbnail.webp"),
-            price: Decimal(string: "24.99")!,
-            rating: 4.5,
-            category: "home-decoration",
-            savedAt: Self.savedAt
-        ))
+        #expect(saved.summary == Self.summary)
+        #expect(saved.id == 7)
+        #expect(saved.savedAt == Self.savedAt)
     }
 
-    /// Details show a snapshot as a product with only the snapshot's facts (D-67): no gallery, brand
-    /// or availability.
-    @Test func displayProductCarriesOnlySnapshotFields() {
-        let saved = SavedProduct(
-            id: 7,
-            title: "Desk Lamp",
-            thumbnailURL: URL(string: "https://example.com/7.webp"),
-            price: Decimal(string: "24.99")!,
-            rating: 4.5,
-            category: "home-decoration",
-            savedAt: Self.savedAt
-        )
+    /// Details show a snapshot like a summary: only its facts, no gallery, brand or availability (D-67).
+    @Test func displayProductIsTheSummarysDisplayProduct() {
+        let saved = SavedProduct(summary: Self.summary, savedAt: Self.savedAt)
 
-        #expect(saved.displayProduct == makeProduct(
-            id: 7,
-            title: "Desk Lamp",
-            price: Decimal(string: "24.99"),
-            thumbnailURL: URL(string: "https://example.com/7.webp"),
-            category: "home-decoration",
-            rating: 4.5
-        ))
+        #expect(saved.displayProduct == Self.summary.displayProduct)
     }
 }

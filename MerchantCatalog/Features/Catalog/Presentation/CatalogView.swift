@@ -17,6 +17,9 @@ struct CatalogView: View {
 
     @State private var viewModel: CatalogViewModel
     @State private var isSearchPresented = false
+    /// The search field's keyboard focus, separate from `isSearchPresented`: dropping focus puts the
+    /// keyboard away and keeps the search (query, results, sort); only Cancel ends it (D-79).
+    @FocusState private var isSearchFocused: Bool
 
     init(viewModel: CatalogViewModel, isTabSelected: Bool) {
         _viewModel = State(initialValue: viewModel)
@@ -26,12 +29,12 @@ struct CatalogView: View {
     var body: some View {
         let isShowingSearch = viewModel.searchList != nil
         ZStack {
-            CatalogListView(content: viewModel.browseList, context: .browse, viewModel: viewModel, clearSearch: clearSearch)
+            CatalogListView(content: viewModel.browseList, context: .browse, viewModel: viewModel, clearSearch: clearSearch, dismissKeyboard: dismissKeyboard)
                 .opacity(isShowingSearch ? 0 : 1)
                 .allowsHitTesting(!isShowingSearch)
                 .accessibilityHidden(isShowingSearch)
             if let searchList = viewModel.searchList {
-                CatalogListView(content: searchList, context: .search, viewModel: viewModel, clearSearch: clearSearch)
+                CatalogListView(content: searchList, context: .search, viewModel: viewModel, clearSearch: clearSearch, dismissKeyboard: dismissKeyboard)
             }
         }
         .navigationTitle("Catalog")
@@ -42,6 +45,9 @@ struct CatalogView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: "Search products"
         )
+        .searchFocused($isSearchFocused)
+        // The keyboard's Search key puts the keyboard away; the debounce still decides when to search.
+        .onSubmit(of: .search) { dismissKeyboard() }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 CatalogSortMenu(sort: viewModel.sort) { viewModel.sortSelected($0) }
@@ -70,6 +76,16 @@ struct CatalogView: View {
     }
 
     /// The no-results state's Clear search: back to browse, and the search field is dismissed.
+    /// Puts the search keyboard away, animated, without ending the search (D-79): only the field's
+    /// focus changes, never `isSearchPresented`. Called by the Search key and when the user starts
+    /// scrolling a grid.
+    private func dismissKeyboard() {
+        guard isSearchFocused else { return }
+        withAnimation {
+            isSearchFocused = false
+        }
+    }
+
     private func clearSearch() {
         viewModel.clearSearch()
         isSearchPresented = false
@@ -82,6 +98,7 @@ private struct CatalogListView: View {
     let context: ListContext
     let viewModel: CatalogViewModel
     let clearSearch: () -> Void
+    let dismissKeyboard: () -> Void
 
     var body: some View {
         switch content.phase {
@@ -91,7 +108,7 @@ private struct CatalogListView: View {
             // A new list (sort change, new query, Retry, Reload) gets a new grid, and a new scroll
             // view starts at the top. A page 1 shows the skeleton in between, which replaces the
             // grid too; the identity makes the reset independent of that frame being drawn.
-            CatalogGrid(cards: content.cards, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel)
+            CatalogGrid(cards: content.cards, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel, dismissKeyboard: dismissKeyboard)
                 .id(content.listID)
         case .empty:
             ContentUnavailableView {
@@ -101,6 +118,7 @@ private struct CatalogListView: View {
             } actions: {
                 Button("Reload") { viewModel.reload() }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
         case .noResults(let query):
             ContentUnavailableView {
@@ -110,6 +128,7 @@ private struct CatalogListView: View {
             } actions: {
                 Button("Clear search", action: clearSearch)
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
         case .failed(let error):
             ContentUnavailableView {
@@ -122,6 +141,7 @@ private struct CatalogListView: View {
             } actions: {
                 Button("Retry") { viewModel.retry() }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
         }
     }
@@ -149,25 +169,19 @@ private struct CatalogSortMenu: View {
     }
 }
 
-/// Two flexible columns (ProductSpecification § 2).
-private enum CatalogLayout {
-    static let columns = [
-        GridItem(.flexible(), spacing: 12, alignment: .top),
-        GridItem(.flexible(), spacing: 12, alignment: .top),
-    ]
-    static let rowSpacing: CGFloat = 20
-}
-
 private struct CatalogGrid: View {
     let cards: [ProductCardModel]
     let context: ListContext
     let footer: CatalogFooter
     let refreshError: AppError?
     let viewModel: CatalogViewModel
+    let dismissKeyboard: () -> Void
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
+            LazyVGrid(columns: CatalogLayout.columns(for: dynamicTypeSize), spacing: CatalogLayout.rowSpacing) {
                 ForEach(cards) { card in
                     let isSaved = viewModel.isSaved(card.id)
                     // The save button is a sibling over the thumbnail's corner, not nested in the
@@ -202,6 +216,15 @@ private struct CatalogGrid: View {
             CatalogFooterView(footer: footer) { viewModel.retryPage() }
                 .padding()
         }
+        // Starting to scroll (a finger drag, either direction) puts the search keyboard away,
+        // animated; the search stays (D-79). The system's own dismissal is off so this is the only
+        // path (the developer saw `.immediately` hide it without animation).
+        .scrollDismissesKeyboard(.never)
+        .onScrollPhaseChange { _, newPhase in
+            if newPhase == .interacting {
+                dismissKeyboard()
+            }
+        }
         .refreshable { await viewModel.refresh() }
         .safeAreaInset(edge: .top) {
             if let refreshError {
@@ -232,6 +255,7 @@ private struct CatalogFooterView: View {
                     .multilineTextAlignment(.center)
                 Button("Retry", action: retry)
                     .buttonStyle(.bordered)
+                    .controlSize(.large)
             }
         case .end:
             Text("You've reached the end")
@@ -245,9 +269,11 @@ private struct CatalogFooterView: View {
 private struct CatalogSkeletonGrid: View {
     private let cards = (0..<8).map(ProductCardModel.placeholder)
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: CatalogLayout.columns, spacing: CatalogLayout.rowSpacing) {
+            LazyVGrid(columns: CatalogLayout.columns(for: dynamicTypeSize), spacing: CatalogLayout.rowSpacing) {
                 ForEach(cards) { card in
                     ProductCardView(card: card)
                 }

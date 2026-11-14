@@ -1,6 +1,7 @@
-/// One page of a product list, with the server's pagination fields (Networking.md A1).
+/// One page of a product list, with the server's pagination fields (Networking.md A1). List pages
+/// carry summaries; details fetch the full product (D-81).
 struct ProductPage: Equatable, Sendable {
-    let products: [Product]
+    let products: [ProductSummary]
     /// Products in the whole result set.
     let total: Int
     /// Offset of the first product in this page.

@@ -33,7 +33,7 @@ struct CatalogViewModelSelectionTests {
     }
 
     private func detail(_ id: Int, _ source: ProductSource) -> Route {
-        .productDetail(.list(product(id), source: source))
+        .productDetail(ProductDetailRoute(productID: id, source: source))
     }
 
     @Test func selectingABrowseCardTracksAndPushes() async {
