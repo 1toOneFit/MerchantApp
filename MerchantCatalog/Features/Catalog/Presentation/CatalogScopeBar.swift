@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// "All products" | "Needs attention" with its count, at the top of the list on screen (D-85). The
-/// count is the loaded products that are low or out of stock. Two chips side by side, stacked when
-/// they don't fit (large text). Each is at least 44 pt tall (D-76) and has a stable identifier for
-/// UI tests.
+/// "All products" | "Needs attention" with its count, pinned at the top of the list on screen (D-85,
+/// D-90). The count is the loaded products that are low or out of stock. Two chips side by side,
+/// stacked when they don't fit (large text). Each is at least 44 pt tall (D-76) and has a stable
+/// identifier for UI tests.
 struct CatalogScopeBar: View {
     let scope: CatalogScope
     let attentionCount: Int
@@ -75,15 +75,15 @@ struct NoAttentionView: View {
         ContentUnavailableView(
             "Nothing needs attention",
             systemImage: "checkmark.circle",
-            description: Text("None of the loaded products is low or out of stock.")
+            description: Text("None of the checked products is low or out of stock.")
         )
         .accessibilityIdentifier("catalog.noAttention")
     }
 }
 
-/// The row under the Needs attention grid: what the count is based on, and the way to look at more
-/// products. Pages don't load as cards appear in this scope (D-85), so more products load only from
-/// "Load more products"; a failed page keeps its Retry.
+/// The row under the Needs attention grid: how many products the count has checked ("Checked 120 of
+/// 194 products."), and the way to check more. Pages don't load as cards appear in this scope
+/// (D-85), so more products load only from "Check 20 more products"; a failed page keeps its Retry.
 struct AttentionFooterView: View {
     let footer: CatalogFooter
     let coverage: AttentionCoverage
@@ -99,7 +99,7 @@ struct AttentionFooterView: View {
                 .accessibilityIdentifier("catalog.attentionCoverage")
             switch footer {
             case .idle:
-                Button("Load more products", action: loadMore)
+                Button(CatalogCopy.checkMoreButton(coverage, pageSize: CatalogViewModel.pageSize), action: loadMore)
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                     .accessibilityIdentifier("catalog.loadMore")

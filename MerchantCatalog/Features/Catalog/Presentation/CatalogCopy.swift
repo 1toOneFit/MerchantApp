@@ -5,11 +5,19 @@ enum CatalogCopy {
         "No products match \"\(query)\""
     }
 
-    /// What the Needs attention count is based on: only the products loaded so far (D-85).
+    /// How much of the list the Needs attention count has checked: only the products loaded so far
+    /// (D-85), e.g. "Checked 120 of 194 products."
     static func attentionCoverage(_ coverage: AttentionCoverage) -> String {
         guard coverage.isComplete else {
-            return "Based on \(coverage.loaded) of \(coverage.total) products loaded so far."
+            return "Checked \(coverage.loaded) of \(coverage.total) products."
         }
-        return coverage.loaded == 1 ? "Based on the 1 product." : "Based on all \(coverage.loaded) products."
+        return coverage.loaded == 1 ? "Checked 1 product." : "Checked all \(coverage.loaded) products."
+    }
+
+    /// The Needs attention footer's button: how many more products the next page checks, a full page
+    /// or what is left of the list.
+    static func checkMoreButton(_ coverage: AttentionCoverage, pageSize: Int) -> String {
+        let next = max(1, min(pageSize, coverage.remaining))
+        return next == 1 ? "Check 1 more product" : "Check \(next) more products"
     }
 }

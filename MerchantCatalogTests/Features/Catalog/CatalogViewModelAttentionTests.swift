@@ -3,7 +3,7 @@ import Testing
 
 /// Needs attention (D-85): a scope of the list on screen that shows only its loaded products that
 /// are low or out of stock, in server order, with how many there are and what that is based on. No
-/// extra request; in the scope, cards don't page automatically and "Load more products" does.
+/// extra request; in the scope, cards don't page automatically and "Check 20 more products" does.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct CatalogViewModelAttentionTests {
@@ -141,7 +141,7 @@ struct CatalogViewModelAttentionTests {
         let viewModel = await loadedViewModel()
         viewModel.scopeSelected(.needsAttention)
 
-        #expect(viewModel.browseList.coverage == AttentionCoverage(loaded: 20, total: 194, isComplete: false))
+        #expect(viewModel.browseList.coverage == AttentionCoverage(loaded: 20, total: 194, remaining: 174, isComplete: false))
     }
 
     /// Review finding 1: an empty page stops paging (an inconsistent server response, D-85), but the
@@ -154,13 +154,13 @@ struct CatalogViewModelAttentionTests {
         await viewModel.pageTask?.value
 
         #expect(viewModel.phase == .content(footer: .end, refreshError: nil), "paging stops as before")
-        #expect(viewModel.browseList.coverage == AttentionCoverage(loaded: 20, total: 194, isComplete: false))
+        #expect(viewModel.browseList.coverage == AttentionCoverage(loaded: 20, total: 194, remaining: 174, isComplete: false))
     }
 
     @Test func coverageIsCompleteWhenEverythingIsLoaded() async {
         let viewModel = await loadedViewModel(total: 20)
 
-        #expect(viewModel.browseList.coverage == AttentionCoverage(loaded: 20, total: 20, isComplete: true))
+        #expect(viewModel.browseList.coverage == AttentionCoverage(loaded: 20, total: 20, remaining: 0, isComplete: true))
     }
 
     /// Review Focus 2: while searching, the scope filters the search results.

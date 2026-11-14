@@ -14,6 +14,8 @@ struct AttentionCoverage: Equatable, Sendable {
     let loaded: Int
     /// Products in the whole list, as the last page reported.
     let total: Int
+    /// Products of the list not received yet: what "Check more" can still look at.
+    let remaining: Int
     /// No more pages: the count covers the whole list.
     let isComplete: Bool
 }

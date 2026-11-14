@@ -29,12 +29,13 @@ struct CatalogView: View {
     var body: some View {
         let isShowingSearch = viewModel.searchList != nil
         ZStack {
-            CatalogListView(content: viewModel.browseList, context: .browse, viewModel: viewModel, clearSearch: clearSearch, dismissKeyboard: dismissKeyboard)
+            // Hidden from VoiceOver inside `CatalogListView`, not here: an `accessibilityHidden(false)`
+            // around the list would override the hidden scope grid's `true` inside it (D-90).
+            CatalogListView(content: viewModel.browseList, context: .browse, isHidden: isShowingSearch, viewModel: viewModel, clearSearch: clearSearch, dismissKeyboard: dismissKeyboard)
                 .opacity(isShowingSearch ? 0 : 1)
                 .allowsHitTesting(!isShowingSearch)
-                .accessibilityHidden(isShowingSearch)
             if let searchList = viewModel.searchList {
-                CatalogListView(content: searchList, context: .search, viewModel: viewModel, clearSearch: clearSearch, dismissKeyboard: dismissKeyboard)
+                CatalogListView(content: searchList, context: .search, isHidden: false, viewModel: viewModel, clearSearch: clearSearch, dismissKeyboard: dismissKeyboard)
             }
         }
         .navigationTitle("Catalog")
@@ -92,10 +93,14 @@ struct CatalogView: View {
     }
 }
 
-/// One list (browse, or search results) in its current phase.
+/// One list (browse, or search results) in its current phase. `isHidden`: the browse list under
+/// search results (D-47), hidden from VoiceOver. Each branch sets `accessibilityHidden` itself, never
+/// a wrapper around them all: SwiftUI lets an outer `accessibilityHidden(false)` override an inner
+/// `true`, which would expose the hidden scope grid (D-90; seen in the UI tests).
 private struct CatalogListView: View {
     let content: CatalogListContent
     let context: ListContext
+    let isHidden: Bool
     let viewModel: CatalogViewModel
     let clearSearch: () -> Void
     let dismissKeyboard: () -> Void
@@ -104,12 +109,20 @@ private struct CatalogListView: View {
         switch content.phase {
         case .initialLoading:
             CatalogSkeletonGrid()
+                .accessibilityHidden(isHidden)
         case .content(let footer, let refreshError):
-            // A new list (sort change, new query, Retry, Reload) gets a new grid, and a new scroll
+            // A new list (sort change, new query, Retry, Reload) gets new grids, and a new scroll
             // view starts at the top. A page 1 shows the skeleton in between, which replaces the
-            // grid too; the identity makes the reset independent of that frame being drawn.
-            CatalogGrid(content: content, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel, dismissKeyboard: dismissKeyboard)
+            // grids too; the identity makes the reset independent of that frame being drawn.
+            CatalogScopedGrids(content: content, context: context, isLayerHidden: isHidden, footer: footer, refreshError: refreshError, viewModel: viewModel, dismissKeyboard: dismissKeyboard)
                 .id(content.listID)
+                // Pinned over the grids: the cards scroll under it, it never scrolls away (D-90).
+                .safeAreaBar(edge: .top) {
+                    CatalogScopeBar(scope: content.scope, attentionCount: content.attentionCount) { viewModel.scopeSelected($0) }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .accessibilityHidden(isHidden)
+                }
         case .empty:
             ContentUnavailableView {
                 Label("No products", systemImage: "shippingbox")
@@ -120,6 +133,7 @@ private struct CatalogListView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
             }
+            .accessibilityHidden(isHidden)
         case .noResults(let query):
             ContentUnavailableView {
                 Label("No results", systemImage: "magnifyingglass")
@@ -130,6 +144,7 @@ private struct CatalogListView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
             }
+            .accessibilityHidden(isHidden)
         case .failed(let error):
             ContentUnavailableView {
                 Label(
@@ -143,6 +158,7 @@ private struct CatalogListView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
             }
+            .accessibilityHidden(isHidden)
         }
     }
 }
@@ -169,13 +185,67 @@ private struct CatalogSortMenu: View {
     }
 }
 
-/// The scope bar, the cards of the scope and the footer. In Needs attention the footer says what the
-/// count is based on and loads more on request (D-85).
-private struct CatalogGrid: View {
+/// One grid per scope, both kept while the list lives, so All products and Needs attention each
+/// keep their own scroll position when the user switches between them (D-90). The grid of the other
+/// scope stays in the hierarchy invisible, inert and hidden from VoiceOver, like the browse list
+/// under search results (D-47). The Needs attention grid is built the first time it is selected, so
+/// it loads no thumbnails before then.
+private struct CatalogScopedGrids: View {
     let content: CatalogListContent
+    let context: ListContext
+    /// The whole list is under search results (D-47).
+    let isLayerHidden: Bool
+    let footer: CatalogFooter
+    let refreshError: AppError?
+    let viewModel: CatalogViewModel
+    let dismissKeyboard: () -> Void
+
+    @State private var hasShownAttention = false
+
+    var body: some View {
+        ZStack {
+            grid(for: .all)
+            if hasShownAttention || content.scope == .needsAttention {
+                grid(for: .needsAttention)
+            }
+        }
+        .onChange(of: content.scope, initial: true) { _, scope in
+            if scope == .needsAttention {
+                hasShownAttention = true
+            }
+        }
+    }
+
+    private func grid(for scope: CatalogScope) -> some View {
+        let isActive = scope == content.scope
+        return CatalogGrid(
+            cards: content.cards(in: scope),
+            scope: scope,
+            isActive: isActive,
+            context: context,
+            footer: footer,
+            refreshError: refreshError,
+            coverage: content.coverage,
+            viewModel: viewModel,
+            dismissKeyboard: dismissKeyboard
+        )
+        .opacity(isActive ? 1 : 0)
+        .allowsHitTesting(isActive)
+        .accessibilityHidden(isLayerHidden || !isActive)
+    }
+}
+
+/// The cards of one scope and the footer. In Needs attention the footer says how many products the
+/// count has checked and checks more on request (D-85). Only the grid on screen (`isActive`) reports
+/// card appearances, so a hidden grid neither pages nor counts as an experiment exposure.
+private struct CatalogGrid: View {
+    let cards: [ProductCardModel]
+    let scope: CatalogScope
+    let isActive: Bool
     let context: ListContext
     let footer: CatalogFooter
     let refreshError: AppError?
+    let coverage: AttentionCoverage
     let viewModel: CatalogViewModel
     let dismissKeyboard: () -> Void
 
@@ -183,14 +253,11 @@ private struct CatalogGrid: View {
 
     var body: some View {
         ScrollView {
-            CatalogScopeBar(scope: content.scope, attentionCount: content.attentionCount) { viewModel.scopeSelected($0) }
-                .padding(.horizontal)
-                .padding(.bottom, 4)
-            if content.scope == .needsAttention, content.cards.isEmpty {
+            if scope == .needsAttention, cards.isEmpty {
                 NoAttentionView()
             }
             LazyVGrid(columns: CatalogLayout.columns(for: dynamicTypeSize), spacing: CatalogLayout.rowSpacing) {
-                ForEach(content.cards) { card in
+                ForEach(cards) { card in
                     let isSaved = viewModel.isSaved(card.id)
                     // The save button is a sibling over the thumbnail's corner, not nested in the
                     // card's button, so each takes its own taps (D-60). VoiceOver reads the pair as
@@ -217,13 +284,17 @@ private struct CatalogGrid: View {
                     .accessibilityAction(named: ProductCardAccessibility.saveActionName(isSaved: isSaved)) {
                         viewModel.saveToggled(id: card.id, in: context)
                     }
-                    .onAppear { viewModel.itemAppeared(id: card.id, in: context) }
+                    .onAppear {
+                        if isActive {
+                            viewModel.itemAppeared(id: card.id, in: context)
+                        }
+                    }
                 }
             }
             .padding(.horizontal)
 
-            if content.scope == .needsAttention {
-                AttentionFooterView(footer: footer, coverage: content.coverage, loadMore: viewModel.loadMoreTapped, retry: viewModel.retryPage)
+            if scope == .needsAttention {
+                AttentionFooterView(footer: footer, coverage: coverage, loadMore: viewModel.loadMoreTapped, retry: viewModel.retryPage)
                     .padding()
             } else {
                 CatalogFooterView(footer: footer) { viewModel.retryPage() }

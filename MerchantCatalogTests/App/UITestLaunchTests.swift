@@ -15,23 +15,29 @@ struct UITestLaunchTests {
         #expect(!UITestLaunch.isRequested(in: ["MerchantCatalog", "-ui-testing-other"]))
     }
 
-    /// The UI tests rely on these products: in stock, low stock, out of stock, in stock; no images.
+    /// The UI tests rely on these products: in stock, low stock, out of stock, in stock, then 20 in
+    /// stock that never need attention. 24 products make two pages, so the grid scrolls and Needs
+    /// attention can check more. No images.
     @Test func fixtureHasEveryStockStatus() async throws {
         let page = try await repository.products(sort: .defaultOrder, skip: 0, limit: 20)
 
-        #expect(page.products.map(\.title) == ["Desk Lamp", "Notebook Set", "Travel Mug", "Wireless Mouse"])
-        #expect(page.products.map(\.stockStatus) == [.inStock, .lowStock, .outOfStock, .inStock])
+        #expect(page.products.prefix(4).map(\.title) == ["Desk Lamp", "Notebook Set", "Travel Mug", "Wireless Mouse"])
+        #expect(page.products.prefix(4).map(\.stockStatus) == [.inStock, .lowStock, .outOfStock, .inStock])
+        #expect(page.products.dropFirst(4).allSatisfy { $0.stockStatus == .inStock })
         #expect(page.products.allSatisfy { $0.thumbnailURL == nil })
-        #expect(page.total == 4)
+        #expect(page.products.count == 20)
+        #expect(page.total == 24)
         #expect(page.skip == 0)
     }
 
     @Test func fixturePagesLikeTheServer() async throws {
-        let page = try await repository.products(sort: .defaultOrder, skip: 2, limit: 2)
+        let middle = try await repository.products(sort: .defaultOrder, skip: 2, limit: 2)
+        let last = try await repository.products(sort: .defaultOrder, skip: 20, limit: 20)
 
-        #expect(page.products.map(\.id) == [3, 4])
-        #expect(page.total == 4)
-        #expect(page.skip == 2)
+        #expect(middle.products.map(\.id) == [3, 4])
+        #expect(middle.total == 24)
+        #expect(middle.skip == 2)
+        #expect(last.products.map(\.id) == Array(21...24))
     }
 
     @Test func fixtureSortsLikeTheServer() async throws {

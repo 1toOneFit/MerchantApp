@@ -48,7 +48,8 @@ struct CatalogFeed {
     func content(scope: CatalogScope) -> CatalogListContent {
         CatalogListContent(
             phase: phase,
-            cards: cards(in: scope),
+            allCards: cards,
+            attentionCards: cards(in: .needsAttention),
             listID: listID,
             scope: scope,
             attentionCount: attentionCount,
@@ -73,6 +74,7 @@ struct CatalogFeed {
         AttentionCoverage(
             loaded: list.items.count,
             total: list.total,
+            remaining: max(0, list.total - list.nextSkip),
             isComplete: list.pagesLoaded > 0 && list.nextSkip >= list.total
         )
     }

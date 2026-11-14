@@ -298,7 +298,7 @@ final class CatalogViewModel {
         scope = newScope
     }
 
-    /// Needs attention's "Load more products": the next page of the list on screen, so the scope
+    /// Needs attention's "Check 20 more products": the next page of the list on screen, so the scope
     /// can look at more products (D-85). One page request at a time, none past the end, none during
     /// a refresh, none after a page failure (that is the footer's Retry).
     func loadMoreTapped() {
