@@ -15,7 +15,7 @@ Prices, stock, shipping and return terms are demo data from a mock API.
 
 ## Needs attention (S8)
 
-**Why.** A browsable grid of 194 products doesn't tell a merchant what to do next. The most actionable fact in the data is stock: a product that's out of stock or nearly gone needs a decision. So the catalog leads with it: each card shows "Out of stock", "Low stock · 4 left" or "In stock", the top of the grid has **All products | Needs attention** with a count, and details put price and stock right under the title.
+**Why.** A browsable grid of 194 products doesn't tell a merchant what to do next. The most actionable fact in the data is stock: a product that's out of stock or nearly gone needs a decision. So the catalog leads with it: each card shows "Out of stock", "Low stock · 4 left" or "In stock" (VoiceOver: "Low stock, 4 left"), the top of the grid has **All products | Needs attention** with a count, and details put price and stock right under the title.
 
 **How stock status is determined.** One policy on the product's `stock`, in one type (`StockStatus`, unit-tested): **0 → Out of stock, 1–10 → Low stock, more than 10 → In stock**; unknown stock shows no status. The API also sends an `availabilityStatus`, but list pages don't load it and it disagrees with `stock` for 10 of the 194 demo products (some with 7 units are "In Stock", others "Low Stock"; [Networking.md A16](docs/Networking.md#1-verified-api-facts)), so the app doesn't use it. Cards, Needs attention, details and analytics all use the same rule.
 

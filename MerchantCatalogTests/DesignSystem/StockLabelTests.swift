@@ -7,6 +7,7 @@ struct StockLabelTests {
     @Test(arguments: [
         (0, StockStatus.outOfStock, "Out of stock", "Out of stock"),
         (1, .lowStock, "Low stock · 1 left", "Low stock, 1 left"),
+        (4, .lowStock, "Low stock · 4 left", "Low stock, 4 left"),
         (7, .lowStock, "Low stock · 7 left", "Low stock, 7 left"),
         (42, .inStock, "In stock", "In stock"),
     ])

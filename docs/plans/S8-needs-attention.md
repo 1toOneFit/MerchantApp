@@ -42,7 +42,7 @@
 
 **Files:** create `DesignSystem/Components/StockLabel.swift` (`struct StockLabel: Hashable { status; text; accessibilityText; init?(stock: Int?) }` + `StockStatusView` badge/row view); modify `ProductCardModel` (`stock: StockLabel?`), `ProductCardView` (row under the price, hidden placeholder of equal height when unknown), `ProductCardAccessibility.label(… stock: String? …)`, `CatalogView` call site. Tests: new `StockLabelTests`; `ProductCardModelTests`, `ProductCardAccessibilityTests`.
 
-- [ ] Tests: texts `"Out of stock"`, `"Low stock · 7 left"`, `"In stock"`; accessibility `"Low stock, 7 left"`; `cardCarriesStockLabel`; `cardWithoutStockHasNoLabel`; label `"Lamp, $9.99, low stock, 4 left, not saved"` (stock after price, before rating).
+- [ ] Tests: texts `"Out of stock"`, `"Low stock · 7 left"`, `"In stock"`; accessibility `"Low stock, 7 left"`; `cardCarriesStockLabel`; `cardWithoutStockHasNoLabel`; label `"Volume Mascara, $9.99, Low stock, 4 left, not saved"` (stock after price, before rating; the spoken form `StockLabel.accessibilityText`, as in ProductSpecification § 4.1).
 - [ ] Red → implement → green → commit.
 
 ### Task 3: Needs-attention scope in the catalog (D-85)
