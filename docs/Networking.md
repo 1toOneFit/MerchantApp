@@ -119,7 +119,7 @@ struct ProductImageView: View {
 ```
 
 - **Appear:** SwiftUI runs `.task(id: url)`, which calls `model.load`: placeholder, then `loader.image(from:)`.
-- **Disappear (fast scroll):** SwiftUI cancels the view's task. `URLSessionImageLoader` awaits `URLSession.data(for:)` in that task, so the cancellation cancels the `URLSessionTask`; the loader throws `CancellationError` and logs `[<id>] cancelled after … ms` in the `network` category. The model keeps the placeholder, and a response or failure that wins the race with the cancellation is dropped (`Task.isCancelled`). `reset()` releases an already loaded image, so an off-screen cell holds no decoded image.
+- **Disappear (fast scroll):** SwiftUI cancels the view's task. `URLSessionImageLoader` awaits `URLSession.data(for:)` in that task, so the cancellation cancels the `URLSessionTask`; the loader throws `CancellationError` and logs the request as cancelled in the `network` category (DEBUG: `[<id>] GET <url> → cancelled after … ms`). The model keeps the placeholder, and a response or failure that wins the race with the cancellation is dropped (`Task.isCancelled`). `reset()` releases an already loaded image, so an off-screen cell holds no decoded image.
 - **Reuse / identity change:** a new URL changes the task id: SwiftUI cancels the old load, and the model shows the placeholder (never the previous product's image) until the new image arrives.
 - **Failure:** a neutral icon; the next appearance loads again.
 - **Gallery:** the same component per page, so only pages on screen load.
@@ -132,7 +132,7 @@ struct ProductImageView: View {
 - ✅ **Cancellation reaches the request** (verified 2026-11-13, unit test `URLSessionImageLoaderTests.cancellationStopsTheRequest`): a request to a `StubURLProtocol` stub that never answers; cancelling the calling task makes `URLSession` stop the load (`stopLoading`) and the loader throw `CancellationError`. With the request moved into a detached task (a mutation), the test hits its time limit, so it does detect a load that survives cancellation.
 - ✅ **State rules** (unit tests `ProductImageModelTests`): a cancelled load keeps the placeholder; a late image or failure after cancellation is ignored; a new URL clears the previous image; `reset()` releases the image.
 - 🔍 **Expectation (Apple-documented, not app-tested):** SwiftUI cancels a `.task` at some point after its view disappears and restarts it when its `id` changes (Apple's `task(id:priority:_:)` documentation). In a lazy grid a cell "disappears" when it leaves the grid's render window, which can extend slightly past the visible edge.
-  - **Manual check (developer):** with Console.app filtered to the `network` category (debug messages on) and macOS Network Link Conditioner "3G", fling the catalog grid: thumbnails of cells that scrolled away end with `cancelled after … ms` lines; no proxy needed. Record the date and result here.
+  - **Manual check (developer):** with Console.app filtered to the `network` category (debug messages on) and macOS Network Link Conditioner "3G", fling the catalog grid: thumbnail lines of cells that scrolled away end with `→ cancelled after … ms`; no proxy needed. Record the date and result here.
 
 ### Known limitations (accepted)
 

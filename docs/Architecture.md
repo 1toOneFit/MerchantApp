@@ -231,11 +231,33 @@ enum CatalogFooter: Equatable { case idle, loading, failed(AppError), end }
 
 Analytics events are logged at debug level by `LoggingAnalyticsProvider` (`event <name> #<sequence> session <id> {properties}`; user properties as `old → new`), visible in Console.app with debug messages included.
 
-There is no `cache` category (no caching). Image requests log to `network` like API requests (start, status and size, failure, or `cancelled after … ms`), which makes cancellation on fast scrolling visible in Console.app ([Networking.md § 4](Networking.md#verification)).
+There is no `cache` category (no caching). Image requests log to `network` too (DEBUG: one line when each ends, e.g. `[<id>] GET <url> → cancelled after 12 ms`), which makes cancellation on fast scrolling visible in Console.app ([Networking.md § 4](Networking.md#verification)).
 
-`NetworkLogger` writes one line when a request starts (`[<id>] GET <url>`) and one when it ends (`[<id>] 200 in 312 ms, 48213 bytes`, an error, or `cancelled after … ms`). The `q` value is replaced by `<private>` before logging, so the URL itself is logged as public. Errors are logged only as a summary (`URLError -1009`, `DecodingError.typeMismatch at products.0.price`, or a type name), never as their description, which can contain the full request URL. `CatalogViewModel` logs first-page latency to `performance` (info).
+In Release, `NetworkLogger` writes one line when a request starts (`[<id>] GET <url>`) and one when it ends (`[<id>] 200 in 312 ms, 48213 bytes`, `[<id>] failed after … ms: <error> (<cause>)` or `[<id>] cancelled after … ms`). The `q` value is replaced by `<private>` before logging, so the URL itself is logged as public. Errors are logged only as a summary (`URLError -1009`, `DecodingError.typeMismatch at products.0.price`, or a type name), never as their description, which can contain the full request URL. `CatalogViewModel` logs first-page latency to `performance` (info).
 
-**DEBUG extended network logging (S7, D-80):** after the summary lines, DEBUG builds log every field of each request and response, one debug message per line tagged `[<id>]`: the query parameters, headers set by the app, timeout and body of the request; the status, MIME type, size, headers and body of the response. JSON bodies are pretty-printed with sorted keys and split into chunks of at most 800 UTF-8 bytes (`body 1/n:`), because long unified-log messages are expected to be truncated (not measured); image bodies are logged only by size and type. Redacted: the search term (`q=<private>`, D-18), credential headers (`Authorization`, `Cookie`, `Set-Cookie`, …) and every JSON value under a key containing "email" (reviewer emails, ProductSpecification § 4.3). `URLSession`'s own default request headers (e.g. `User-Agent`) are added when sending and don't appear. `NetworkLogFormatter` is compiled only in DEBUG (unit-tested in `NetworkLogFormatterTests`).
+**DEBUG extended network logging (S7, D-80):** DEBUG builds replace those lines with every field of each request, framed so a request reads as a unit:
+
+```text
+┌──── → REQUEST [c309e10f] ────
+│ GET https://dummyjson.com/products?limit=20&skip=0
+│ Query    limit=20, skip=0
+│ Headers  none set by the app (URLSession adds its defaults when sending)
+│ Timeout  60 s
+│ Body     none
+└────────────────────────────────────────
+┌──── ← RESPONSE [c309e10f] 200 · 34 ms ────
+│ application/json · 48213 bytes
+│ Headers
+│   Content-Type: application/json; charset=utf-8
+│   …
+│ Body
+│ {
+│   "limit" : 20,
+│   …
+└────────────────────────────────────────
+```
+
+API requests log the REQUEST box at the start and the RESPONSE box at the end (other requests may log in between); a request without a usable response ends with a closing box (`← RESPONSE [<id>] cancelled after 12 ms`, `failed after …`). Image requests log one line when they end (`[<id>] GET <url> → 200 · 34 ms · 63250 bytes image/webp`, or `→ cancelled after 12 ms`), so scrolling stays readable. JSON bodies are pretty-printed with sorted keys; binary bodies are logged only by size and type. The unified log cuts a message at about 1 KB (measured 2026-11-14 on macOS with `log show` and `log stream`: longer messages kept 1,005 payload characters), so a box is split at line breaks into messages of at most 800 UTF-8 bytes, each line starting with the frame. Redacted: the search term (`q=<private>`, D-18), credential headers (`Authorization`, `Cookie`, `Set-Cookie`, …) and every JSON value under a key containing "email" (reviewer emails, ProductSpecification § 4.3). `URLSession`'s own default request headers (e.g. `User-Agent`) are added when sending and don't appear. `NetworkLogFormatter` is compiled only in DEBUG (unit-tested in `NetworkLogFormatterTests`).
 
 Rules: search terms and product titles are interpolated with `privacy: .private` (redacted outside a debugger); status codes, ids and durations are `.public`. Release builds log no tokens and no payloads; DEBUG builds log payloads only as described above. `debug` messages aren't persisted by the system by default, which keeps production noise low. The DEBUG Diagnostics panel reads `OSLogStore(scope: .currentProcessIdentifier)` to show the app subsystem's entries from the last hour (newest 200). Expected, not verified by a test: debug-level entries are normally not kept, so `analytics` and `navigation` lines may be missing there; the Diagnostics event log (from `InMemoryAnalyticsProvider`) and Console.app show them.
 
