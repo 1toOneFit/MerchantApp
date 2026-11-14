@@ -25,7 +25,7 @@ final class URLSessionImageLoader: ImageLoading {
         let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         let id = NetworkLogger.makeRequestID()
         let start = ContinuousClock.now
-        NetworkLogger.started(request, id: id)
+        NetworkLogger.started(request, id: id, style: .compact)
 
         let data: Data
         let response: URLResponse
@@ -34,26 +34,25 @@ final class URLSessionImageLoader: ImageLoading {
         } catch {
             let latency = start.duration(to: .now)
             if URLSessionAPIClient.isCancellation(error) {
-                NetworkLogger.cancelled(id: id, latency: latency)
+                NetworkLogger.cancelled(request, id: id, latency: latency, style: .compact)
                 throw CancellationError()
             }
             let appError = (error as? URLError).map(URLSessionAPIClient.appError(for:)) ?? .unknown
-            NetworkLogger.failed(id: id, error: appError, cause: NetworkLogger.summary(of: error), latency: latency)
+            NetworkLogger.failed(request, id: id, error: appError, cause: NetworkLogger.summary(of: error), latency: latency, style: .compact)
             throw appError
         }
 
         let latency = start.duration(to: .now)
         guard let http = response as? HTTPURLResponse else {
-            NetworkLogger.failed(id: id, error: .unknown, cause: "not an HTTP response", latency: latency)
+            NetworkLogger.failed(request, id: id, error: .unknown, cause: "not an HTTP response", latency: latency, style: .compact)
             throw AppError.unknown
         }
-        NetworkLogger.received(id: id, status: http.statusCode, latency: latency, bytes: data.count)
-        NetworkLogger.responseDetails(http, body: data, id: id)
+        NetworkLogger.received(request, response: http, body: data, id: id, latency: latency, style: .compact)
         if let error = URLSessionAPIClient.appError(forStatus: http.statusCode) {
             throw error
         }
         guard let image = UIImage(data: data) else {
-            NetworkLogger.failed(id: id, error: .decoding, cause: "not an image", latency: latency)
+            NetworkLogger.failed(request, id: id, error: .decoding, cause: "not an image", latency: latency, style: .compact)
             throw AppError.decoding
         }
         return await image.byPreparingForDisplay() ?? image

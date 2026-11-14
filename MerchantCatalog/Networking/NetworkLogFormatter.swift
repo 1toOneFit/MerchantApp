@@ -1,54 +1,76 @@
 #if DEBUG
 import Foundation
 
-/// DEBUG-only extended network logging (D-80, Architecture § 10): turns a request and its response
-/// into log lines with every field the app can see. `NetworkLogger` prefixes each line with the
-/// request id and logs it in the `network` category at debug level.
+/// DEBUG-only extended network logging (D-80, Architecture § 10).
 ///
-/// - Request: method and URL, query parameters, headers set by the app (`URLSession` adds its own
-///   defaults, such as `User-Agent`, only when sending, so they don't appear), timeout, body.
-/// - Response: status, MIME type, size, headers, body. JSON is pretty-printed with sorted keys;
-///   text is logged as is; images and other binary bodies only by size and type.
+/// - API requests: a framed REQUEST box when the request starts (method and URL, query parameters,
+///   headers set by the app, timeout, body) and a framed RESPONSE box when it ends (status, time,
+///   type, size, headers, body). `URLSession` adds its own default headers, such as `User-Agent`,
+///   only when sending, so they don't appear.
+/// - Image requests: one line when they end (`compactLine`), so scrolling stays readable.
+/// - Bodies: JSON pretty-printed with sorted keys; text as is; binary only by size and type.
 /// - Privacy: the search term stays `q=<private>` (D-18); credential headers and every JSON value
 ///   under a key containing "email" (reviewer emails) are `<redacted>`.
-/// - Size: bodies are split into chunks of at most `maxChunkBytes`, because the unified log is
-///   expected to truncate long messages (not measured), so nothing is lost.
+/// - Size: the unified log cuts a message at about 1 KB (measured 2026-11-14 on macOS with
+///   `log show` and `log stream`: longer messages kept 1,005 of the payload's characters). A box is
+///   therefore split at line breaks into messages of at most `maxMessageBytes`; every line starts
+///   with the frame, so consecutive messages read as one box.
 enum NetworkLogFormatter {
-    /// The largest chunk of a body in one log message, in UTF-8 bytes.
-    static let maxChunkBytes = 800
+    /// The largest log message, in UTF-8 bytes; below the measured ~1 KB cut.
+    static let maxMessageBytes = 800
 
+    private static let closingLine = "└" + String(repeating: "─", count: 40)
     private static let redactedHeaders: Set<String> = ["authorization", "proxy-authorization", "cookie", "set-cookie", "x-api-key"]
 
-    static func requestLines(_ request: URLRequest) -> [String] {
-        var lines = ["request \(request.httpMethod ?? "GET") \(request.url.map(NetworkLogger.sanitizedURL) ?? "nil")"]
-        lines.append(queryLine(request.url))
+    static func requestBox(_ request: URLRequest, id: String) -> [String] {
+        var lines = [
+            openingLine("→ REQUEST [\(id)]"),
+            "│ \(request.httpMethod ?? "GET") \(request.url.map(NetworkLogger.sanitizedURL) ?? "nil")",
+            "│ Query    \(query(of: request.url))",
+        ]
         let headers = request.allHTTPHeaderFields ?? [:]
         lines += headers.isEmpty
-            ? ["headers: none set by the app (URLSession adds its defaults when sending)"]
+            ? ["│ Headers  none set by the app (URLSession adds its defaults when sending)"]
             : headerLines(headers)
-        lines.append("timeout: \(String(format: "%g", request.timeoutInterval)) s")
+        lines.append("│ Timeout  \(String(format: "%g", request.timeoutInterval)) s")
         if let body = request.httpBody {
             lines += bodyLines(body, mimeType: request.value(forHTTPHeaderField: "Content-Type"))
         } else {
-            lines.append("body: none")
+            lines.append("│ Body     none")
         }
-        return lines
+        lines.append(closingLine)
+        return messages(lines)
     }
 
-    static func responseLines(_ response: HTTPURLResponse, body: Data) -> [String] {
-        var lines = ["response \(response.statusCode), \(response.mimeType ?? "unknown type"), \(body.count) bytes"]
+    static func responseBox(_ response: HTTPURLResponse, body: Data, id: String, latency: Duration) -> [String] {
+        var lines = [
+            openingLine("← RESPONSE [\(id)] \(response.statusCode) · \(latency.wholeMilliseconds) ms"),
+            "│ \(response.mimeType ?? "unknown type") · \(body.count) bytes",
+        ]
         var headers: [String: String] = [:]
         for (key, value) in response.allHeaderFields {
             headers["\(key)"] = "\(value)"
         }
-        lines += headers.isEmpty ? ["headers: none"] : headerLines(headers)
+        lines += headers.isEmpty ? ["│ Headers  none"] : headerLines(headers)
         lines += bodyLines(body, mimeType: response.mimeType)
-        return lines
+        lines.append(closingLine)
+        return messages(lines)
+    }
+
+    /// The closing box of a request that ended without a response (cancelled, failed) or whose
+    /// response couldn't be used (decoding failed).
+    static func endBox(id: String, outcome: String) -> [String] {
+        messages([openingLine("← RESPONSE [\(id)] \(outcome)"), closingLine])
+    }
+
+    /// An image request in one line, written when it ends.
+    static func compactLine(method: String, url: URL, id: String, outcome: String) -> String {
+        "[\(id)] \(method) \(NetworkLogger.sanitizedURL(url)) → \(outcome)"
     }
 
     /// `text` split into chunks of at most `maxBytes` UTF-8 bytes, never inside a character. A chunk
     /// ends after its last line break when one fits; `chunks(text).joined() == text`.
-    static func chunks(_ text: String, maxBytes: Int = maxChunkBytes) -> [String] {
+    static func chunks(_ text: String, maxBytes: Int) -> [String] {
         var chunks: [String] = []
         var rest = Substring(text)
         while !rest.isEmpty {
@@ -75,30 +97,44 @@ enum NetworkLogFormatter {
         return chunks
     }
 
-    private static func queryLine(_ url: URL?) -> String {
+    // MARK: - Lines
+
+    private static func openingLine(_ title: String) -> String {
+        "┌──── \(title) ────"
+    }
+
+    /// The box's lines grouped into messages of whole lines (each line already fits).
+    private static func messages(_ lines: [String]) -> [String] {
+        chunks(lines.joined(separator: "\n"), maxBytes: maxMessageBytes).map { chunk in
+            chunk.hasSuffix("\n") ? String(chunk.dropLast()) : chunk
+        }
+    }
+
+    private static func query(of url: URL?) -> String {
         guard
             let url,
             let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
             !items.isEmpty
         else {
-            return "query: none"
+            return "none"
         }
-        let parameters = items.map { item in
-            if item.name == "q" { return "q=<private>" }
-            return item.value.map { "\(item.name)=\($0)" } ?? item.name
-        }
-        return "query: \(parameters.joined(separator: ", "))"
+        return items
+            .map { item in
+                if item.name == "q" { return "q=<private>" }
+                return item.value.map { "\(item.name)=\($0)" } ?? item.name
+            }
+            .joined(separator: ", ")
     }
 
     private static func headerLines(_ headers: [String: String]) -> [String] {
         let sorted = headers.sorted { $0.key.lowercased() < $1.key.lowercased() }
-        return ["headers:"] + sorted.map { name, value in
-            "  \(name): \(redactedHeaders.contains(name.lowercased()) ? "<redacted>" : value)"
+        return ["│ Headers"] + sorted.flatMap { name, value in
+            framed("  \(name): \(redactedHeaders.contains(name.lowercased()) ? "<redacted>" : value)")
         }
     }
 
     private static func bodyLines(_ body: Data, mimeType: String?) -> [String] {
-        guard !body.isEmpty else { return ["body: empty"] }
+        guard !body.isEmpty else { return ["│ Body     empty"] }
         let type = mimeType?.lowercased() ?? ""
         let text: String?
         if type.contains("json"), let pretty = prettyJSON(body) {
@@ -109,12 +145,15 @@ enum NetworkLogFormatter {
             text = nil
         }
         guard let text else {
-            return ["body: \(body.count) bytes (\(mimeType ?? "unknown type")), not logged"]
+            return ["│ Body     \(body.count) bytes (\(mimeType ?? "unknown type")), not logged"]
         }
-        let parts = chunks(text)
-        return parts.enumerated().flatMap { index, part in
-            ["body \(index + 1)/\(parts.count):", part]
-        }
+        return ["│ Body"] + text.split(separator: "\n", omittingEmptySubsequences: false).flatMap { framed(String($0)) }
+    }
+
+    /// `content` behind the frame, wrapped into several framed lines if it wouldn't fit in one
+    /// message, so every line of a box starts with the frame.
+    private static func framed(_ content: String) -> [String] {
+        chunks(content, maxBytes: maxMessageBytes - 8).map { "│ \($0)" }.ifEmpty(["│ "])
     }
 
     private static func prettyJSON(_ data: Data) -> String? {
@@ -141,6 +180,12 @@ enum NetworkLogFormatter {
             return array.map(redactingEmails)
         }
         return object
+    }
+}
+
+private extension Array {
+    func ifEmpty(_ replacement: [Element]) -> [Element] {
+        isEmpty ? replacement : self
     }
 }
 #endif

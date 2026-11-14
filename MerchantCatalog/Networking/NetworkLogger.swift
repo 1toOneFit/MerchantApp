@@ -2,9 +2,9 @@ import Foundation
 import OSLog
 
 /// Request logging in the `network` category (Architecture § 10): method, sanitized URL, a short
-/// request id, status, latency, size, errors and cancellation. DEBUG builds add every request and
-/// response field: query, headers, timeout, response headers and the body (`NetworkLogFormatter`,
-/// D-80). Success and cancellation log at
+/// request id, status, latency, size, errors and cancellation. DEBUG builds log every request and
+/// response field instead, as framed boxes for API requests and one line per image request
+/// (`NetworkLogFormatter`, D-80). Success and cancellation log at
 /// debug level, failures at error level. The search term (`q`) is redacted before logging (D-18),
 /// so the rest of the URL is logged as public. Errors are logged as a code or category only
 /// (`summary(of:)`), never as their description, which can contain the full request URL.
@@ -57,50 +57,83 @@ enum NetworkLogger {
         String(UUID().uuidString.prefix(8)).lowercased()
     }
 
-    static func started(_ request: URLRequest, id: String) {
+    /// How much a request logs in DEBUG builds (D-80). Release builds log the same one-line
+    /// summaries for both.
+    enum Style: Sendable {
+        /// API requests: a framed REQUEST box at the start, a framed RESPONSE box at the end.
+        case detailed
+        /// Image requests: one line at the end.
+        case compact
+    }
+
+    static func started(_ request: URLRequest, id: String, style: Style) {
+        #if DEBUG
+        if style == .detailed {
+            emit(NetworkLogFormatter.requestBox(request, id: id), isError: false)
+        }
+        #else
         let method = request.httpMethod ?? "GET"
         let url = request.url.map(sanitizedURL) ?? "nil"
         Log.network.debug("[\(id, privacy: .public)] \(method, privacy: .public) \(url, privacy: .public)")
-        #if DEBUG
-        details(NetworkLogFormatter.requestLines(request), id: id)
         #endif
     }
 
-    /// DEBUG builds: the response's status, type, size, headers and body (D-80). Release logs only
-    /// the `received` summary line.
-    static func responseDetails(_ response: HTTPURLResponse, body: Data, id: String) {
+    static func received(_ request: URLRequest, response: HTTPURLResponse, body: Data, id: String, latency: Duration, style: Style) {
+        let isError = !(200..<300).contains(response.statusCode)
         #if DEBUG
-        details(NetworkLogFormatter.responseLines(response, body: body), id: id)
+        switch style {
+        case .detailed:
+            emit(NetworkLogFormatter.responseBox(response, body: body, id: id, latency: latency), isError: isError)
+        case .compact:
+            let outcome = "\(response.statusCode) · \(latency.wholeMilliseconds) ms · \(body.count) bytes \(response.mimeType ?? "unknown type")"
+            emit([compactLine(request, id: id, outcome: outcome)], isError: isError)
+        }
+        #else
+        let line = "[\(id)] \(response.statusCode) in \(latency.wholeMilliseconds) ms, \(body.count) bytes"
+        emit([line], isError: isError)
+        #endif
+    }
+
+    /// - Parameter cause: `summary(of:)` of the underlying error, or a fixed reason.
+    static func failed(_ request: URLRequest, id: String, error: AppError, cause: String, latency: Duration, style: Style) {
+        let outcome = "failed after \(latency.wholeMilliseconds) ms: \(error.analyticsErrorType) (\(cause))"
+        emit(outcomeMessages(request, id: id, outcome: outcome, style: style), isError: true)
+    }
+
+    static func cancelled(_ request: URLRequest, id: String, latency: Duration, style: Style) {
+        let outcome = "cancelled after \(latency.wholeMilliseconds) ms"
+        emit(outcomeMessages(request, id: id, outcome: outcome, style: style), isError: false)
+    }
+
+    /// The end of a request without a usable response: a closing box (detailed), one line
+    /// (compact), or Release's summary line.
+    private static func outcomeMessages(_ request: URLRequest, id: String, outcome: String, style: Style) -> [String] {
+        #if DEBUG
+        switch style {
+        case .detailed: NetworkLogFormatter.endBox(id: id, outcome: outcome)
+        case .compact: [compactLine(request, id: id, outcome: outcome)]
+        }
+        #else
+        ["[\(id)] \(outcome)"]
         #endif
     }
 
     #if DEBUG
-    /// One debug-level message per line, each tagged with the request id. The lines are already
-    /// sanitized (`q` and credentials redacted), so they are logged as public.
-    private static func details(_ lines: [String], id: String) {
-        for line in lines {
-            Log.network.debug("[\(id, privacy: .public)] \(line, privacy: .public)")
-        }
+    private static func compactLine(_ request: URLRequest, id: String, outcome: String) -> String {
+        guard let url = request.url else { return "[\(id)] \(request.httpMethod ?? "GET") nil → \(outcome)" }
+        return NetworkLogFormatter.compactLine(method: request.httpMethod ?? "GET", url: url, id: id, outcome: outcome)
     }
     #endif
 
-    static func received(id: String, status: Int, latency: Duration, bytes: Int) {
-        let ms = latency.wholeMilliseconds
-        if (200..<300).contains(status) {
-            Log.network.debug("[\(id, privacy: .public)] \(status, privacy: .public) in \(ms, privacy: .public) ms, \(bytes, privacy: .public) bytes")
-        } else {
-            Log.network.error("[\(id, privacy: .public)] \(status, privacy: .public) in \(ms, privacy: .public) ms, \(bytes, privacy: .public) bytes")
+    /// One log message each. The text is already sanitized (`q`, credentials and emails redacted,
+    /// errors summarized), so it is logged as public. Errors at error level, the rest at debug.
+    private static func emit(_ messages: [String], isError: Bool) {
+        for message in messages {
+            if isError {
+                Log.network.error("\(message, privacy: .public)")
+            } else {
+                Log.network.debug("\(message, privacy: .public)")
+            }
         }
-    }
-
-    /// - Parameter cause: `summary(of:)` of the underlying error, or a fixed reason.
-    static func failed(id: String, error: AppError, cause: String, latency: Duration) {
-        let ms = latency.wholeMilliseconds
-        Log.network.error("[\(id, privacy: .public)] failed in \(ms, privacy: .public) ms: \(error.analyticsErrorType, privacy: .public) (\(cause, privacy: .public))")
-    }
-
-    static func cancelled(id: String, latency: Duration) {
-        let ms = latency.wholeMilliseconds
-        Log.network.debug("[\(id, privacy: .public)] cancelled after \(ms, privacy: .public) ms")
     }
 }
