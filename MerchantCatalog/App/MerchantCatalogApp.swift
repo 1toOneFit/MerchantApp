@@ -9,6 +9,14 @@ struct MerchantCatalogApp: App {
     private let context: AppContext
 
     init() {
+        #if DEBUG
+        // The UI tests launch with `-ui-testing`: fixed products, fresh state (D-88).
+        if UITestLaunch.isRequested() {
+            context = UITestLaunch.makeContext()
+            Log.lifecycle.info("App launched for UI tests (fixture products)")
+            return
+        }
+        #endif
         context = AppContext.configure()
         Log.lifecycle.info("App launched")
     }

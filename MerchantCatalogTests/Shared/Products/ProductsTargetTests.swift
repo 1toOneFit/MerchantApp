@@ -5,9 +5,10 @@ import Testing
 /// `ProductsTarget` builds the DummyJSON product endpoints (Networking.md § 2). Sort is a closed set
 /// of query items because the API silently ignores an unknown `sortBy` (A4).
 struct ProductsTargetTests {
-    /// List and search pages ask only for what a list item shows (D-81). The API silently ignores an
-    /// unknown field name, so the exact value is pinned here.
-    private static let select = URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category")
+    /// List and search pages ask only for what a list item shows (D-81), stock included for the
+    /// card's status (D-84). The API silently ignores an unknown field name, so the exact value is
+    /// pinned here.
+    private static let select = URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category,stock")
 
     @Test(arguments: [
         (ProductSort.defaultOrder, [URLQueryItem]()),

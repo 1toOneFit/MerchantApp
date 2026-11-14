@@ -11,8 +11,6 @@ struct Product: Identifiable, Hashable, Sendable {
     let price: Decimal
     /// `nil` for the many products without a brand (Networking.md A10).
     let brand: String?
-    /// `nil` when the API sends a value the app doesn't know.
-    let availability: ProductAvailability?
     let thumbnailURL: URL?
     /// Gallery images, in API order.
     let imageURLs: [URL]
@@ -40,11 +38,11 @@ struct Product: Identifiable, Hashable, Sendable {
     let reviews: [ProductReview]
 }
 
-/// `availabilityStatus` values the API sends (Networking.md A10).
-enum ProductAvailability: Hashable, Sendable {
-    case inStock
-    case lowStock
-    case outOfStock
+extension Product {
+    /// From `stock` by the one policy (D-84); `nil` when the stock is unknown.
+    var stockStatus: StockStatus? {
+        StockStatus(stock: stock)
+    }
 }
 
 /// Width, height and depth as the API gives them, without units (Networking.md A14).

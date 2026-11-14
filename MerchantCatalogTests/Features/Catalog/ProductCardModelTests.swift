@@ -55,6 +55,20 @@ struct ProductCardModelTests {
         #expect(card.ratingText == nil)
     }
 
+    /// D-86: the stock row shows in both arms; only the rating differs.
+    @Test(arguments: [ExperimentVariant.control, .treatment])
+    func cardCarriesStockLabel(variant: ExperimentVariant) {
+        let card = ProductCardModel(product: makeSummary(id: 1, stock: 4), variant: variant, locale: Self.enUS)
+
+        #expect(card.stock == StockLabel(stock: 4))
+        #expect(card.stock?.text == "Low stock · 4 left")
+    }
+
+    /// Review Focus 3: unknown stock shows no status.
+    @Test func cardWithoutStockHasNoLabel() {
+        #expect(ProductCardModel(product: makeSummary(id: 1, stock: nil), variant: .control, locale: Self.enUS).stock == nil)
+    }
+
     @Test func placeholderHasNoImage() {
         #expect(ProductCardModel.placeholder(id: 3).thumbnailURL == nil)
         #expect(ProductCardModel.placeholder(id: 3).id == 3)

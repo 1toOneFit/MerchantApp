@@ -16,7 +16,7 @@ struct LiveProductRepositoryTests {
             FakeAPIClient.Request(path: "/products", queryItems: [
                 URLQueryItem(name: "limit", value: "20"),
                 URLQueryItem(name: "skip", value: "40"),
-                URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category"),
+                URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category,stock"),
                 URLQueryItem(name: "sortBy", value: "price"),
                 URLQueryItem(name: "order", value: "asc"),
             ]),
@@ -36,7 +36,7 @@ struct LiveProductRepositoryTests {
                 URLQueryItem(name: "q", value: "phone"),
                 URLQueryItem(name: "limit", value: "20"),
                 URLQueryItem(name: "skip", value: "40"),
-                URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category"),
+                URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category,stock"),
                 URLQueryItem(name: "sortBy", value: "rating"),
                 URLQueryItem(name: "order", value: "desc"),
             ]),

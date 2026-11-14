@@ -61,7 +61,7 @@ No name, email, location, IP, advertising identifier, or free text is collected.
 | `surface` (where a save/unsave happened) | `catalog_card`, `search_card`, `details`, `saved_list` |
 | `error_type` | `offline`, `timeout`, `not_found`, `rate_limited`, `server`, `decoding`, `unknown` |
 | `trigger` (why a first page loaded) | Browse: `initial`, `retry` (full-screen Retry), `reload` (the empty state's Reload, D-38), `sort_change`. Search: `typing`, `retry`, `sort_change` (D-48) |
-| `availability` | `in_stock`, `low_stock`, `out_of_stock` |
+| `availability` | `in_stock`, `low_stock`, `out_of_stock`: since S8 derived from the product's `stock` by the app's one policy (0 → out, 1–10 → low, > 10 → in; D-84), the status the screen shows; before S8 the API's `availabilityStatus`, which disagrees with `stock` for some demo products (Networking.md A16) |
 
 ## 3. Events
 
@@ -147,7 +147,7 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Meaning:** the user chose a product from a list (intent to evaluate). Distinct from `product_details_viewed`, which records that details were actually shown.
 - **Trigger:** tap on a product card or Saved row.
 - **Properties:** `product_id` Int; `source` (`catalog` | `search` | `saved`); `position` Int (0-based index in the list); `sort` (catalog/search only; omitted for `saved`, D-68).
-- **Note:** `source`, `position` and `sort` come from the list on screen: `search` with the search's sort while results are shown (D-46). A card of the hidden browse layer can't be selected (D-47). `saved`: a tap on a Saved row, `position` in the Saved list (newest first).
+- **Note:** `source`, `position` and `sort` come from the list on screen: `search` with the search's sort while results are shown (D-46). A card of the hidden browse layer can't be selected (D-47). `saved`: a tap on a Saved row, `position` in the Saved list (newest first). In the Needs attention scope (S8, D-85) `position` is the index in the filtered list on screen (S8 review finding 2); no property tells the scope apart (no S8 event; open question at the S8 gate).
 - **Screen:** Catalog, Saved. **Dedup:** once per tap. **Privacy:** product id only.
 
 ### Search
@@ -197,7 +197,7 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Status:** Active
 - **Meaning:** product details were shown to the user.
 - **Trigger:** product content first shown for a navigation push (D-83): details open by id with a skeleton, so the event fires when `/products/{id}` returns the full product, from any source; from Saved, when that request fails and the saved snapshot shows instead (so offline revisits count, D-64). None while only the skeleton shows, or if the user leaves first.
-- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (omitted when unknown); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (whether the product is saved when details appear); `content_origin` `network` | `snapshot`: `network` when the full product from `/products/{id}` shows (any source), `snapshot` when Saved's request failed and the saved snapshot shows. With `snapshot`, `availability`, `has_discount` and `image_count` are omitted: the snapshot doesn't have them (D-63). The former `list` value is gone: list pages carry only summaries (D-81).
+- **Properties:** `product_id` Int; `source`; `category` String (the API's slug, e.g. `mens-shirts`; omitted when missing); `availability` (from the stock, D-84; omitted when the stock is unknown); `has_discount` Bool (`discountPercentage > 0`); `image_count` Int; `is_saved` Bool (whether the product is saved when details appear); `content_origin` `network` | `snapshot`: `network` when the full product from `/products/{id}` shows (any source), `snapshot` when Saved's request failed and the saved snapshot shows. With `snapshot`, `availability`, `has_discount` and `image_count` are omitted: the snapshot doesn't have them (D-63). The former `list` value is gone: list pages carry only summaries (D-81).
 - **Note:** `AnalyticsService` follows it with `saved_product_revisited` when the product was saved before the current session (D-64); the event carries the save date for that, but sends only `is_saved`.
 - **Screen:** Product details. **Dedup:** once per push: tab switches and returning to the screen don't re-send; a new push does. **Privacy:** none.
 
@@ -222,7 +222,7 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Status:** Active
 - **Meaning:** the user saved a product for later.
 - **Trigger:** save control toggled on.
-- **Properties:** `product_id` Int; `surface` (`catalog_card` | `search_card` | `details`); `category` String (omitted when unknown, D-68); `price` Double (the demo price as shown); `position` Int (cards only: index in the list on screen); `saved_count_after` Int.
+- **Properties:** `product_id` Int; `surface` (`catalog_card` | `search_card` | `details`); `category` String (omitted when unknown, D-68); `price` Double (the demo price as shown); `position` Int (cards only: index in the list on screen; in the Needs attention scope, in the filtered list, D-85); `saved_count_after` Int.
 - **Screen:** Catalog, Product details. **Dedup:** once per toggle. **Privacy:** none.
 
 #### `product_unsaved`

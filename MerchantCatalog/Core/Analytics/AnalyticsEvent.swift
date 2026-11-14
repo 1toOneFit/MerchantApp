@@ -146,10 +146,11 @@ enum AnalyticsEvent: Equatable, Sendable {
     /// screen. `sort` is the list's order; Saved has none (D-68).
     case productSelected(productID: Int, source: ProductSource, position: Int, sort: ProductSort?)
     /// Details were first shown for a push (D-59). Unknown values are omitted; from Saved the
-    /// snapshot has no availability, discount or images (D-63). `savedAt`: when the product was
+    /// snapshot has no availability, discount or images (D-63). `availability` is the status shown,
+    /// from the stock (D-84). `savedAt`: when the product was
     /// saved, `nil` if it isn't; sent only as `is_saved`, never as a date. `AnalyticsService` derives
     /// `saved_product_revisited` from it (D-64).
-    case productDetailsViewed(productID: Int, source: ProductSource, category: String?, availability: ProductAvailability?, hasDiscount: Bool?, imageCount: Int?, savedAt: Date?, contentOrigin: ContentOrigin)
+    case productDetailsViewed(productID: Int, source: ProductSource, category: String?, availability: StockStatus?, hasDiscount: Bool?, imageCount: Int?, savedAt: Date?, contentOrigin: ContentOrigin)
     /// The first swipe to another gallery image during a details visit (D-59).
     case productGalleryInteracted(productID: Int, imageCount: Int)
     /// `/products/{id}` failed for details opened from Saved.
@@ -371,7 +372,7 @@ extension Decimal {
     }
 }
 
-extension ProductAvailability {
+extension StockStatus {
     /// The `availability` property value (Analytics.md § 2, shared property values).
     var analyticsValue: String {
         switch self {

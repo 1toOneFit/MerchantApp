@@ -39,9 +39,10 @@ enum ProductsTarget: TargetType {
         }
     }
 
-    /// List and search pages ask only for a summary's fields (D-81); `id` is always included. The API
-    /// ignores an unknown field name silently, so the value is pinned by a test.
-    private static let summaryFields = URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category")
+    /// List and search pages ask only for a summary's fields (D-81), the stock included (D-84); `id`
+    /// is always included. The API ignores an unknown field name silently, so the value is pinned by
+    /// a test.
+    private static let summaryFields = URLQueryItem(name: "select", value: "title,price,thumbnail,rating,category,stock")
 
     /// The API ignores an unknown `sortBy` silently (A4), so every case maps to exact items.
     private static func queryItems(for sort: ProductSort) -> [URLQueryItem] {

@@ -1,6 +1,6 @@
 # Architecture — MerchantCatalog
 
-**Status:** Approved by the developer (2026-11-13). Written as the target design and updated by each stage; as of release 1.0 (S7) it describes the app as built.
+**Status:** Approved by the developer (2026-11-13). Written as the target design and updated by each stage; it describes the app as built through S8 (Needs attention).
 
 ## 1. Summary
 
@@ -18,7 +18,7 @@
 | Navigation | Two tabs, one `NavigationStack` per tab, a `Router` per tab with a `Route` enum | Single root stack around the `TabView`: hides the tab bar on push |
 | Persistence | JSON file in Application Support behind a repository protocol (saved snapshots only) | SwiftData: heavier, harder to test, no relational need |
 | Logging | `os.Logger` with categories; the DEBUG viewer reads `OSLogStore` | Print-based logger: loses levels, privacy redaction and Console.app integration |
-| Tests | Swift Testing, hand-written fakes, `URLProtocol` stub for HTTP | XCTest: fine, but Swift Testing's parameterized tests suit endpoint, sort and taxonomy tables |
+| Tests | Swift Testing, hand-written fakes, `URLProtocol` stub for HTTP; XCUITest for a few end-to-end flows on a fixture (S8) | XCTest for unit tests: fine, but Swift Testing's parameterized tests suit endpoint, sort and taxonomy tables. UI tests need XCTest (Swift Testing doesn't drive XCUIApplication) |
 | Modules | Single app target with folder boundaries | Local SPM packages: worthwhile once a second app or extension shares code |
 
 ## 2. Folder structure
@@ -30,6 +30,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
     AppContext.swift                   # registers concrete services under their protocols
     AppTabView.swift                   # TabView + the ONLY NavigationStacks / navigationDestination
     AppPhase+ScenePhase.swift          # ScenePhase → AppPhase for the lifecycle tracker
+    UITesting/                         # DEBUG only: UITestLaunch (`-ui-testing`), FixtureProductRepository [S8]
   Core/
     DI/            ServiceContainerType.swift, ServiceContainer.swift
     Navigation/    Router.swift, Route.swift, ProductDetailRoute.swift, AppTab.swift, TabSelection.swift
@@ -50,7 +51,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
     NetworkLogFormatter.swift (DEBUG: full request/response log lines) [S7]
   Shared/
     Products/
-      Domain/      Product (+ ProductAvailability), ProductSummary (a list item) [S7], ProductPage, ProductSort,
+      Domain/      Product, ProductSummary (a list item) [S7], StockStatus (the stock policy) [S8], ProductPage, ProductSort,
                    ProductRepository (protocol), ProductInsights (facts builder)
       Data/        ProductsTarget, ProductDTO + ProductSummaryDTO (+ mapping), LiveProductRepository
     Saved/
@@ -64,7 +65,8 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
       Presentation/ CatalogView (+ sort menu), CatalogViewModel, CatalogFeed (one list's state),
                     CatalogPhase (+ CatalogFooter, CatalogListContent), CatalogConfigurator, CatalogCopy,
                     CatalogLayout (columns by Dynamic Type) [S7], ProductCardView, ProductCardModel,
-                    ProductCardAccessibility (VoiceOver label), ProductSort+Title, CardExperiment
+                    ProductCardAccessibility (VoiceOver label), ProductSort+Title, CardExperiment,
+                    CatalogScope (+ AttentionCoverage), CatalogScopeBar (+ attention footer) [S8]
     ProductDetail/
       Presentation/ ProductDetailView (+ sections), ProductDetailViewModel, ProductDetailConfigurator,
                     ProductGalleryView, ProductGalleryModel, ProductDetailHeader, ProductFactRow
@@ -76,7 +78,7 @@ MerchantCatalog/                       # app target (file-system-synchronized gr
                     properties, experiment override, slow network, logs, reset installation ID)
   DesignSystem/
     Components/    ProductImageView (+ ProductImageModel, ImageLoaderEnvironment: `\.imageLoader`) [S7], ErrorBanner,
-                   SaveButton (+ CardSaveButton)
+                   SaveButton (+ CardSaveButton), StockLabel (+ StockStatusView) [S8]
   Assets.xcassets                       # AppIcon (drawn by scripts/make-app-icon.swift), AccentColor
 MerchantCatalogTests/
   Fakes/           FakeAPIClient, StubURLProtocol, FakeProductRepository, ProductFixtures,
@@ -84,6 +86,7 @@ MerchantCatalogTests/
   Support/         RepositoryFiles (source scans), IsolatedDefaults, TestNow, TestUUIDs, TestClock (+ tests),
                    ProductJSON, TemporaryDirectory, CardExperiments
   …Tests.swift     mirror the app folders
+MerchantCatalogUITests/                # XCUITest target [S8]: CatalogUITests, launched with `-ui-testing`
 ```
 
 `Shared/` holds domain and data used by more than one feature (products, saved items). A feature folder holds only what that feature uses. Test doubles live in the test target only. DEBUG-only runtime tooling lives in `Features/Diagnostics`.
@@ -103,6 +106,8 @@ The tree above is the 1.0 layout as built. Planned items that were never needed 
 **What exists (S6):** `Core/Experiments/{Experiment, ExperimentAssigner, ExperimentService, LocalExperimentService, ExposureTracker}` (`ExperimentService.swift` also declares the DEBUG-only `ExperimentOverrides`), `Features/Catalog/Presentation/CardExperiment`, plus tests in `MerchantCatalogTests/Core/Experiments`, `Features/Catalog/CatalogViewModelExperimentTests` and `Support/CardExperiments` (`unobservedCardExperiment()` for catalog suites that don't look at the experiment). The Diagnostics override lives in the existing Diagnostics files.
 
 **What exists (S7):** `Features/Catalog/Presentation/CatalogLayout` (two grid columns, one at accessibility text sizes, D-75), plus `MerchantCatalogTests/Features/Catalog/CatalogLayoutTests`. Larger tap targets (D-76) changed only view code. At the developer's request at the S7 gate, `AsyncImage` was replaced (D-78): `Networking/{ImageLoading, URLSessionImageLoader}`, `DesignSystem/Components/{ProductImageModel, ImageLoaderEnvironment}`, plus `MerchantCatalogTests/Networking/URLSessionImageLoaderTests`, `DesignSystem/ProductImageModelTests` and `Fakes/FakeImageLoader`. At the developer's request (D-81), list pages carry `ProductSummary` items (`Shared/Products/Domain/ProductSummary`, `ProductSummaryDTO`, `select` on list and search targets) and details load `/products/{id}` on every route; tests in `MerchantCatalogTests/Shared/Products/ProductSummaryTests`. D-83 replaced the route enum with `ProductDetailRoute { productID, source }`; `ProductDetailViewModel` gained `DetailLoadState`/`DetailScreen`.
+
+**What exists (S8):** `Shared/Products/Domain/StockStatus` (the one stock policy, D-84), `DesignSystem/Components/StockLabel` (the label's text and `StockStatusView`), `Features/Catalog/Presentation/{CatalogScope, CatalogScopeBar}` (Needs attention, D-85), `App/UITesting/{UITestLaunch, FixtureProductRepository}` (DEBUG only, D-88) and the `MerchantCatalogUITests` target (`com.apple.product-type.bundle.ui-testing`, synchronized folder, in the shared scheme's test action); tests in `MerchantCatalogTests/{Shared/Products/StockStatusTests, DesignSystem/StockLabelTests, Features/Catalog/CatalogViewModelAttentionTests, App/UITestLaunchTests}`. `ProductAvailability` and the decoding of `availabilityStatus` are gone.
 
 **What exists (S4):** `Core/Navigation/ProductDetailRoute`, `Shared/Products/Domain/ProductInsights` (and the details fields on `Product`, with `ProductDimensions` and `ProductReview`), `Features/ProductDetail/Presentation` as listed above, plus tests in `MerchantCatalogTests/Shared/Products/ProductInsightsTests`, `MerchantCatalogTests/Features/ProductDetail/` and `MerchantCatalogTests/Features/Catalog/CatalogViewModelSelectionTests`. The At a Glance chips are a private view in `ProductDetailView.swift`; `ProductFactRow` turns each `ProductInsights.Fact` into a label, value and symbol. `ProductsTarget.detail` isn't needed yet (S5).
 
@@ -158,6 +163,7 @@ protocol ServiceContainerType: AnyObject {
 ```
 
 - `AppContext.configure(defaults:appInfo:)` runs once at launch and registers, by protocol: `APIClientType`, `ImageLoading` (also exposed as `imageLoader` for the environment, D-78), `ProductRepository`, `SavedProductsRepository`, `AnalyticsTracking`, `ExperimentService`, plus `SavedProductsStore`, `SessionTracker`, `InstallationIDProvider`, and in DEBUG `InMemoryAnalyticsProvider` and `LogReading`. **S1 state:** the analytics services are registered; it also sets the launch user properties and exposes `lifecycle` (`AppLifecycleTracker`), which `MerchantCatalogApp` feeds with `scenePhase` changes (`onChange(of:initial: true)`, app-wide phase). Tests pass an isolated `UserDefaults` suite. Each call returns a new `AppContext` with a new container; the app keeps the one built at launch. There is no global singleton, and every test gets an isolated container.
+- **S8:** `configure(…, productRepository:)` takes an optional products source; `nil` (the app) registers `LiveProductRepository`. DEBUG builds launched with `-ui-testing` call `UITestLaunch.makeContext()`, which passes `FixtureProductRepository`, a `UserDefaults` suite emptied at launch and a new temporary saved-products folder (D-88). Nothing else differs, so the UI tests run the real view models, navigation, saved store and analytics.
 - `ServiceContainer` keys services by `ObjectIdentifier(T.self)`, the exact registered type. `String(describing:)` keys collide for same-named types in different scopes; an S0 test showed this.
 - Each scene has a **Configurator** that resolves services and builds the view model with **init injection**. View models never touch the container, so unit tests construct them directly with fakes. `make(...)` returns the screen, which owns its view model in `@State` (`CatalogConfigurator.make(from:isTabSelected:)`, `DiagnosticsConfigurator.make(from:)`). `AppTabView` owns only the tab selection, the routers and the sheet flag, never a feature's view model; it passes the Catalog screen `isTabSelected` for `catalog_viewed` (D-39). Its body re-runs the Configurator on each update; `@State` keeps the first view model, and the extra ones are discarded unused (view-model initializers have no side effects).
 - **Registration guard** (developer's choice, 2026-11-13): each Configurator resolves its services in `static func resolveDependencies(from: any ServiceContainerType) -> Dependencies?`, which returns `nil` if anything is missing, and its `make(...)` uses the same function. `AppContextRegistrationTests` calls every Configurator's `resolveDependencies(from:)` against `AppContext.configure().container`, so a missing registration fails a test instead of crashing in `forceResolve`. Cases: `DiagnosticsConfigurator` (S1, DEBUG), `CatalogConfigurator` (S2), `ProductDetailConfigurator` (S4) and `SavedConfigurator` (S5). **S6:** `AppContext` registers `LocalExperimentService` as `any ExperimentService` (and, in DEBUG, `any ExperimentOverrides`), resolves every experiment at launch (setting `experiment_assignments`, D-69) and registers `ExposureTracker`. `CatalogConfigurator` resolves both and builds a `CardExperiment` value (the launch assignment + the tracker) for `CatalogViewModel` (D-70); `DiagnosticsConfigurator` resolves the service and the overrides. **S5:** `AppContext` registers one `FileSavedProductsRepository` (Application Support) as `any SavedProductsRepository` and `SavedProductsStore` over that same instance (S5 review finding 2; `configure(savedProductsDirectory:)` for tests) and exposes it as `savedProducts`: `MerchantCatalogApp` loads it from the root view's `.task` and passes it to `AppTabView` for the Saved badge. `SavedConfigurator.make(from:router:tabs:isTabSelected:)` gets the Saved tab's router and the `TabSelection` (D-61). **S4:** `CatalogConfigurator.make(from:router:isTabSelected:)` also takes the Catalog tab's `Router`, which `AppTabView` owns, and injects it into `CatalogViewModel` (D-53). **S2 state:** `AppContext` also registers `URLSessionAPIClient` as `any APIClientType`, `LiveProductRepository` as `any ProductRepository`, and in DEBUG `SlowNetworkSetting`, which shares the client's `RequestDelay`.
@@ -204,6 +210,10 @@ enum CatalogFooter: Equatable { case idle, loading, failed(AppError), end }
 ```
 
 **As built (S3):** the view model holds two `CatalogFeed` values, browse and (while a query is committed) search. A feed owns its `CatalogListState`, cards, sort, generation stamp, first-page and page-load status and refresh error, and maps them to its `CatalogPhase`; the view model runs the requests and analytics. `phase`, `cards`, `sort` and `listContext` describe the list on screen (search if present, else browse). `CatalogPhase` gains `noResults(query:)`. Each page-1 load (not a refresh) gives the list a new `listID`, and the view keys the grid by it, so a sort change or a new query shows the new list from the top (S3 review finding 2). The view renders `browseList` and `searchList` (`CatalogListContent`: phase + cards) as two layers; the browse layer stays in the hierarchy, invisible and inert, while search results show (D-47).
+
+**S8 (D-85):** `CatalogViewModel.scope` (`CatalogScope`: `all` | `needsAttention`) applies to the list on screen. `CatalogFeed.content(scope:)` filters the feed's cards to those whose stock status needs attention (no request, no second list) and carries `attentionCount` and `coverage` (`AttentionCoverage`: loaded, total, complete). In `needsAttention`, `itemAppeared` still reports exposure but loads no page; `loadMoreTapped()` loads the next page of the list on screen with the same single-flight rules as scrolling.
+
+**D-90 (developer request):** the scope bar is a `safeAreaBar(edge: .top)` (iOS 26) over the list's grids, so the cards scroll under it. `CatalogScopedGrids` keeps one `CatalogGrid` per scope (`CatalogListContent.allCards` / `attentionCards`), the other one invisible and inert, so each keeps its scroll position (the D-47 pattern); the Needs attention grid is built the first time it is selected. Only the grid on screen reports card appearances. Accessibility hiding is decided in one place per element: SwiftUI lets an outer `accessibilityHidden(false)` override an inner `true` (the UI tests found the hidden grid exposed), so the browse layer under search passes `isHidden` down to `CatalogListView` instead of wrapping it.
 
 `CatalogListState` (Domain) is a pure struct owning the items, the `id` set for de-duplication, `total`, the next `skip` (the raw count received, so dropped duplicates don't shift it), and `canLoadMore` (false after an empty page, so an inconsistent response can't loop). The view model maps it plus its first-page status, page-load status and refresh error to `CatalogPhase`. The system refresh control shows a pull-to-refresh, so "refreshing" isn't part of the phase. Browse and search each keep their own `CatalogListState` in memory for the current screen's lifetime, which is how clearing a search restores the browse list instantly. This is screen state, not a cache: it's never persisted or shared.
 
@@ -272,9 +282,10 @@ Rules: search terms and product titles are interpolated with `privacy: .private`
 - **HTTP layer:** `StubURLProtocol` on an ephemeral `URLSessionConfiguration` tests request building, status mapping, decoding and cancellation of `URLSessionAPIClient`.
 - **Pure presentation rules** are tested without views: card models, the card's VoiceOver label (`ProductCardAccessibilityTests`), copy, and the grid's column count by Dynamic Type size (`CatalogLayoutTests`). How SwiftUI renders them (layout, hit areas, VoiceOver focus, dark mode) is checked manually.
 - **Source-scan tests:** `NavigationRuleTests` (the navigation rule) and `TaxonomyDocumentationTests` (Active events in Analytics.md == `AnalyticsEvent` cases; since 1.0 every event is Active and removed events stay out of code).
+- **UI tests (S8, D-88):** `MerchantCatalogUITests` (XCTest/XCUITest) launches the app with `-ui-testing` and drives six flows: launch with the Needs attention count, the attention scope with "Check 4 more products", the pinned scope bar and the kept scroll position (D-90), details (title and stock), search, save to Saved. The fixture (24 products, two pages) makes them deterministic and offline. Elements are found by accessibility identifier (`catalog.productCard.<id>`, `catalog.allProducts`, `catalog.needsAttention`, `catalog.attentionCoverage`, `catalog.loadMore`, `productDetail.title`, `.price`, `.stockStatus`, `.saveButton`, `saved.row.<id>`); the system search field and the tab bar take none from SwiftUI, so the tests use the screen's only search field and the Saved tab's title. The card experiment's variant isn't pinned: the tests don't read the rating and both arms have the same card height. They run with `xcodebuild test` (the scheme's second testable); `-only-testing:MerchantCatalogTests` runs the unit tests alone.
 - **Agent verification = `xcodebuild build` + `xcodebuild test` only.** The agent does not run or drive the app in the Simulator (token cost). Each stage lists **manual Simulator checks for the developer**, and their results are recorded in the review log.
 - **Image cancellation:** unit tests prove that cancelling the loading task stops the `URLSession` load (`StubURLProtocol` sees `stopLoading`) and that the model drops late results. That SwiftUI cancels `.task` when a cell disappears is Apple-documented behavior, checked manually ([Networking.md § 4](Networking.md#verification)).
-- **Excluded:** UI snapshot tests (spec exclusion).
+- **Excluded:** UI snapshot tests (spec exclusion). UI tests check behavior through accessibility, never pixels.
 
 ## 12. Known trade-offs
 

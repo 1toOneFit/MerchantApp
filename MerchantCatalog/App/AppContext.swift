@@ -39,10 +39,13 @@ final class AppContext {
     ///   - appInfo: the launch user properties' source.
     ///   - savedProductsDirectory: holds the saved-products file (Architecture § 9); nothing is read
     ///     until the store's `load()`.
+    ///   - productRepository: replaces the API as the products source; `nil` (the app) registers
+    ///     `LiveProductRepository`. The UI tests' fixture comes in here (`UITestLaunch`, D-88).
     static func configure(
         defaults: UserDefaults = .standard,
         appInfo: AppInfo = .current(),
-        savedProductsDirectory: URL = .applicationSupportDirectory
+        savedProductsDirectory: URL = .applicationSupportDirectory,
+        productRepository: (any ProductRepository)? = nil
     ) -> AppContext {
         let container = ServiceContainer()
 
@@ -66,7 +69,7 @@ final class AppContext {
         let requestDelay = RequestDelay()
         let client = URLSessionAPIClient(delay: requestDelay)
         container.register(client as any APIClientType)
-        container.register(LiveProductRepository(client: client) as any ProductRepository)
+        container.register(productRepository ?? LiveProductRepository(client: client) as any ProductRepository)
         let imageLoader: any ImageLoading = URLSessionImageLoader()
         container.register(imageLoader as any ImageLoading)
         let savedRepository: any SavedProductsRepository = FileSavedProductsRepository(directory: savedProductsDirectory)
