@@ -93,3 +93,15 @@ No unit test: views have no unit tests in this project and SwiftUI hit areas are
 - **Task 4:** the new tests passed on the first run (expected). Mutation-checked by editing Analytics.md: `search_cleared` set to `Planned (S7)` failed `everyDocumentedEventIsActive` (and the existing Active/Planned tests); the removed row renamed to `search_failed` failed both expectations of `removedEventsStayOutOfCode`. The planned mutation of adding a `sort_options_opened` case in code wasn't used: a new enum case would first break the exhaustive switches, a compile error rather than this test's failure.
 - **Task 5:** the README's "Runs" row says the agent never ran the app and points to the manual checks, rather than claiming they were done: no manual-check results have been shared with the agent.
 - **Developer change request at the gate (D-78):** replace `AsyncImage` with explicit image cancellation. Done test-first on this branch (`fe0b79f`, `3c09319`, `e655c6b`); details in the review log's "S7 developer change request" entry.
+
+## Change request at the gate: dismiss the search keyboard (D-79) — short design
+
+- **Intent:** while searching, a merchant can put the keyboard away to look at the results. Today the keyboard stays up over the grid, and the only way out is Cancel, which ends the search (S3 review fix: `isPresented` → false → `searchDismissed()`).
+- **Goals:** scrolling a grid dismisses the keyboard; the keyboard's Search key dismisses it; the query, results, sort and scroll position stay; tapping the field brings the keyboard back. **Non-goals:** the Search key doesn't run the search early (the 300 ms debounce, triggers and analytics stay as they are). **Anti-goal:** dismissing the keyboard must never end the search.
+- **Approaches** (developer picked 1, 2026-11-14): (1) scroll to dismiss + Search key dismisses; (2) scroll to dismiss only — leaves the keyboard stuck on the no-results and error states, which don't scroll; (3) a "Done" button in a keyboard toolbar — less native for a search field and takes space on small phones.
+- **Design** (`CatalogView.swift` only):
+  - `@FocusState private var isSearchFocused: Bool` bound with `.searchFocused($isSearchFocused)` (iOS 18+) next to `.searchable`. Focus only, never `isSearchPresented`, so the Cancel handler doesn't fire.
+  - `.onSubmit(of: .search) { isSearchFocused = false }`.
+  - `CatalogGrid`'s `ScrollView`: `.scrollDismissesKeyboard(.immediately)` (browse and search grids).
+- **Risk (expected, not verified):** resigning focus keeps the search active (`isPresented` stays true), as with `UISearchController`. If it flipped `isPresented`, the search would clear; manual check 2 covers it.
+- **Testing:** view modifiers only, no view-model change, so no unit test (no view tests in this project); build + full test run, manual Simulator checks in the review log. ProductSpecification § 4.2 gains one line.
