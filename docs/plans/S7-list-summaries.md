@@ -13,7 +13,7 @@
 **Approaches considered:** (1) a separate `ProductSummary` type for list items (chosen: the type says what the list has); (2) keep `Product` and decode the slim response into it (rejected: the anti-goal above); (3) keep full list responses and only refetch on open (rejected: doesn't reduce the list download, which is the point).
 
 **Decided with the developer (2026-11-14):**
-- Loading: the header (title, category, rating, price) shows at once from the list item with "Loading details…"; gallery, At a Glance and the sections appear when `/products/{id}` arrives.
+- Loading: the header (title, category, rating, price) shows at once from the list item with "Loading details…" (replaced by a gallery skeleton in a follow-up, 2026-11-14); gallery, At a Glance and the sections appear when `/products/{id}` arrives.
 - Failure: the header stays with a "Couldn't load details" banner and Retry (offline, timeout, server); 404 → "This product is no longer available." without Retry. Details from Saved keep their wording ("Couldn't refresh — showing saved info").
 - `product_details_viewed` for catalog/search fires **after the fetch**, with all properties (`content_origin: network`); none if the fetch fails or the user leaves first. `product_details_load_failed` covers catalog/search too (`showing_snapshot: false`).
 - Lands on the S7 branch as a change request at the gate (D-81).
