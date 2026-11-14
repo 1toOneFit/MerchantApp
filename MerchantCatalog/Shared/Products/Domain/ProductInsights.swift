@@ -1,6 +1,7 @@
 import Foundation
 
-/// The facts the details screen shows, grouped per section (ProductSpecification § 4.3).
+/// The facts the details screen shows below its header, grouped per section (ProductSpecification
+/// § 4.3). Title, price, stock status, category and rating lead the header instead (D-87).
 ///
 /// Insight rule: only facts present in the data, never an invented score, recommendation or
 /// computed price (D-11). A missing value leaves its fact out, and an empty group means the
@@ -8,16 +9,13 @@ import Foundation
 struct ProductInsights: Equatable, Sendable {
     /// One fact about a product, as the API gives it (D-58).
     enum Fact: Hashable, Sendable {
-        /// The aggregate rating, without a review count (D-55).
-        case rating(Double)
-        /// `units`: the stock count, shown with the status in At a Glance.
-        case availability(ProductAvailability, units: Int?)
+        /// The status from the stock by the one policy (D-84).
+        case availability(StockStatus)
         case stock(Int)
         case minimumOrder(Int)
         case shipping(String)
         case returnPolicy(String)
         case warranty(String)
-        case price(Decimal)
         /// Only when greater than 0.
         case discount(Double)
         case description(String)
@@ -29,9 +27,9 @@ struct ProductInsights: Equatable, Sendable {
         case dimensions(ProductDimensions)
     }
 
-    /// Rating, availability with stock, minimum order, shipping, return policy, warranty.
+    /// Minimum order, shipping, return policy, warranty.
     let atAGlance: [Fact]
-    /// Price, and the discount when there is one.
+    /// The discount when there is one; the price is in the header (D-87).
     let pricing: [Fact]
     /// Description and tags.
     let overview: [Fact]
@@ -43,17 +41,13 @@ struct ProductInsights: Equatable, Sendable {
     let reviews: [ProductReview]
 
     init(_ product: Product) {
-        let availability = product.availability
         atAGlance = [
-            product.rating.map(Fact.rating),
-            availability.map { Fact.availability($0, units: product.stock) },
             product.minimumOrderQuantity.map(Fact.minimumOrder),
             product.shipping.map(Fact.shipping),
             product.returnPolicy.map(Fact.returnPolicy),
             product.warranty.map(Fact.warranty),
         ].compactMap(\.self)
         pricing = [
-            .price(product.price),
             product.discountPercentage.flatMap { $0 > 0 ? Fact.discount($0) : nil },
         ].compactMap(\.self)
         overview = [
@@ -69,7 +63,7 @@ struct ProductInsights: Equatable, Sendable {
             product.warranty.map(Fact.warranty),
         ].compactMap(\.self)
         shippingAndAvailability = [
-            availability.map { Fact.availability($0, units: nil) },
+            product.stockStatus.map(Fact.availability),
             product.stock.map(Fact.stock),
             product.shipping.map(Fact.shipping),
             product.minimumOrderQuantity.map(Fact.minimumOrder),

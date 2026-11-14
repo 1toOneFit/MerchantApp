@@ -41,6 +41,17 @@
                ReferencedContainer = "container:MerchantCatalog.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "4D2A10D52EC5A00100A1B001"
+               BuildableName = "MerchantCatalogUITests.xctest"
+               BlueprintName = "MerchantCatalogUITests"
+               ReferencedContainer = "container:MerchantCatalog.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

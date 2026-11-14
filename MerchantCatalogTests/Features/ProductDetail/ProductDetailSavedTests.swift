@@ -33,11 +33,11 @@ struct ProductDetailSavedTests {
             title: "Volume Mascara",
             price: Decimal(string: price),
             brand: "Acme",
-            availability: .lowStock,
             imageURLs: images,
             category: "beauty",
             rating: 4.94,
-            discountPercentage: 7.17
+            discountPercentage: 7.17,
+            stock: 5
         )
     }
 

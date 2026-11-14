@@ -36,7 +36,8 @@ enum ProductJSON {
     }
     """
 
-    /// A list item as the API sends it with `select=title,price,thumbnail,rating,category` (D-81).
+    /// A list item as the API sends it with `select=title,price,thumbnail,rating,category,stock` (D-81,
+    /// D-84).
     static let summary = """
     {
       "id": 1,
@@ -44,6 +45,7 @@ enum ProductJSON {
       "price": 9.99,
       "rating": 4.94,
       "category": "beauty",
+      "stock": 5,
       "thumbnail": "https://cdn.dummyjson.com/products/1/thumbnail.webp"
     }
     """

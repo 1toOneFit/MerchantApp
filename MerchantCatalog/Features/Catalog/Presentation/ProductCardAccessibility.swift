@@ -1,12 +1,16 @@
 import Foundation
 
 /// What VoiceOver says for a catalog card (ProductSpecification § 4.5): one element,
-/// "Title, price[, rating], saved/not saved", with a custom action to save or unsave. The visible
-/// save button stays a separate touch target (D-60); VoiceOver reaches it through the action.
+/// "Title, price[, stock][, rating], saved/not saved", with a custom action to save or unsave. The
+/// visible save button stays a separate touch target (D-60); VoiceOver reaches it through the action.
 enum ProductCardAccessibility {
-    /// `rating`: only when the card shows one (S6's treatment arm); `nil` leaves it out.
-    static func label(title: String, price: String, rating: Double?, isSaved: Bool, locale: Locale = .current) -> String {
+    /// `stock`: the stock label's spoken text (D-86); `nil` when unknown. `rating`: only when the
+    /// card shows one (S6's treatment arm); `nil` leaves it out.
+    static func label(title: String, price: String, stock: String?, rating: Double?, isSaved: Bool, locale: Locale = .current) -> String {
         var parts = [title, price]
+        if let stock {
+            parts.append(stock)
+        }
         if let rating {
             parts.append("rated \(rating.formatted(.number.precision(.fractionLength(1)).locale(locale))) of 5")
         }

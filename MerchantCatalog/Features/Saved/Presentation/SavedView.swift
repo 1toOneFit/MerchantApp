@@ -49,6 +49,7 @@ struct SavedView: View {
                         SavedRowView(row: row)
                     }
                     .foregroundStyle(.primary)
+                    .accessibilityIdentifier("saved.row.\(row.id)")
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button("Remove", systemImage: "trash", role: .destructive) {
                             viewModel.removeSwiped(id: row.id)

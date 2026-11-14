@@ -13,7 +13,7 @@ struct ProductListResponseDTO: Decodable, Sendable {
     }
 }
 
-/// A list item with the fields `select=title,price,thumbnail,rating,category` returns (`id` is
+/// A list item with the fields `select=title,price,thumbnail,rating,category,stock` returns (`id` is
 /// always included). Blank strings count as missing; a thumbnail without a web host is dropped.
 struct ProductSummaryDTO: Decodable, Sendable {
     let id: Int
@@ -22,6 +22,7 @@ struct ProductSummaryDTO: Decodable, Sendable {
     let thumbnail: String?
     let rating: Double?
     let category: String?
+    let stock: Int?
 
     func toDomain() -> ProductSummary {
         ProductSummary(
@@ -30,20 +31,20 @@ struct ProductSummaryDTO: Decodable, Sendable {
             price: price,
             thumbnailURL: thumbnail.flatMap(ProductDTO.webURL),
             rating: rating,
-            category: category.flatMap(ProductDTO.nonBlank)
+            category: category.flatMap(ProductDTO.nonBlank),
+            stock: stock
         )
     }
 }
 
 /// A product as the API sends it from `/products/{id}`. Only the fields `Product` maps are decoded; everything beyond
 /// `id`, `title` and `price` is optional so an unusual product never fails a whole page. Blank
-/// strings count as missing.
+/// strings count as missing. `availabilityStatus` isn't decoded: the status follows `stock` (D-84).
 struct ProductDTO: Decodable, Sendable {
     let id: Int
     let title: String
     let price: Decimal
     let brand: String?
-    let availabilityStatus: String?
     let thumbnail: String?
     let images: [String]?
     let description: String?
@@ -103,7 +104,6 @@ struct ProductDTO: Decodable, Sendable {
             title: title,
             price: price,
             brand: brand.flatMap(Self.nonBlank),
-            availability: availabilityStatus.flatMap(Self.availability),
             thumbnailURL: thumbnail.flatMap(Self.webURL),
             imageURLs: (images ?? []).compactMap(Self.webURL),
             productDescription: description.flatMap(Self.nonBlank),
@@ -126,15 +126,6 @@ struct ProductDTO: Decodable, Sendable {
     /// The string, or `nil` when it is only whitespace.
     static func nonBlank(_ string: String) -> String? {
         string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : string
-    }
-
-    private static func availability(_ status: String) -> ProductAvailability? {
-        switch status {
-        case "In Stock": .inStock
-        case "Low Stock": .lowStock
-        case "Out of Stock": .outOfStock
-        default: nil
-        }
     }
 
     /// An absolute `http(s)` URL with a host, or `nil` (`https:foo`, `https://` are rejected).

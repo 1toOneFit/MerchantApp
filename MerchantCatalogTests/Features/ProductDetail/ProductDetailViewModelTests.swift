@@ -18,7 +18,6 @@ struct ProductDetailViewModelTests {
         id: 1,
         title: "Volume Mascara",
         brand: "Acme",
-        availability: .lowStock,
         imageURLs: images,
         category: "beauty",
         rating: 4.94,
@@ -247,7 +246,15 @@ struct ProductDetailViewModelTests {
 
         viewModel.saveToggled()
         #expect(viewModel.isSaved)
-        #expect(store.item(id: 1)?.summary == Self.mascara.summary)
+        // The product's summary, without its stock: a snapshot keeps none (D-89).
+        #expect(store.item(id: 1)?.summary == ProductSummary(
+            id: 1,
+            title: "Volume Mascara",
+            price: Self.mascara.price,
+            thumbnailURL: Self.mascara.thumbnailURL,
+            rating: 4.94,
+            category: "beauty"
+        ))
         now.advance(by: 30)
         viewModel.saveToggled()
 

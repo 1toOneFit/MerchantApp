@@ -7,8 +7,8 @@ SwiftUI iOS app: a product catalog for merchants (browse → evaluate → save �
 - **Neutral naming.** Never write the hiring company's name, competitor names, or related brand identifiers anywhere: code, targets, bundle ids, assets, branches, commits, comments, logs, analytics, tests, docs. Use `MerchantCatalog`. Never mention a recruitment process in the UI.
 - **Stage gates.** Work only on the stage marked authorized in [docs/ImplementationPlan.md](docs/ImplementationPlan.md). Finish with the review gate there, set `READY_FOR_REVIEW`, say *"This stage is ready. Please run an independent Codex review manually and share the findings."* and **stop**.
 - **Never:** invoke Codex, merge, push, rebase destructively, start the next stage, self-certify a review, or enable auto-approval / permission-bypass flags.
-- **Do not run the app in the Simulator** (no launching, screenshots, UI driving or simulator tools) — it wastes tokens. Verify with `xcodebuild build` and `xcodebuild test` only; list manual Simulator checks for the developer at the review gate.
-- **TDD** (Red → Green → Refactor) for every testable behavior; see a test fail for the right reason before implementing. No UI snapshot tests. No live network in unit tests.
+- **Do not run the app in the Simulator** (no launching, screenshots, UI driving or simulator tools) — it wastes tokens. Verify with `xcodebuild build` and `xcodebuild test` only (the XCUITest target runs inside `xcodebuild test`); list manual Simulator checks for the developer at the review gate.
+- **TDD** (Red → Green → Refactor) for every testable behavior; see a test fail for the right reason before implementing. No UI snapshot tests. No live network in unit or UI tests (UI tests launch with `-ui-testing`, a DEBUG-only fixture).
 - **Truthfulness.** No fabricated research, metrics, experiment results, or performance numbers. Label platform behavior as verified (with date and method) or expected.
 - **Analytics code and [docs/Analytics.md](docs/Analytics.md) change in the same commit.** Event status `Planned` → `Active` when implemented.
 - **No caching** of any kind (no `URLCache` use, no custom cache managers). Saved-product snapshots are user data, not a cache. Rationale: [docs/Networking.md § 3](docs/Networking.md#3-caching--deliberately-not-implemented).
@@ -45,6 +45,8 @@ A review/fix cycle may continue in the same conversation; a new stage starts in 
 - View models (`@MainActor @Observable`) call protocols, emit analytics, and ask the router to navigate. Views render state and call view-model intents.
 - DI: `ServiceContainer` configured in `AppContext`; per-scene **Configurators** resolve and inject via initializers. View models never touch the container.
 - Navigation: `NavigationStack`/`navigationDestination` **only** in `App/AppTabView.swift`; no `NavigationLink` (enforced by `NavigationRuleTests`).
+- Stock: one policy, `StockStatus(stock:)` (0 out, 1–10 low, > 10 in; D-84), for cards, Needs attention, details and analytics. Needs attention is a scope over **loaded** products only (D-85).
+- UI tests: `MerchantCatalogUITests` launches with `-ui-testing` → `UITestLaunch` (DEBUG) configures `AppContext` with `FixtureProductRepository`; elements by accessibility identifier (D-88).
 - Images: `ProductImageView` loads through `ImageLoading` (`URLSessionImageLoader`, own session, no cache) in `.task(id: url)`: it starts on appear and SwiftUI cancels it on disappear, which cancels the request (D-78).
 
 Details: [docs/Architecture.md](docs/Architecture.md).
@@ -58,7 +60,9 @@ xcodebuild -project MerchantCatalog.xcodeproj -scheme MerchantCatalog \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.0' test
 ```
 
-`iPhone 17` because this machine has several simulators named `iPhone 17 Pro`. Both commands verified on 2026-11-13 in S0.
+`test` runs the unit tests and the UI tests (about a minute more). Unit tests only: add `-only-testing:MerchantCatalogTests`; UI tests only: `-only-testing:MerchantCatalogUITests`.
+
+`iPhone 17` because this machine has several simulators named `iPhone 17 Pro`. Both commands verified on 2026-11-13 in S0; the UI-test target verified on 2026-11-14 in S8.
 
 ## Docs map
 

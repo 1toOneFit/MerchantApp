@@ -14,10 +14,12 @@
 
 | Variant | Catalog/search card | Allocation |
 |---|---|---|
-| `control` | image, title, price, save button | 50 % |
+| `control` | image, title, price, stock status (since S8), save button | 50 % |
 | `treatment` | same card **plus the product's API rating**, a star and one decimal (e.g. 4.96 → "★ 5.0", D-71) | 50 % |
 
 Everything else is identical across arms: card size and layout grid, details screen, Saved list, sort options (including "Rating: High to Low"), search, and all other interactions. The card reserves the same height in both arms, so the number of cards per screen does not change. That way rating is the only visual difference.
+
+**Card layout change (S8, 2026-11-14, D-86):** both arms gained a stock-status row under the price ("Low stock · 4 left") and the catalog gained the Needs attention scope. Rating is still the only difference between the arms, but the card and the screen around it changed for everyone, so data from builds before and after S8 must not be pooled in one analysis: evaluate the experiment on one card layout.
 
 ### Assignment (stable, local)
 

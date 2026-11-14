@@ -44,8 +44,39 @@ struct CatalogFeed {
         query == nil ? .browse : .search
     }
 
-    var content: CatalogListContent {
-        CatalogListContent(phase: phase, cards: cards, listID: listID)
+    /// What the list shows in `scope`: every card, or only those needing attention (D-85).
+    func content(scope: CatalogScope) -> CatalogListContent {
+        CatalogListContent(
+            phase: phase,
+            allCards: cards,
+            attentionCards: cards(in: .needsAttention),
+            listID: listID,
+            scope: scope,
+            attentionCount: attentionCount,
+            coverage: coverage
+        )
+    }
+
+    /// The cards `scope` shows, in server order: what is on screen, and what `position` counts in.
+    func cards(in scope: CatalogScope) -> [ProductCardModel] {
+        scope == .all ? cards : cards.filter(\.needsAttention)
+    }
+
+    /// Loaded products that are low or out of stock.
+    var attentionCount: Int {
+        cards.count { $0.needsAttention }
+    }
+
+    /// What `attentionCount` is based on. Complete only when the pages received reach the list's
+    /// total: an empty page stops paging (`canLoadMore`) but proves nothing about the products after
+    /// it (review finding 1).
+    var coverage: AttentionCoverage {
+        AttentionCoverage(
+            loaded: list.items.count,
+            total: list.total,
+            remaining: max(0, list.total - list.nextSkip),
+            isComplete: list.pagesLoaded > 0 && list.nextSkip >= list.total
+        )
     }
 
     /// Products are on screen.
