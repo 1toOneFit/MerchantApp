@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S7 — Release readiness (`APPROVED`, awaiting merge into `develop`) |
-| Current branch | `feature/release-readiness` (from `develop` at `efc5c89`) |
-| Last completed stage | S6 — Card rating experiment (merged into `develop` with `--no-ff` at `efc5c89`, 2026-11-13) |
-| Next authorized stage | — (S7 is the last stage; release follows) |
-| Pending human action | Merge `feature/release-readiness` into `develop` with `--no-ff`, then `develop` → `main` for the 1.0 release |
+| Current stage | S8 — Needs attention (`IN_PROGRESS`) |
+| Current branch | `feature/needs-attention` (from `develop` at `26dcca2`) |
+| Last completed stage | S7 — Release readiness (merged into `develop` with `--no-ff` at `26dcca2`; released to `main` at `aae71db`, 2026-11-14) |
+| Next authorized stage | S8 (authorized by the developer, 2026-11-14) |
+| Pending human action | — |
 | Open review findings | — |
 | Blockers | — |
 
@@ -28,9 +28,10 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S4 | Product details | `feature/product-details` | COMPLETED | `34ffb7c` + docs commits | Approved: Codex + developer (2026-11-13); merged into `develop` with `--no-ff` at `46b8e6d` |
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | COMPLETED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13); merged into `develop` with `--no-ff` at `efc5c89` |
-| S7 | Release readiness | `feature/release-readiness` | APPROVED | `87222b6` + docs commits | Approved: developer's own review, Claude and Codex reviews, no findings (2026-11-14) |
+| S7 | Release readiness | `feature/release-readiness` | COMPLETED | `87222b6` + docs commits | Approved: developer's own review, Claude and Codex reviews, no findings (2026-11-14); merged into `develop` with `--no-ff` at `26dcca2`; 1.0 released to `main` at `aae71db` |
+| S8 | Needs attention | `feature/needs-attention` | IN_PROGRESS | — | — |
 
-The stages run strictly in order, S0 → S7. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
+The stages run strictly in order, S0 → S8. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
 
 ## Git flow
 
@@ -234,6 +235,22 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 - **Manual checks (developer):** full smoke checklist (browse, paginate, refresh, offline, search, sort, details, save/unsave, relaunch, Saved offline, experiment overrides, Diagnostics, VoiceOver, largest Dynamic Type).
 - **Release:** after approval, the developer merges into `develop` and then `develop` → `main`.
 
+## S8 — Needs attention
+
+Authorized by the developer on 2026-11-14, after the 1.0 release, with a detailed request (summarized here; the request is the scope).
+
+- **Objective / user value:** the main question becomes "Which products need my attention?". Within the first seconds a merchant sees which loaded products are low or out of stock, opens one and sees its stock first.
+- **In scope:**
+  - Stock status on cards (Out of stock / Low stock / In stock) from one documented policy on `stock`: 0 → out, 1–10 → low, > 10 → in (D-84). List pages also select `stock`.
+  - A compact "Needs attention" scope at the top of the list on screen (All products | Needs attention + count), over the products already loaded; it updates as pages load; no extra request (D-85).
+  - Details lead with title, price, stock status, category, rating; save stays in the toolbar (D-87).
+  - An XCUITest target with a deterministic fixture behind a DEBUG-only `-ui-testing` launch argument (D-88); stable accessibility identifiers.
+  - README section: why, the policy, why no inventory/ordering, the fixtures, the next product step.
+- **Out of scope (developer's request):** basket, checkout, editing, ordering or restocking, notifications, an inventory dashboard, new tabs, a full-inventory request; analytics, experiments and Diagnostics stay out of the product story.
+- **Tests first:** `StockStatusTests` (policy table), DTO/target (`stock` selected and decoded; status from `stock`, not `availabilityStatus`), card model and VoiceOver label, `CatalogViewModelAttentionTests` (count, filter, pagination in the scope, search), details header/insights, saved snapshot without stock, `UITestLaunchTests`, registration. UI tests: launch, needs attention, details, search, save.
+- **Acceptance:** all unit and UI tests green through `xcodebuild test`; Debug and Release build with 0 warnings; existing behavior (browse, pagination, refresh, search, sort, saved, offline snapshot, loading/empty/error states) unchanged except where listed.
+- **Task plan:** [plans/S8-needs-attention.md](plans/S8-needs-attention.md).
+
 ---
 
 ## Decisions
@@ -323,6 +340,13 @@ Review findings are assessed one by one (accept, or push back with reasoning). A
 | D-81 | List and search pages request only `ProductSummary` fields (`select=title,price,thumbnail,rating,category`); details always load `/products/{id}`. From the catalog or search the header shows at once from the summary with a gallery skeleton (since 2026-11-14 follow-up; first "Loading details…"), a failure keeps it with "Couldn't load details" and Retry (404: no longer available), and `product_details_viewed` is sent when the full product arrives (`content_origin: network`, all properties; none if the request fails or the user leaves). From Saved unchanged (snapshot first, event at first appearance, D-63). Supersedes D-57's "no request from a list" | Developer (S7 review) | The developer wanted lists to download only what they show, since most listed products are never opened. Header-first loading, banner + Retry and the S7 branch were the agent's recommendations; the developer chose sending the view event after the fetch over at first appearance. Agent's calls: a separate `ProductSummary` type (every `Product` detail field is optional, so a slim item would pass for a product without details), Saved's event unchanged (offline revisits keep counting, D-64), the `list` value of `content_origin` replaced by `network`. Design: [plans/S7-list-summaries.md](plans/S7-list-summaries.md). **Updated by D-83.** |
 | D-82 | `SavedProduct` = `summary: ProductSummary` + `savedAt` (no own copies of the fields); `ProductDetailRoute.summary` gives details the same piece of data from a list and from Saved. The saved file format is unchanged (flat version-1 fields), so no migration | Developer (S7 review) | The developer asked for saved products to carry the same data set that goes from the catalog to details, reusable when opening from Saved. Agent's calls: keep the route enum (D-62) with a shared `summary`, no forwarding properties on `SavedProduct`, and keep the file format. **Updated by D-83.** |
 | D-83 | Details open by id: `ProductDetailRoute { productID, source }` for every source. The whole screen is a skeleton (the real layout over `Product.detailPlaceholder`, redacted and pulsing, the gallery square with a spinner) until `/products/{id}` returns; no list data is shown. Catalog/search failure: full-screen error with Retry (404: no longer available). Saved failure: the snapshot found in the store by id, with the banner and Retry (option A). `product_details_viewed` fires when content first shows: the full product (`network`, any source) or Saved's snapshot fallback (`snapshot`). The bookmark is enabled once something can be saved, or when the product is already saved | Developer (S7 review) | The developer saw the summary data on details as noise and chose option A for Saved (keep offline details). Agent's calls: the view-event rule, the placeholder-based skeleton, the bookmark rule, a cancelled Retry returning to its failure. Supersedes D-62's enum, D-81's header-first loading and D-82's `route.summary`. Design: [plans/S7-details-by-id.md](plans/S7-details-by-id.md). |
+
+| D-84 | Stock status is derived from `stock` by one policy, `StockStatus(stock:)` (`Shared/Products/Domain`): ≤ 0 → Out of stock, 1–10 → Low stock, > 10 → In stock, missing → no status. Cards, Needs attention, details and the `availability` analytics property all use it; the API's `availabilityStatus` is no longer decoded. List and search pages add `stock` to `select` | Agent (S8), within the developer's request | The request allowed `availabilityStatus` only if the current decoder supports it: the list decoder doesn't (D-81 selects summary fields). The API's value also disagrees with `stock`: of 194 products, 10 with stock 7–10 are "In Stock" while other products with stock 7 are "Low Stock" (curl `/products?limit=0&select=stock,availabilityStatus`, 2026-11-14; A16). One rule keeps the card, the attention list and details consistent. |
+| D-85 | Needs attention is a scope of the list on screen (browse or search): two chips at the top of the grid, "All products" and "Needs attention" with the count of loaded products that are low or out of stock. The scope filters only what is loaded, in server order; in it, cards don't trigger automatic paging and the footer says what the count is based on ("Based on 20 of 194 products loaded so far.") with **Load more products**. No extra request | Agent (S8), within the developer's request | Chosen over a separate section above "All products", which would show each attention product twice in one scroll view (duplicate identifiers, double exposure) and push the catalog down. Automatic paging is off in the scope because the filtered list's end isn't the loaded list's end. |
+| D-86 | Cards show a compact stock row under the price in **both** experiment arms; the card's VoiceOver label reads it after the price. Supersedes D-12's "no availability on cards" | Agent (S8), within the developer's request | The rating stays the experiment's only difference; Experiments.md records the layout change so data from before and after S8 isn't pooled. |
+| D-87 | Details lead with title, price, stock status (badge), category · brand, rating; At a Glance drops rating and availability (now in the header); Pricing drops the price row (discount and the price-changed note remain; the section is omitted without them); Shipping & availability shows the derived status and the stock count | Agent (S8), within the developer's request | The request's priority order; avoids showing the same fact three times. |
+| D-88 | UI tests: XCUITest target `MerchantCatalogUITests`. The `-ui-testing` launch argument (DEBUG builds only) configures `AppContext` with a `FixtureProductRepository` (4 products: in, low, out, in stock; no images), a fresh `UserDefaults` suite and a fresh temporary saved-products folder. Production networking and Release builds are unchanged | Agent (S8), within the developer's request | Deterministic and offline. The card experiment's variant isn't pinned (a fresh installation is hashed); the tests don't read the rating and both arms have the same card height (D-21). |
+| D-89 | A saved snapshot keeps no stock count: `SavedProductsStore.save` drops it, the file format is unchanged, and Saved's offline fallback shows no stock status | Agent (S8) | A stock count from when the product was saved would read as current. |
 
 Decisions marked "Agent" are open to the developer's override during plan review.
 
@@ -922,3 +946,7 @@ Answering the open question from the final self-check (partial sections while de
 
 - The developer reviewed S7 themself and ran independent reviews with Claude and Codex (run by the developer): **no findings** ("everything is fine"). Developer's final approval: **approved**. No individual manual-check results beyond the ones recorded above (keyboard dismissal and its animation, the network log) were shared with the agent; Networking.md § 4's image-cancellation result is still to be recorded there.
 - Status → `APPROVED`. The developer merges `feature/release-readiness` into `develop` with `--no-ff`, then `develop` → `main` for the 1.0 release; a later conversation records S7 `COMPLETED` once it confirms the merge. S7 is the last planned stage.
+
+#### S7 merge (recorded by the S8 conversation, 2026-11-14)
+
+- `develop` is at `26dcca2` ("Merge feature/release-readiness (S7: release readiness)", `--no-ff`); `main` is at `aae71db` ("Release 1.0 (S0–S7)", a merge of `develop`). Status → `COMPLETED`. The "Current state" table still said "awaiting merge"; corrected here.
