@@ -61,9 +61,15 @@ struct CatalogFeed {
         cards.count { $0.needsAttention }
     }
 
-    /// What `attentionCount` is based on.
+    /// What `attentionCount` is based on. Complete only when the pages received reach the list's
+    /// total: an empty page stops paging (`canLoadMore`) but proves nothing about the products after
+    /// it (review finding 1).
     var coverage: AttentionCoverage {
-        AttentionCoverage(loaded: list.items.count, total: list.total, isComplete: !list.canLoadMore)
+        AttentionCoverage(
+            loaded: list.items.count,
+            total: list.total,
+            isComplete: list.pagesLoaded > 0 && list.nextSkip >= list.total
+        )
     }
 
     /// Products are on screen.

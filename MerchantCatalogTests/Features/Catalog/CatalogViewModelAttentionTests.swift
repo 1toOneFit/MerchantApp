@@ -143,6 +143,19 @@ struct CatalogViewModelAttentionTests {
         #expect(viewModel.browseList.coverage == AttentionCoverage(loaded: 20, total: 194, isComplete: false))
     }
 
+    /// Review finding 1: an empty page stops paging (an inconsistent server response, D-85), but the
+    /// products after it were never loaded, so the count is not "all" of them.
+    @Test func coverageIsNotCompleteAfterAnEmptyPageBeforeTheEnd() async {
+        let viewModel = await loadedViewModel()
+        repository.enqueue(emptyPage(total: 194, skip: 20))
+
+        viewModel.itemAppeared(id: 20, in: .browse)
+        await viewModel.pageTask?.value
+
+        #expect(viewModel.phase == .content(footer: .end, refreshError: nil), "paging stops as before")
+        #expect(viewModel.browseList.coverage == AttentionCoverage(loaded: 20, total: 194, isComplete: false))
+    }
+
     @Test func coverageIsCompleteWhenEverythingIsLoaded() async {
         let viewModel = await loadedViewModel(total: 20)
 
