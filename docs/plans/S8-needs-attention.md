@@ -79,4 +79,9 @@ README section (why, policy, no inventory/ordering, fixtures, next step); Produc
 
 ## Deviations
 
-*(Filled in during execution.)*
+- Task 5 (snapshots keep no stock) landed in Task 1's commit: once list items carried stock, the registration test that round-trips a snapshot through the file failed (the file has no stock), so the rule went into `SavedProduct.init` (every snapshot, not just `SavedProductsStore.save`) and the two were committed together to keep every commit green.
+- Task 1 also had to update six tests that pin the request URL (`URLSessionAPIClientTests`, `LiveProductRepositoryTests`), not listed in the plan.
+- `UITestLaunch` isn't `@MainActor` as a whole: only `makeContext()` is, so `isRequested` and `argument` stay usable anywhere (the first build failed on that isolation).
+- Task 4 removed the `rating` and `price` facts entirely (no section uses them any more) instead of keeping unused cases.
+- The UI tests take no `catalog.searchField` identifier: SwiftUI's `.searchable` offers no hook, so the tests use the screen's only search field.
+- After the full verification a scan found a force unwrap (`StockLabel(stock: 99)!`); replaced test-first by `StockLabel.placeholder` (`b53bc31`), then build and tests were run again.

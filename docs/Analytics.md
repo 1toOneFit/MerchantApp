@@ -147,7 +147,7 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Meaning:** the user chose a product from a list (intent to evaluate). Distinct from `product_details_viewed`, which records that details were actually shown.
 - **Trigger:** tap on a product card or Saved row.
 - **Properties:** `product_id` Int; `source` (`catalog` | `search` | `saved`); `position` Int (0-based index in the list); `sort` (catalog/search only; omitted for `saved`, D-68).
-- **Note:** `source`, `position` and `sort` come from the list on screen: `search` with the search's sort while results are shown (D-46). A card of the hidden browse layer can't be selected (D-47). `saved`: a tap on a Saved row, `position` in the Saved list (newest first).
+- **Note:** `source`, `position` and `sort` come from the list on screen: `search` with the search's sort while results are shown (D-46). A card of the hidden browse layer can't be selected (D-47). `saved`: a tap on a Saved row, `position` in the Saved list (newest first). In the Needs attention scope (S8, D-85) `position` stays the product's index in the loaded list, not in the filtered grid, and no property tells the scope apart (no S8 event; open question at the S8 gate).
 - **Screen:** Catalog, Saved. **Dedup:** once per tap. **Privacy:** product id only.
 
 ### Search
@@ -222,7 +222,7 @@ Each event: **Meaning · Trigger · Properties · Screen · Dedup · Privacy**. 
 - **Status:** Active
 - **Meaning:** the user saved a product for later.
 - **Trigger:** save control toggled on.
-- **Properties:** `product_id` Int; `surface` (`catalog_card` | `search_card` | `details`); `category` String (omitted when unknown, D-68); `price` Double (the demo price as shown); `position` Int (cards only: index in the list on screen); `saved_count_after` Int.
+- **Properties:** `product_id` Int; `surface` (`catalog_card` | `search_card` | `details`); `category` String (omitted when unknown, D-68); `price` Double (the demo price as shown); `position` Int (cards only: index in the list on screen; in the Needs attention scope, the index in the loaded list, D-85); `saved_count_after` Int.
 - **Screen:** Catalog, Product details. **Dedup:** once per toggle. **Privacy:** none.
 
 #### `product_unsaved`

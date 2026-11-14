@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S8 — Needs attention (`IN_PROGRESS`) |
+| Current stage | S8 — Needs attention (`READY_FOR_REVIEW`) |
 | Current branch | `feature/needs-attention` (from `develop` at `26dcca2`) |
 | Last completed stage | S7 — Release readiness (merged into `develop` with `--no-ff` at `26dcca2`; released to `main` at `aae71db`, 2026-11-14) |
 | Next authorized stage | S8 (authorized by the developer, 2026-11-14) |
-| Pending human action | — |
+| Pending human action | Independent Codex review of `feature/needs-attention`, the manual Simulator checks in the S8 review log, then approval or findings |
 | Open review findings | — |
 | Blockers | — |
 
@@ -29,7 +29,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | COMPLETED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13); merged into `develop` with `--no-ff` at `efc5c89` |
 | S7 | Release readiness | `feature/release-readiness` | COMPLETED | `87222b6` + docs commits | Approved: developer's own review, Claude and Codex reviews, no findings (2026-11-14); merged into `develop` with `--no-ff` at `26dcca2`; 1.0 released to `main` at `aae71db` |
-| S8 | Needs attention | `feature/needs-attention` | IN_PROGRESS | — | — |
+| S8 | Needs attention | `feature/needs-attention` | READY_FOR_REVIEW | `b53bc31` + docs commits | Awaiting the developer's Codex review |
 
 The stages run strictly in order, S0 → S8. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
 
@@ -950,3 +950,39 @@ Answering the open question from the final self-check (partial sections while de
 #### S7 merge (recorded by the S8 conversation, 2026-11-14)
 
 - `develop` is at `26dcca2` ("Merge feature/release-readiness (S7: release readiness)", `--no-ff`); `main` is at `aae71db` ("Release 1.0 (S0–S7)", a merge of `develop`). Status → `COMPLETED`. The "Current state" table still said "awaiting merge"; corrected here.
+
+### S8 — Needs attention · READY_FOR_REVIEW (2026-11-14)
+
+- **Branch:** `feature/needs-attention` (from `develop` at `26dcca2`). **Code head:** `b53bc31`; review-gate docs on top. Nothing merged or pushed.
+- **Scope:** the developer's S8 request (stage section above). Agent decisions within it, open to override: D-84 (stock policy from `stock`, `availabilityStatus` dropped), D-85 (a scope over loaded products, not a section; no auto-paging in it), D-86 (stock row on cards in both arms), D-87 (details header order), D-88 (fixture launch), D-89 (snapshots keep no stock). Task plan: [plans/S8-needs-attention.md](plans/S8-needs-attention.md).
+- **Commits:** `159e319` S7 merge recorded + S8 plan · `12b9a7e` stock policy, `select=…,stock`, analytics `availability` from stock, snapshots without stock · `0b9d6b6` stock row on cards + VoiceOver · `51cd89e` Needs attention scope · `66178ff` details header · `de0e0de` XCUITest target + fixture launch · `f1ee81d` docs · `b53bc31` placeholder refactor (removes a force unwrap) · review-gate docs.
+- **Changed files (62):**
+  - App: new `Shared/Products/Domain/StockStatus`, `DesignSystem/Components/StockLabel`, `Features/Catalog/Presentation/{CatalogScope, CatalogScopeBar}`, `App/UITesting/{UITestLaunch, FixtureProductRepository}` (DEBUG); changed `Product`, `ProductSummary`, `ProductDTO`, `ProductsTarget`, `ProductInsights`, `SavedProduct`, `AnalyticsEvent`, `AppContext`, `MerchantCatalogApp`, catalog (`CatalogFeed`, `CatalogPhase`, `CatalogViewModel`, `CatalogView`, `CatalogCopy`, card model/view/accessibility), details (`ProductDetailHeader`, `ProductDetailView`, `ProductDetailViewModel`, `ProductFactRow`), `SavedView` (row identifier).
+  - Project: target `MerchantCatalogUITests` (`com.apple.product-type.bundle.ui-testing`, bundle id `com.example.MerchantCatalogUITests`, Swift 6, complete concurrency, `TEST_TARGET_NAME = MerchantCatalog`, synchronized folder), second testable in the shared scheme (not parallelized).
+  - Tests: new `StockStatusTests`, `StockLabelTests`, `CatalogViewModelAttentionTests` (13), `UITestLaunchTests` (8), `MerchantCatalogUITests/CatalogUITests` (5 UI tests); updated DTO/target/client/repository select pins, card model and label, details header/insights/fact rows, registration (+2), saved snapshot (+1), copy (+3 cases).
+  - Docs: README (Needs attention section), ProductSpecification (§ 4.1, 4.3, 4.4, new 4.6, § 7, § 8), Architecture, Analytics (`availability` source; `position` in the scope), Experiments (layout change), Networking (A15, new A16), CLAUDE.md (commands), AILog, this file, the task plan.
+- **Build settings** (`xcodebuild -showBuildSettings`, 2026-11-14): unchanged (`SWIFT_VERSION = 6.0`, `SWIFT_STRICT_CONCURRENCY = complete`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`; no default actor isolation). No packages.
+- **Build:** `xcodebuild … clean build` (Debug, iPhone 17, iOS 26.0 Simulator): succeeded; result bundle **0 warnings**, 0 errors, 0 analyzer warnings. `-configuration Release build`: succeeded; 0 warnings, 0 errors. The logs have only the `appintentsmetadataprocessor` "Metadata extraction skipped" tool line. The Release binary contains none of the fixture's strings (`strings` found "Notebook Set"/"ui-testing" 0 times; the Debug dylib 4 times).
+- **Tests:** `xcodebuild … test` (unit + UI): **446 passed, 0 failed, 0 skipped** (result bundle summary): 441 Swift Testing tests in 65 suites (+40 test functions since S7's 401) and 5 XCUITests (44.5 s). No compiler warnings in the test log. `git diff --check develop` clean.
+- **Red first / mutation checks:** every new suite failed on compilation first (`StockStatus`, `StockLabel`, `AttentionCoverage`/`scopeSelected`, the header's new fields, `FixtureProductRepository`/`UITestLaunch`, `placeholder`). The D-89 test failed on its assertion first (`saved.summary.stock → 4`). Mutations: removing the attention filter and the no-paging guard failed 5 attention unit tests; removing the filter failed `testNeedsAttentionShowsOnlyLowAndOutOfStock` (the in-stock card stayed). The 5 UI tests passed at their first run because the features existed by then; the mutation run shows they detect a broken filter.
+- **Manual Simulator checks for the developer** (the agent did not run the app; the UI tests ran through `xcodebuild test` only):
+  1. **Launch (live API):** every card shows a stock row under the price ("In stock" in secondary text with a green symbol; "Low stock · 4 left" orange; "Out of stock" red). Page 1 in Default order has 4 attention products (ids 9, 15, 16, 20; from the 2026-11-14 curl data, the API may change): the chip reads "Needs attention 4". Check both experiment arms (Diagnostics override, relaunch): same card height, the rating row only in treatment.
+  2. **Needs attention:** tap it: only those cards, the footer "Based on 20 of 194 products loaded so far." and **Load more products**; tap it: spinner, then the count and list grow. All products: every card again. Scroll in All products: the count grows as pages load. Over the whole catalog the policy finds 28 (24 low, 4 out).
+  3. **Attention edge cases:** Needs attention with the network off, Load more: message + Retry in the footer; network on, Retry. Pull to refresh in the scope: the list stays filtered. A sort change: skeleton, then the scope still applied.
+  4. **Search:** "phone" with Needs attention selected: only the attention results; Cancel: browse returns in the scope it had.
+  5. **Details:** title, price, stock badge, category · brand, rating at the top; At a Glance without rating/availability; Pricing only with a discount; Shipping & availability shows "Availability: Low stock" and the units. Skeleton unchanged otherwise.
+  6. **Saved:** save a low-stock product, network off, open it from Saved: the snapshot without a stock badge (D-89). Products saved before S8 still load (unchanged file format).
+  7. **Accessibility:** VoiceOver on a card: "Title, $price, Low stock, 4 left, [rated …,] not saved"; the chips: "Needs attention, 4 products, button" (+ "selected"); the details badge reads its text. Largest Dynamic Type (AX5): the chips stack, the stock row stays one line (truncates if needed). Dark mode: the badge and chips legible.
+  8. **UI tests in Xcode:** ⌘U runs 446 tests including the 5 UI tests (the app launches in the Simulator with fixture products: Desk Lamp, Notebook Set, Travel Mug, Wireless Mouse).
+  9. **Release build:** Edit Scheme → Run → Release: the app runs against the API (no fixture path).
+- **Known limitations:**
+  - Needs attention counts only loaded products (no inventory endpoint or stock filter in the API); the count is complete only when every page of the list is loaded, and the UI says so.
+  - In the scope, `product_selected` / `product_saved` `position` is the index in the loaded list, and no event or property records the scope (Analytics.md notes it).
+  - The search field and the Saved tab have no accessibility identifier (SwiftUI's `.searchable` and tab bar take none); the UI tests use the only search field and the tab title.
+  - The UI tests don't pin the card experiment's variant (a fresh installation is hashed each launch); they don't read the rating, and both arms have the same height (D-21).
+  - The stock row's colors, truncation at large text, the chips' stacking and VoiceOver reading are SwiftUI rendering, checked manually (no snapshot tests).
+  - Built with Xcode 26.0, not the current 27.2 (D-1).
+- **Open questions for the developer:**
+  1. Track Needs attention? A minimal option: `catalog_scope_changed { scope, attention_count, loaded_count }` and a `scope` property on `product_selected` / `product_saved`. Left out because the request kept analytics out of the product story.
+  2. Agent decisions D-84–D-89 (above), in particular: the scope over a section (D-85), dropping `availabilityStatus` everywhere including analytics (D-84), and 10 as the low-stock limit (from the request).
+- **Findings and resolution:** awaiting the developer's Codex review.
