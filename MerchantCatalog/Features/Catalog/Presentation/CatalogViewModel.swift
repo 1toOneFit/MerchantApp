@@ -250,12 +250,14 @@ final class CatalogViewModel {
     }
 
     /// A card of the `context` list was tapped: `product_selected` from the list on screen, then the
-    /// details screen on the Catalog tab's stack (D-53). Cards of a hidden list are ignored (D-47).
+    /// details screen on the Catalog tab's stack (D-53). `position` counts the cards on screen: in
+    /// Needs attention, the filtered list (D-85). Cards of a hidden list, or outside the scope, are
+    /// ignored (D-47).
     func cardSelected(id: Product.ID, in context: ListContext) {
         guard
             context == listContext,
             let feed = feed(for: context),
-            let position = feed.list.items.firstIndex(where: { $0.id == id })
+            let position = feed.cards(in: scope).firstIndex(where: { $0.id == id })
         else {
             return
         }
@@ -269,19 +271,21 @@ final class CatalogViewModel {
         savedProducts.isSaved(id)
     }
 
-    /// A card's save button in the `context` list: saves or removes the product and reports it from
-    /// the list on screen (surface and position). Buttons of a hidden list are ignored (D-47).
+    /// A card's save button in the `context` list: saves or removes the loaded product and reports it
+    /// from the list on screen (surface, and the position among the cards on screen, D-85). Buttons
+    /// of a hidden list, or outside the scope, are ignored (D-47).
     func saveToggled(id: Product.ID, in context: ListContext) {
         guard
             context == listContext,
             let feed = feed(for: context),
-            let position = feed.list.items.firstIndex(where: { $0.id == id })
+            let position = feed.cards(in: scope).firstIndex(where: { $0.id == id }),
+            let product = feed.list.items.first(where: { $0.id == id })
         else {
             return
         }
         let change = savedProducts.isSaved(id)
             ? savedProducts.remove(id: id)
-            : savedProducts.save(feed.list.items[position])
+            : savedProducts.save(product)
         guard let change else { return }
         let surface: SaveSurface = context == .search ? .searchCard : .catalogCard
         analytics.track(change.event(surface: surface, position: position))

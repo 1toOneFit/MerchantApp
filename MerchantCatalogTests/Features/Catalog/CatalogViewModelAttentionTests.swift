@@ -10,9 +10,10 @@ struct CatalogViewModelAttentionTests {
     private let repository = FakeProductRepository()
     private let analytics = SpyAnalytics()
     private let clock = TestClock()
+    private let now = TestNow()
 
-    private func makeViewModel() -> CatalogViewModel {
-        CatalogViewModel(repository: repository, analytics: analytics, router: Router(), savedProducts: SavedProductsStore(repository: InMemorySavedRepository(), analytics: SpyAnalytics()), cardExperiment: unobservedCardExperiment(), clock: clock)
+    private func makeViewModel(store: SavedProductsStore? = nil) -> CatalogViewModel {
+        CatalogViewModel(repository: repository, analytics: analytics, router: Router(), savedProducts: store ?? SavedProductsStore(repository: InMemorySavedRepository(), analytics: SpyAnalytics()), cardExperiment: unobservedCardExperiment(), clock: clock)
     }
 
     /// Products `ids` with stock from `stock(id)`, as the server would report them at `skip`.
@@ -33,9 +34,9 @@ struct CatalogViewModelAttentionTests {
 
     private static let firstPageAttentionIDs = [2, 3, 5, 9, 11, 14, 17, 20]
 
-    private func loadedViewModel(total: Int = 194) async -> CatalogViewModel {
+    private func loadedViewModel(total: Int = 194, store: SavedProductsStore? = nil) async -> CatalogViewModel {
         repository.enqueue(Self.firstPage(total: total))
-        let viewModel = makeViewModel()
+        let viewModel = makeViewModel(store: store)
         await viewModel.start()
         analytics.reset()
         return viewModel
@@ -177,6 +178,77 @@ struct CatalogViewModelAttentionTests {
         #expect(viewModel.cards.map(\.id) == [102])
         #expect(viewModel.attentionCount == 1)
         #expect(viewModel.searchList?.cards.map(\.id) == [102])
+    }
+
+    // MARK: - Analytics positions (review finding 2)
+
+    /// `position` is the index in the list on screen: in Needs attention, the filtered list.
+    @Test func selectingInNeedsAttentionReportsTheVisiblePosition() async {
+        let viewModel = await loadedViewModel()
+        viewModel.scopeSelected(.needsAttention)
+
+        viewModel.cardSelected(id: 9, in: .browse)
+
+        #expect(analytics.events == [.productSelected(productID: 9, source: .catalog, position: 3, sort: .defaultOrder)])
+    }
+
+    /// The position is the filtered list's; the saved snapshot is still the loaded product.
+    @Test func savingInNeedsAttentionReportsTheVisiblePosition() async {
+        let store = await loadedSavedStore(now: now.now)
+        let viewModel = await loadedViewModel(store: store)
+        viewModel.scopeSelected(.needsAttention)
+
+        viewModel.saveToggled(id: 9, in: .browse)
+
+        #expect(analytics.events == [
+            .productSaved(productID: 9, surface: .catalogCard, category: nil, price: product(9).price, position: 3, savedCountAfter: 1),
+        ])
+        #expect(store.item(id: 9) == SavedProduct(summary: makeSummary(id: 9), savedAt: now.date))
+    }
+
+    @Test func positionsAfterPaginationCountTheListOnScreen() async {
+        let viewModel = await loadedViewModel()
+        repository.enqueue(Self.stockPage(21...40, total: 194, skip: 20) { $0 == 40 ? 2 : 50 })
+        viewModel.itemAppeared(id: 20, in: .browse)
+        await viewModel.pageTask?.value
+        analytics.reset()
+
+        viewModel.cardSelected(id: 40, in: .browse)
+        viewModel.scopeSelected(.needsAttention)
+        viewModel.cardSelected(id: 40, in: .browse)
+
+        #expect(analytics.events == [
+            .productSelected(productID: 40, source: .catalog, position: 39, sort: .defaultOrder),
+            .productSelected(productID: 40, source: .catalog, position: 8, sort: .defaultOrder),
+        ])
+    }
+
+    @Test func searchResultsInNeedsAttentionReportTheVisiblePosition() async {
+        let viewModel = await loadedViewModel()
+        viewModel.scopeSelected(.needsAttention)
+        repository.enqueue(Self.stockPage(101...104, total: 4, skip: 0) { $0 == 102 || $0 == 104 ? 3 : 50 })
+        viewModel.searchTextChanged(to: "lamp")
+        await clock.waitForSleepers(1)
+        clock.advance(by: CatalogViewModel.searchDebounce)
+        await viewModel.searchTask?.value
+        analytics.reset()
+
+        viewModel.cardSelected(id: 9, in: .browse)
+        viewModel.cardSelected(id: 104, in: .search)
+
+        #expect(analytics.events == [.productSelected(productID: 104, source: .search, position: 1, sort: .defaultOrder)], "the hidden browse card is ignored")
+    }
+
+    /// A card that the scope doesn't show can't be on screen; a stray callback changes nothing.
+    @Test func cardOutsideTheScopeIsIgnored() async {
+        let viewModel = await loadedViewModel()
+        viewModel.scopeSelected(.needsAttention)
+
+        viewModel.cardSelected(id: 1, in: .browse)
+        viewModel.saveToggled(id: 1, in: .browse)
+
+        #expect(analytics.events.isEmpty)
+        #expect(!viewModel.isSaved(1))
     }
 
     @Test func selectingTheSameScopeIsANoOp() async {

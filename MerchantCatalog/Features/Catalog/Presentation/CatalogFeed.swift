@@ -48,12 +48,17 @@ struct CatalogFeed {
     func content(scope: CatalogScope) -> CatalogListContent {
         CatalogListContent(
             phase: phase,
-            cards: scope == .all ? cards : cards.filter(\.needsAttention),
+            cards: cards(in: scope),
             listID: listID,
             scope: scope,
             attentionCount: attentionCount,
             coverage: coverage
         )
+    }
+
+    /// The cards `scope` shows, in server order: what is on screen, and what `position` counts in.
+    func cards(in scope: CatalogScope) -> [ProductCardModel] {
+        scope == .all ? cards : cards.filter(\.needsAttention)
     }
 
     /// Loaded products that are low or out of stock.
