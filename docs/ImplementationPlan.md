@@ -7,11 +7,11 @@ This file is the **persistent source of truth for progress**. A fresh conversati
 | Field | Value |
 |---|---|
 | Phase | **IMPLEMENTATION** |
-| Current stage | S8 — Needs attention (`READY_FOR_REVIEW`) |
-| Current branch | `feature/needs-attention` (from `develop` at `26dcca2`) |
-| Last completed stage | S7 — Release readiness (merged into `develop` with `--no-ff` at `26dcca2`; released to `main` at `aae71db`, 2026-11-14) |
-| Next authorized stage | S8 (authorized by the developer, 2026-11-14) |
-| Pending human action | Re-review of `feature/needs-attention` after the fixes for the three S8 review findings, the manual Simulator checks in the S8 review log, then approval or further findings |
+| Current stage | — (S8 completed) |
+| Current branch | `feature/s8-status` (from `develop` at `1343788`): this status update only |
+| Last completed stage | S8 — Needs attention (approved by the developer; merged into `develop` with `--no-ff` at `1343788` and `develop` into `main` at `03f6c04`, 2026-11-14) |
+| Next authorized stage | — (none; a new stage needs the developer's authorization) |
+| Pending human action | Merge `feature/s8-status` into `develop` and `develop` into `main` (`--no-ff`), then push |
 | Open review findings | — |
 | Blockers | — |
 
@@ -29,7 +29,7 @@ Statuses: `PLANNED` → `IN_PROGRESS` → `READY_FOR_REVIEW` → (`CHANGES_REQUE
 | S5 | Saved products | `feature/saved-products` | COMPLETED | `be7c92b` + docs commits | Approved: Codex re-review + developer (2026-11-13); merged into `develop` with `--no-ff` at `dc04338` |
 | S6 | Card rating experiment | `feature/card-rating-experiment` | COMPLETED | `7ecdeee` + docs commits | Approved: Codex review fixes + developer (2026-11-13); merged into `develop` with `--no-ff` at `efc5c89` |
 | S7 | Release readiness | `feature/release-readiness` | COMPLETED | `87222b6` + docs commits | Approved: developer's own review, Claude and Codex reviews, no findings (2026-11-14); merged into `develop` with `--no-ff` at `26dcca2`; 1.0 released to `main` at `aae71db` |
-| S8 | Needs attention | `feature/needs-attention` | READY_FOR_REVIEW | see the review log + docs commits | Review round 1: 3 findings fixed; developer change requests (wording, pinned bar, scroll position) done (2026-11-14); awaiting re-review |
+| S8 | Needs attention | `feature/needs-attention` | COMPLETED | `8b9d388` + docs commits | Review round 1: 3 findings fixed; developer change requests (wording, pinned bar, scroll position) done; approved by the developer (2026-11-14); merged into `develop` with `--no-ff` at `1343788`, `develop` into `main` at `03f6c04` |
 
 The stages run strictly in order, S0 → S8. Each stage branches from `develop` **after** the previous stage was approved and merged into `develop` by the developer.
 
@@ -1014,3 +1014,10 @@ The developer didn't understand "Based on 120 of 194 products loaded so far" and
 - **Manual checks for the developer:** (1) the bar stays under the search field while scrolling, cards pass under it with the system's edge blur, in light and dark mode; (2) scroll All products far down, switch to Needs attention and back: same place; (3) at the largest text size the chips stack and the bar stays usable; (4) VoiceOver: while Needs attention shows, swiping never reaches All products cards; while searching, never reaches the browse list; (5) the footer reads "Checked 20 of 194 products." with "Check 20 more products"; near the end of the catalog the button names what is left.
 - **Known limitation:** an All products card that appeared while its grid was hidden (e.g. a page added from Needs attention) doesn't report its appearance; if the user switches back exactly at the end of the list, the next page loads once they scroll further.
 - Status stays `READY_FOR_REVIEW`.
+
+#### S8 review result and merge (2026-11-14)
+
+- Developer's final approval: **approved** (2026-11-14). The developer runs the tests and the manual Simulator checks themself; no further review findings were shared with the agent after the change requests.
+- Merge (confirmed with `git log`): `feature/needs-attention` into `develop` with `--no-ff` at `1343788`, then `develop` into `main` with `--no-ff` at `03f6c04`; `main` matches `origin/main`. Status → `COMPLETED`.
+- The last test run the agent did (before the final docs commit `d768d45`, same code): `xcodebuild … test` 454 passed, 0 failed (448 unit, 6 UI); Debug and Release builds 0 warnings.
+- Not part of S8: an uncommitted change to the shared scheme (the UI-test target's `parallelizable = "NO"` removed) appeared in the working copy, not made by the agent; left for the developer.
