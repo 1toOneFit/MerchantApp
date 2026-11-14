@@ -3,7 +3,7 @@ import Testing
 @testable import MerchantCatalog
 
 private func detail(_ id: Int) -> Route {
-    .productDetail(.list(summary(id), source: .catalog))
+    .productDetail(ProductDetailRoute(productID: id, source: .catalog))
 }
 
 @MainActor
@@ -23,7 +23,7 @@ struct RouterTests {
 
     @Test func showProductDetailPushesTheRoute() {
         let router = Router(path: [detail(1)])
-        let route = ProductDetailRoute.list(summary(2), source: .search)
+        let route = ProductDetailRoute(productID: 2, source: .search)
 
         router.showProductDetail(route)
 
@@ -62,17 +62,13 @@ struct RouterTests {
         #expect(router.path == [])
     }
 
-    /// D-62: a list route carries the list's product and source; a Saved route the snapshot.
-    @Test func routeExposesIDAndSource() {
-        let snapshot = SavedProduct(summary: summary(9), savedAt: date("2026-11-13T10:00:00Z"))
+    /// D-83: a details route is the product's id and where it was opened from, for every source;
+    /// details load everything else.
+    @Test func routeIsTheIDAndSource() {
+        let route = ProductDetailRoute(productID: 9, source: .saved)
 
-        #expect(ProductDetailRoute.list(summary(4), source: .search).productID == 4)
-        #expect(ProductDetailRoute.list(summary(4), source: .search).source == .search)
-        #expect(ProductDetailRoute.saved(snapshot).productID == 9)
-        #expect(ProductDetailRoute.saved(snapshot).source == .saved)
-        #expect(Route.productDetail(.saved(snapshot)).logDescription == "productDetail(id: 9, source: saved)")
-        // D-82: both routes hand details the same piece of data.
-        #expect(ProductDetailRoute.list(summary(4), source: .search).summary == summary(4))
-        #expect(ProductDetailRoute.saved(snapshot).summary == summary(9))
+        #expect(route.productID == 9)
+        #expect(route.source == .saved)
+        #expect(Route.productDetail(route).logDescription == "productDetail(id: 9, source: saved)")
     }
 }

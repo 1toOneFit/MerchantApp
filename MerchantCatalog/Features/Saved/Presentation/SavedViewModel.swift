@@ -43,11 +43,11 @@ final class SavedViewModel {
         analytics.track(.savedProductsViewed(savedCount: savedProducts.count))
     }
 
-    /// A row was tapped: `product_selected` (no sort, D-68), then details from the snapshot.
+    /// A row was tapped: `product_selected` (no sort, D-68), then details by id (D-83).
     func rowSelected(id: Product.ID) {
         guard let position = savedProducts.items.firstIndex(where: { $0.id == id }) else { return }
         analytics.track(.productSelected(productID: id, source: .saved, position: position, sort: nil))
-        router.showProductDetail(.saved(savedProducts.items[position]))
+        router.showProductDetail(ProductDetailRoute(productID: id, source: .saved))
     }
 
     /// Swipe to remove (AC-V4).

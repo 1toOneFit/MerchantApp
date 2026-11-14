@@ -249,10 +249,9 @@ final class CatalogViewModel {
         else {
             return
         }
-        let product = feed.list.items[position]
         let source: ProductSource = context == .search ? .search : .catalog
         analytics.track(.productSelected(productID: id, source: source, position: position, sort: feed.sort))
-        router.showProductDetail(.list(product, source: source))
+        router.showProductDetail(ProductDetailRoute(productID: id, source: source))
     }
 
     /// Whether the card's product is saved.

@@ -2,10 +2,10 @@ import Foundation
 import Testing
 @testable import MerchantCatalog
 
-/// Details opened from the catalog or search (ProductSpecification § 4.3, D-81): the list item's
-/// summary shows at once, `/products/{id}` loads the full product. `product_details_viewed` is sent
-/// once the full product arrives (once per push); a failure keeps the header with a banner and Retry;
-/// `product_gallery_interacted` once per visit (D-59).
+/// Details opened from the catalog or search (ProductSpecification § 4.3, D-83): opened by id, the
+/// whole screen is a skeleton until `/products/{id}` returns, then the full product. A failure shows
+/// a full-screen error with Retry (404: no longer available). `product_details_viewed` once the full
+/// product shows (once per push); `product_gallery_interacted` once per visit (D-59).
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProductDetailViewModelTests {
@@ -29,22 +29,18 @@ struct ProductDetailViewModelTests {
         productID: 1, source: .search, category: "beauty", availability: .lowStock, hasDiscount: true, imageCount: 3, savedAt: nil, contentOrigin: .network
     )
 
-    private func makeViewModel(
-        summary: ProductSummary = mascara.summary,
-        source: ProductSource = .search,
-        store: SavedProductsStore? = nil
-    ) -> ProductDetailViewModel {
+    private func makeViewModel(id: Int = 1, source: ProductSource = .search, store: SavedProductsStore? = nil) -> ProductDetailViewModel {
         ProductDetailViewModel(
-            route: .list(summary, source: source),
+            route: ProductDetailRoute(productID: id, source: source),
             repository: repository,
             savedProducts: store ?? SavedProductsStore(repository: InMemorySavedRepository(), analytics: SpyAnalytics()),
             analytics: analytics
         )
     }
 
-    /// A view model whose first load returned `product`, analytics cleared.
+    /// A view model whose first load returned `product`.
     private func loadedViewModel(_ product: Product = mascara, source: ProductSource = .search, store: SavedProductsStore? = nil) async -> ProductDetailViewModel {
-        let viewModel = makeViewModel(summary: product.summary, source: source, store: store)
+        let viewModel = makeViewModel(id: product.id, source: source, store: store)
         repository.enqueueProduct(.success(product))
         await viewModel.start()
         return viewModel
@@ -52,16 +48,13 @@ struct ProductDetailViewModelTests {
 
     // MARK: - Loading
 
-    /// The header shows at once from the list item; the rest waits for the request. Nothing is
-    /// requested or tracked before the screen starts.
-    @Test func showsTheSummaryFirst() {
+    /// Nothing from the list is shown: only the skeleton until the full product arrives.
+    @Test func startsWithTheSkeleton() {
         let viewModel = makeViewModel()
 
-        #expect(viewModel.product == Self.mascara.summary.displayProduct)
-        #expect(viewModel.header == ProductDetailHeader(title: "Volume Mascara", brand: nil, category: "Beauty"))
-        #expect(viewModel.gallery.imageURLs.isEmpty)
-        #expect(viewModel.showsGallerySkeleton)
-        #expect(viewModel.refresh == .idle)
+        #expect(viewModel.screen == .skeleton)
+        #expect(viewModel.load == .idle)
+        #expect(viewModel.savedSnapshot == nil)
         #expect(!viewModel.isShowingSnapshot)
         #expect(repository.productRequests.isEmpty)
         #expect(analytics.events.isEmpty)
@@ -74,29 +67,24 @@ struct ProductDetailViewModelTests {
         await viewModel.start()
 
         #expect(repository.productRequests == [1])
-        #expect(viewModel.refresh == .refreshed)
-        #expect(viewModel.product == Self.mascara)
+        #expect(viewModel.load == .loaded)
+        #expect(viewModel.screen == .content(Self.mascara))
         #expect(viewModel.header == ProductDetailHeader(Self.mascara))
         #expect(viewModel.insights == ProductInsights(Self.mascara))
         #expect(viewModel.gallery == ProductGalleryModel(Self.mascara))
     }
 
-    /// While the request runs, a skeleton stands where the gallery will be, instead of a text line;
-    /// the images replace it when the product arrives.
-    @Test func showsTheGallerySkeletonWhileLoading() async {
+    @Test func skeletonWhileTheRequestIsInFlight() async {
         let viewModel = makeViewModel()
         let task = Task { await viewModel.start() }
 
         await repository.waitForPendingProductRequests(1)
-        #expect(viewModel.refresh == .loading)
-        #expect(viewModel.showsGallerySkeleton)
-        #expect(viewModel.statusMessage == nil)
+        #expect(viewModel.load == .loading)
+        #expect(viewModel.screen == .skeleton)
 
         repository.resumeNextProduct(with: .success(Self.mascara))
         await task.value
-        #expect(viewModel.refresh == .refreshed)
-        #expect(!viewModel.showsGallerySkeleton)
-        #expect(viewModel.gallery.imageURLs == Self.images)
+        #expect(viewModel.screen == .content(Self.mascara))
     }
 
     /// Leaving the screen cancels the request; a response that wins the race is dropped and the next
@@ -110,8 +98,8 @@ struct ProductDetailViewModelTests {
         repository.resumeNextProduct(with: .success(Self.mascara))
         await task.value
 
-        #expect(viewModel.refresh == .idle)
-        #expect(viewModel.product == Self.mascara.summary.displayProduct)
+        #expect(viewModel.load == .idle)
+        #expect(viewModel.screen == .skeleton)
         #expect(analytics.events.isEmpty)
     }
 
@@ -125,16 +113,15 @@ struct ProductDetailViewModelTests {
 
     // MARK: - Failure
 
-    @Test func failureKeepsTheHeaderWithRetry() async {
+    @Test func failureShowsTheFullScreenError() async {
         let viewModel = makeViewModel()
         repository.enqueueProduct(.failure(AppError.offline))
 
         await viewModel.start()
 
-        #expect(viewModel.refresh == .failed(.offline))
-        #expect(viewModel.product == Self.mascara.summary.displayProduct)
-        #expect(!viewModel.showsGallerySkeleton)
-        #expect(viewModel.statusMessage == "Couldn't load details")
+        #expect(viewModel.load == .failed(.offline))
+        #expect(viewModel.screen == .failed(.offline))
+        #expect(viewModel.statusMessage == nil)
         #expect(analytics.events == [
             .productDetailsLoadFailed(productID: 1, source: .search, error: .offline, showingSnapshot: false),
         ])
@@ -146,8 +133,8 @@ struct ProductDetailViewModelTests {
 
         await viewModel.start()
 
-        #expect(viewModel.refresh == .unavailable)
-        #expect(!viewModel.showsGallerySkeleton)
+        #expect(viewModel.load == .unavailable)
+        #expect(viewModel.screen == .failed(.notFound))
         #expect(analytics.events == [
             .productDetailsLoadFailed(productID: 1, source: .catalog, error: .notFound, showingSnapshot: false),
         ])
@@ -161,10 +148,10 @@ struct ProductDetailViewModelTests {
 
         repository.enqueueProduct(.success(Self.mascara))
         viewModel.retry()
+        #expect(viewModel.screen == .skeleton)
         await viewModel.retryTask?.value
 
-        #expect(viewModel.refresh == .refreshed)
-        #expect(viewModel.product == Self.mascara)
+        #expect(viewModel.screen == .content(Self.mascara))
         #expect(analytics.events == [
             .retryRequested(failedSurface: .details, error: .offline),
             Self.viewedMascara,
@@ -173,16 +160,10 @@ struct ProductDetailViewModelTests {
 
     // MARK: - Analytics
 
-    /// D-81: sent when the full product arrives, with every property, once per push; the screen's
-    /// appearance doesn't send it again.
-    @Test func detailsViewedOnceTheFullProductArrives() async {
-        let viewModel = makeViewModel()
-        viewModel.contentAppeared()
-        #expect(analytics.events.isEmpty, "nothing before the full product")
+    @Test func detailsViewedOnceTheFullProductShows() async {
+        let viewModel = await loadedViewModel()
 
-        repository.enqueueProduct(.success(Self.mascara))
         await viewModel.start()
-        viewModel.contentAppeared()
 
         #expect(analytics.events == [Self.viewedMascara])
     }
@@ -218,7 +199,7 @@ struct ProductDetailViewModelTests {
         #expect(viewModel.galleryIndex == 0)
     }
 
-    // MARK: - Saving (S5)
+    // MARK: - Saving
 
     /// `is_saved` comes from the store; the save date travels with the event for
     /// `saved_product_revisited` (D-64).
@@ -233,10 +214,36 @@ struct ProductDetailViewModelTests {
         ])
     }
 
-    /// Saving works before the full product arrives: the summary has every snapshot field.
-    @Test func toolbarSaveAndUnsaveTrackDetailsSurface() async {
+    /// Saving needs the product's data, so the bookmark waits for it; nothing happens before.
+    @Test func savingWaitsForTheProduct() async {
         let store = await loadedSavedStore(now: now.now)
         let viewModel = makeViewModel(store: store)
+
+        #expect(!viewModel.canToggleSave)
+        viewModel.saveToggled()
+        #expect(store.items.isEmpty)
+
+        repository.enqueueProduct(.success(Self.mascara))
+        await viewModel.start()
+        #expect(viewModel.canToggleSave)
+    }
+
+    /// Removing never needs data: an already-saved product can be unsaved during the skeleton.
+    @Test func savedProductCanBeRemovedBeforeTheLoad() async {
+        let store = await loadedSavedStore([SavedProduct(summary: Self.mascara.summary, savedAt: now.date)], now: now.now)
+        let viewModel = makeViewModel(store: store)
+
+        #expect(viewModel.isSaved)
+        #expect(viewModel.canToggleSave)
+        viewModel.saveToggled()
+
+        #expect(!viewModel.isSaved)
+    }
+
+    @Test func toolbarSaveAndUnsaveTrackDetailsSurface() async {
+        let store = await loadedSavedStore(now: now.now)
+        let viewModel = await loadedViewModel(store: store)
+        analytics.reset()
 
         viewModel.saveToggled()
         #expect(viewModel.isSaved)
@@ -255,7 +262,7 @@ struct ProductDetailViewModelTests {
     @Test func saveOnDetailsUpdatesTheCatalogCard() async {
         let store = await loadedSavedStore()
         let catalog = CatalogViewModel(repository: FakeProductRepository(), analytics: SpyAnalytics(), router: Router(), savedProducts: store, cardExperiment: unobservedCardExperiment(), clock: TestClock())
-        let viewModel = makeViewModel(store: store)
+        let viewModel = await loadedViewModel(store: store)
 
         viewModel.saveToggled()
 

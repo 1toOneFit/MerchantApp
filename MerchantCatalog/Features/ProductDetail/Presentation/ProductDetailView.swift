@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// The product details screen (ProductSpecification § 4.3): gallery, header, At a Glance, Pricing,
-/// Overview, Product information, Shipping & availability and Recent reviews, top to bottom. The
-/// header shows at once from the list item's summary or the saved snapshot, with a gallery skeleton,
-/// while `/products/{id}` loads the full product (AC-D1, D-81; § 4.4, AC-D4); a section without data is left out (AC-D2). The toolbar's save
-/// button follows the shared store (AC-D3). It owns its view model; `AppTabView` pushes it through
-/// `ProductDetailConfigurator`.
+/// Overview, Product information, Shipping & availability and Recent reviews, top to bottom. Opened by
+/// id (D-83), the whole layout is a skeleton (redacted placeholder content, pulsing) until
+/// `/products/{id}` returns; then the full product shows. From Saved, a failure shows the saved
+/// snapshot with a banner (AC-D4); otherwise a failure is a full-screen error with Retry. A section
+/// without data is left out (AC-D2). The toolbar's save button follows the shared store (AC-D3). It
+/// owns its view model; `AppTabView` pushes it through `ProductDetailConfigurator`.
 struct ProductDetailView: View {
     @State private var viewModel: ProductDetailViewModel
 
@@ -14,69 +15,88 @@ struct ProductDetailView: View {
     }
 
     var body: some View {
-        let insights = viewModel.insights
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                if !viewModel.gallery.imageURLs.isEmpty {
-                    ProductGalleryView(gallery: viewModel.gallery, selection: gallerySelection)
-                } else if viewModel.showsGallerySkeleton {
-                    GallerySkeleton()
-                }
-                ProductDetailHeaderView(header: viewModel.header)
-                    .padding(.horizontal)
-                DetailStatusView(
-                    snapshot: viewModel.isShowingSnapshot ? viewModel.savedSnapshot : nil,
-                    refresh: viewModel.refresh,
-                    message: viewModel.statusMessage
-                ) {
-                    viewModel.retry()
-                }
-                .padding(.horizontal)
-                Group {
-                    if !insights.atAGlance.isEmpty {
-                        DetailSection("At a Glance") {
-                            AtAGlanceView(facts: insights.atAGlance)
-                        }
-                    }
-                    DetailSection("Pricing") {
-                        FactRows(facts: insights.pricing)
-                        if let savedPrice = viewModel.savedPriceIfChanged {
-                            PriceChangedNote(savedPrice: savedPrice)
-                        }
-                    }
-                    if !insights.overview.isEmpty {
-                        DetailSection("Overview") {
-                            OverviewView(facts: insights.overview)
-                        }
-                    }
-                    if !insights.productInformation.isEmpty {
-                        DetailSection("Product information") {
-                            FactRows(facts: insights.productInformation)
-                        }
-                    }
-                    if !insights.shippingAndAvailability.isEmpty {
-                        DetailSection("Shipping & availability") {
-                            FactRows(facts: insights.shippingAndAvailability)
-                        }
-                    }
-                    if !insights.reviews.isEmpty {
-                        DetailSection("Recent reviews") {
-                            ReviewsView(reviews: insights.reviews)
-                        }
-                    }
-                }
-                .padding(.horizontal)
+        Group {
+            switch viewModel.screen {
+            case .skeleton:
+                content(isSkeleton: true)
+            case .content:
+                content(isSkeleton: false)
+            case .failed(let error):
+                DetailErrorView(error: error) { viewModel.retry() }
             }
-            .padding(.bottom)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 SaveButton(isSaved: viewModel.isSaved) { viewModel.saveToggled() }
+                    .disabled(!viewModel.canToggleSave)
             }
         }
-        .onAppear { viewModel.contentAppeared() }
         .task { await viewModel.start() }
+    }
+
+    /// The layout of the product on screen, or of a placeholder product, redacted, as the skeleton.
+    private func content(isSkeleton: Bool) -> some View {
+        let insights = viewModel.insights
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                if isSkeleton {
+                    GallerySkeleton()
+                } else if !viewModel.gallery.imageURLs.isEmpty {
+                    ProductGalleryView(gallery: viewModel.gallery, selection: gallerySelection)
+                }
+                VStack(alignment: .leading, spacing: 24) {
+                    ProductDetailHeaderView(header: viewModel.header)
+                        .padding(.horizontal)
+                    if let snapshot = viewModel.savedSnapshot, viewModel.isShowingSnapshot {
+                        SavedFallbackStatusView(snapshot: snapshot, load: viewModel.load, message: viewModel.statusMessage) {
+                            viewModel.retry()
+                        }
+                        .padding(.horizontal)
+                    }
+                    Group {
+                        if !insights.atAGlance.isEmpty {
+                            DetailSection("At a Glance") {
+                                AtAGlanceView(facts: insights.atAGlance)
+                            }
+                        }
+                        DetailSection("Pricing") {
+                            FactRows(facts: insights.pricing)
+                            if let savedPrice = viewModel.savedPriceIfChanged {
+                                PriceChangedNote(savedPrice: savedPrice)
+                            }
+                        }
+                        if !insights.overview.isEmpty {
+                            DetailSection("Overview") {
+                                OverviewView(facts: insights.overview)
+                            }
+                        }
+                        if !insights.productInformation.isEmpty {
+                            DetailSection("Product information") {
+                                FactRows(facts: insights.productInformation)
+                            }
+                        }
+                        if !insights.shippingAndAvailability.isEmpty {
+                            DetailSection("Shipping & availability") {
+                                FactRows(facts: insights.shippingAndAvailability)
+                            }
+                        }
+                        if !insights.reviews.isEmpty {
+                            DetailSection("Recent reviews") {
+                                ReviewsView(reviews: insights.reviews)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .redacted(reason: isSkeleton ? .placeholder : [])
+                .modifier(SkeletonPulse(isActive: isSkeleton))
+            }
+            .padding(.bottom)
+        }
+        .scrollDisabled(isSkeleton)
+        .allowsHitTesting(!isSkeleton)
+        .modifier(SkeletonAccessibility(isActive: isSkeleton))
     }
 
     /// The gallery reports page changes to the view model, which keeps the index (D-59).
@@ -85,6 +105,63 @@ struct ProductDetailView: View {
             get: { viewModel.galleryIndex },
             set: { viewModel.galleryPageChanged(to: $0) }
         )
+    }
+}
+
+/// No product to show (catalog or search, or Saved without a snapshot): the reason, and Retry unless
+/// the product is gone (404).
+private struct DetailErrorView: View {
+    let error: AppError
+    let retry: () -> Void
+
+    var body: some View {
+        if error == .notFound {
+            ContentUnavailableView("No longer available", systemImage: "xmark.circle", description: Text(error.userMessage))
+        } else {
+            ContentUnavailableView {
+                Label("Couldn't load product", systemImage: error == .offline ? "wifi.slash" : "exclamationmark.triangle")
+            } description: {
+                Text(error.userMessage)
+            } actions: {
+                Button("Retry", action: retry)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+            }
+        }
+    }
+}
+
+/// VoiceOver reads the skeleton as one element, "Loading product details", instead of placeholders.
+private struct SkeletonAccessibility: ViewModifier {
+    let isActive: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isActive {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Loading product details")
+        } else {
+            content
+        }
+    }
+}
+
+/// A slow fade in and out that shows a skeleton is loading; off with Reduce Motion.
+private struct SkeletonPulse: ViewModifier {
+    let isActive: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isDimmed = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isActive && isDimmed ? 0.4 : 1)
+            .onAppear {
+                guard isActive, !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                    isDimmed = true
+                }
+            }
     }
 }
 
@@ -110,37 +187,31 @@ private struct ProductDetailHeaderView: View {
     }
 }
 
-/// Under the header until the full product shows (D-81): from Saved, the snapshot labeled as saved
-/// information; then the request's state: in progress, failed with Retry, or the product gone
-/// (ProductSpecification § 4.3). The wording comes from the view model.
-private struct DetailStatusView: View {
-    /// The snapshot while it is what the screen shows; `nil` from a list or once refreshed.
-    let snapshot: SavedProduct?
-    let refresh: DetailRefreshState
+/// From Saved after a failed request (D-83): the snapshot labeled as saved information, and the
+/// request's state: failed with Retry, retrying, or the product gone (ProductSpecification § 4.3).
+/// The wording comes from the view model.
+private struct SavedFallbackStatusView: View {
+    let snapshot: SavedProduct
+    let load: DetailLoadState
     let message: String?
     let retry: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let snapshot {
-                Text("Saved information · \(SavedProductFormat.savedDate(snapshot.savedAt))")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            switch refresh {
-            case .idle, .refreshed:
+            Text("Saved information · \(SavedProductFormat.savedDate(snapshot.savedAt))")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            switch load {
+            case .idle, .loaded:
                 EmptyView()
             case .loading:
-                // From a list the gallery skeleton shows the loading; Saved adds "Updating…".
-                if let message {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text(message)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityElement(children: .combine)
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text(message ?? "")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
             case .failed:
                 StatusBanner(systemImage: "exclamationmark.triangle.fill", message: message ?? "") {
                     Button("Retry", action: retry)
@@ -157,30 +228,18 @@ private struct DetailStatusView: View {
 }
 
 /// Where the gallery will be while the full product loads: the image placeholder's fill at the
-/// gallery's square size, so the images replace it without moving the content below. A spinner and
-/// a slow pulse show that it is loading; with Reduce Motion the pulse is off and the spinner stays.
+/// gallery's square size, pulsing, with a spinner over it.
 private struct GallerySkeleton: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isDimmed = false
-
     var body: some View {
         Rectangle()
             .fill(.fill.tertiary)
-            .opacity(isDimmed ? 0.4 : 1)
+            .modifier(SkeletonPulse(isActive: true))
             .overlay {
                 ProgressView()
                     .controlSize(.large)
             }
             .aspectRatio(1, contentMode: .fit)
             .frame(maxWidth: .infinity)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                    isDimmed = true
-                }
-            }
-            .accessibilityElement()
-            .accessibilityLabel("Loading product images")
     }
 }
 

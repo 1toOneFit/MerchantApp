@@ -62,7 +62,7 @@ struct SavedViewModelTests {
         viewModel.rowSelected(id: 2)
 
         #expect(analytics.events == [.productSelected(productID: 2, source: .saved, position: 1, sort: nil)])
-        #expect(router.path == [.productDetail(.saved(items[1]))])
+        #expect(router.path == [.productDetail(ProductDetailRoute(productID: items[1].id, source: .saved))])
     }
 
     @Test func unknownRowIsIgnored() async {
