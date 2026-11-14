@@ -8,11 +8,9 @@ struct ProductFactRowTests {
     private static let enUS = Locale(identifier: "en_US")
 
     @Test(arguments: [
-        (ProductInsights.Fact.rating(4.94), "Rating", "4.94"),
-        (.rating(4.5), "Rating", "4.5"),
-        (.availability(.lowStock, units: 5), "Availability", "Low stock · 5 units"),
-        (.availability(.inStock, units: 1), "Availability", "In stock · 1 unit"),
-        (.availability(.outOfStock, units: nil), "Availability", "Out of stock"),
+        (ProductInsights.Fact.availability(.lowStock), "Availability", "Low stock"),
+        (.availability(.inStock), "Availability", "In stock"),
+        (.availability(.outOfStock), "Availability", "Out of stock"),
         (.stock(5), "Stock", "5 units"),
         (.stock(0), "Stock", "0 units"),
         (.minimumOrder(48), "Minimum order", "48 units"),
@@ -20,8 +18,6 @@ struct ProductFactRowTests {
         (.shipping("Ships in 1 month"), "Shipping", "Ships in 1 month"),
         (.returnPolicy("No return policy"), "Returns", "No return policy"),
         (.warranty("1 month warranty"), "Warranty", "1 month warranty"),
-        (.price(9.99), "Price", "$9.99"),
-        (.price(1899.99), "Price", "$1,899.99"),
         (.discount(7.17), "Discount", "−7.17%"),
         (.discount(7), "Discount", "−7%"),
         (.discount(0.04), "Discount", "−0.04%"),

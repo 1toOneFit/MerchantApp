@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The product details screen (ProductSpecification § 4.3): gallery, header, At a Glance, Pricing,
-/// Overview, Product information, Shipping & availability and Recent reviews, top to bottom. Opened by
+/// The product details screen (ProductSpecification § 4.3): gallery, header (title, price, stock
+/// status, category, rating; D-87), At a Glance, Pricing, Overview, Product information, Shipping &
+/// availability and Recent reviews, top to bottom. Opened by
 /// id (D-83), the whole layout is a skeleton (redacted placeholder content, pulsing) until
 /// `/products/{id}` returns; then the full product shows. From Saved, a failure shows the saved
 /// snapshot with a banner (AC-D4); otherwise a failure is a full-screen error with Retry. A section
@@ -30,6 +31,7 @@ struct ProductDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 SaveButton(isSaved: viewModel.isSaved) { viewModel.saveToggled() }
                     .disabled(!viewModel.canToggleSave)
+                    .accessibilityIdentifier("productDetail.saveButton")
             }
         }
         .task { await viewModel.start() }
@@ -60,10 +62,14 @@ struct ProductDetailView: View {
                                 AtAGlanceView(facts: insights.atAGlance)
                             }
                         }
-                        DetailSection("Pricing") {
-                            FactRows(facts: insights.pricing)
-                            if let savedPrice = viewModel.savedPriceIfChanged {
-                                PriceChangedNote(savedPrice: savedPrice)
+                        // The price is in the header (D-87); Pricing keeps the discount and the
+                        // price-changed note, and is left out without them (AC-D2).
+                        if !insights.pricing.isEmpty || viewModel.savedPriceIfChanged != nil {
+                            DetailSection("Pricing") {
+                                FactRows(facts: insights.pricing)
+                                if let savedPrice = viewModel.savedPriceIfChanged {
+                                    PriceChangedNote(savedPrice: savedPrice)
+                                }
                             }
                         }
                         if !insights.overview.isEmpty {
@@ -165,23 +171,37 @@ private struct SkeletonPulse: ViewModifier {
     }
 }
 
+/// Title, price, stock status (a colored badge), category · brand, rating: what a merchant checks
+/// first (D-87). The stock badge is left out when the stock is unknown (a saved snapshot, D-89).
 private struct ProductDetailHeaderView: View {
     let header: ProductDetailHeader
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(header.title)
                 .font(.title2.bold())
                 .accessibilityAddTraits(.isHeader)
-            if let brand = header.brand {
-                Text(brand)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                .accessibilityIdentifier("productDetail.title")
+            Text(header.price)
+                .font(.title3.weight(.semibold))
+                .accessibilityLabel("Price \(header.price)")
+                .accessibilityIdentifier("productDetail.price")
+            if let stock = header.stock {
+                StockStatusView(label: stock, style: .badge)
+                    .accessibilityIdentifier("productDetail.stockStatus")
             }
-            if let category = header.category {
-                Text(category)
+            let origin = [header.category, header.brand].compactMap(\.self)
+            if !origin.isEmpty {
+                Text(origin.joined(separator: " · "))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+            if let rating = header.rating {
+                Label(rating, systemImage: "star.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Rated \(rating) of 5")
             }
         }
     }

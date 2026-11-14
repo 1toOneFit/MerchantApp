@@ -2,8 +2,8 @@ import Foundation
 
 /// One fact as the details screen shows it: a label, a value and an SF Symbol. Values are the API's
 /// own: numbers with up to 2 fraction digits and no invented units (D-58), the discount as provided
-/// with no computed price (D-11), prices as USD in the locale's number format (ProductSpecification
-/// § 6).
+/// with no computed price (D-11, ProductSpecification § 6). The price and rating are in the header
+/// (`ProductDetailHeader`, D-87).
 struct ProductFactRow: Equatable {
     let label: String
     let value: String
@@ -12,11 +12,8 @@ struct ProductFactRow: Equatable {
     init(_ fact: ProductInsights.Fact, locale: Locale = .current) {
         let number = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...2)).locale(locale)
         switch fact {
-        case .rating(let rating):
-            self.init("Rating", rating.formatted(number), "star.fill")
-        case .availability(let availability, let units):
-            let status = Self.title(of: availability)
-            self.init("Availability", units.map { "\(status) · \(Self.units($0))" } ?? status, "shippingbox")
+        case .availability(let availability):
+            self.init("Availability", Self.title(of: availability), "shippingbox")
         case .stock(let stock):
             self.init("Stock", Self.units(stock), "number")
         case .minimumOrder(let quantity):
@@ -27,8 +24,6 @@ struct ProductFactRow: Equatable {
             self.init("Returns", policy, "arrow.uturn.backward")
         case .warranty(let warranty):
             self.init("Warranty", warranty, "checkmark.shield")
-        case .price(let price):
-            self.init("Price", price.formatted(.currency(code: "USD").locale(locale)), "dollarsign")
         case .discount(let percentage):
             let percent = (percentage / 100).formatted(.percent.precision(.fractionLength(0...2)).locale(locale))
             self.init("Discount", "\u{2212}\(percent)", "tag")

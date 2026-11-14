@@ -31,15 +31,14 @@ struct ProductInsightsTests {
     @Test func fullProductHasEveryFact() {
         let insights = ProductInsights(Self.full)
 
+        // Rating, price and stock status lead the header instead (D-87).
         #expect(insights.atAGlance == [
-            .rating(4.94),
-            .availability(.lowStock, units: 5),
             .minimumOrder(48),
             .shipping("Ships in 1 month"),
             .returnPolicy("No return policy"),
             .warranty("1 month warranty"),
         ])
-        #expect(insights.pricing == [.price(9.99), .discount(7.17)])
+        #expect(insights.pricing == [.discount(7.17)])
         #expect(insights.overview == [.description("A lengthening mascara."), .tags(["beauty", "mascara"])])
         #expect(insights.productInformation == [
             .sku("BEA-ACM-001"),
@@ -50,7 +49,7 @@ struct ProductInsightsTests {
             .warranty("1 month warranty"),
         ])
         #expect(insights.shippingAndAvailability == [
-            .availability(.lowStock, units: nil),
+            .availability(.lowStock),
             .stock(5),
             .shipping("Ships in 1 month"),
             .minimumOrder(48),
@@ -63,8 +62,8 @@ struct ProductInsightsTests {
     @Test func sparseProductKeepsOnlyCoreFacts() {
         let insights = ProductInsights(makeProduct(id: 2, price: 9.99, rating: 4.5, discountPercentage: 0))
 
-        #expect(insights.atAGlance == [.rating(4.5)])
-        #expect(insights.pricing == [.price(9.99)])
+        #expect(insights.atAGlance.isEmpty)
+        #expect(insights.pricing.isEmpty)
         #expect(insights.overview.isEmpty)
         #expect(insights.productInformation.isEmpty)
         #expect(insights.shippingAndAvailability.isEmpty)
@@ -81,14 +80,14 @@ struct ProductInsightsTests {
     func zeroOrMissingDiscountIsOmitted(discount: Double?) {
         let insights = ProductInsights(makeProduct(id: 4, price: 5, discountPercentage: discount))
 
-        #expect(insights.pricing == [.price(5)])
+        #expect(insights.pricing.isEmpty)
     }
 
     @Test func availabilityCarriesStock() {
         let insights = ProductInsights(makeProduct(id: 5, stock: 0))
 
-        #expect(insights.atAGlance == [.availability(.outOfStock, units: 0)])
-        #expect(insights.shippingAndAvailability == [.availability(.outOfStock, units: nil), .stock(0)])
+        #expect(insights.atAGlance.isEmpty)
+        #expect(insights.shippingAndAvailability == [.availability(.outOfStock), .stock(0)])
     }
 
     /// D-84: availability follows the stock; without a stock there is neither.
