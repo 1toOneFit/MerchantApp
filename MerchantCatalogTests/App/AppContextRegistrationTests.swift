@@ -27,6 +27,21 @@ struct AppContextRegistrationTests {
         AppContext.configure(defaults: store.defaults, appInfo: Self.appInfo)
     }
 
+    /// Without an override the app talks to the API.
+    @Test func liveRepositoryWithoutOverride() {
+        #expect(configure().container.resolve() as (any ProductRepository)? is LiveProductRepository)
+    }
+
+    /// UI tests (`-ui-testing`, D-88) and tests can swap the products source; nothing else changes.
+    @Test func overrideRepositoryIsRegistered() {
+        let fake = FakeProductRepository()
+
+        let context = AppContext.configure(defaults: store.defaults, appInfo: Self.appInfo, productRepository: fake)
+
+        #expect(context.container.resolve() as (any ProductRepository)? as? FakeProductRepository === fake)
+        #expect(CatalogConfigurator.resolveDependencies(from: context.container) != nil)
+    }
+
     @Test func configureBuildsAnIndependentContainer() {
         let first = configure()
         first.container.register(Marker(id: 1))
