@@ -17,6 +17,9 @@ struct CatalogView: View {
 
     @State private var viewModel: CatalogViewModel
     @State private var isSearchPresented = false
+    /// The search field's keyboard focus, separate from `isSearchPresented`: dropping focus puts the
+    /// keyboard away and keeps the search (query, results, sort); only Cancel ends it (D-79).
+    @FocusState private var isSearchFocused: Bool
 
     init(viewModel: CatalogViewModel, isTabSelected: Bool) {
         _viewModel = State(initialValue: viewModel)
@@ -42,6 +45,9 @@ struct CatalogView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: "Search products"
         )
+        .searchFocused($isSearchFocused)
+        // The keyboard's Search key puts the keyboard away; the debounce still decides when to search.
+        .onSubmit(of: .search) { isSearchFocused = false }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 CatalogSortMenu(sort: viewModel.sort) { viewModel.sortSelected($0) }
@@ -198,6 +204,8 @@ private struct CatalogGrid: View {
             CatalogFooterView(footer: footer) { viewModel.retryPage() }
                 .padding()
         }
+        // Scrolling the grid puts the search keyboard away; the search stays (D-79).
+        .scrollDismissesKeyboard(.immediately)
         .refreshable { await viewModel.refresh() }
         .safeAreaInset(edge: .top) {
             if let refreshError {

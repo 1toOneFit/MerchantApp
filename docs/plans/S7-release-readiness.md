@@ -105,3 +105,8 @@ No unit test: views have no unit tests in this project and SwiftUI hit areas are
   - `CatalogGrid`'s `ScrollView`: `.scrollDismissesKeyboard(.immediately)` (browse and search grids).
 - **Risk (expected, not verified):** resigning focus keeps the search active (`isPresented` stays true), as with `UISearchController`. If it flipped `isPresented`, the search would clear; manual check 2 covers it.
 - **Testing:** view modifiers only, no view-model change, so no unit test (no view tests in this project); build + full test run, manual Simulator checks in the review log. ProductSpecification § 4.2 gains one line.
+
+### Plan (D-79, approved 2026-11-14)
+
+- [ ] **Task A — `CatalogView.swift`:** add `@FocusState private var isSearchFocused: Bool`; `.searchFocused($isSearchFocused)` and `.onSubmit(of: .search) { isSearchFocused = false }` after `.searchable`; `.scrollDismissesKeyboard(.immediately)` on `CatalogGrid`'s `ScrollView`. No change to `isSearchPresented` or the view model. Verify: Debug build 0 warnings, full `xcodebuild test` green (no new test: view modifiers only). Commit `feat: dismiss the search keyboard on scroll and on Search`.
+- [ ] **Task B — docs:** D-79 in the Decisions table; ProductSpecification § 4.2 line; review-log entry with manual checks (scroll dismisses, Search key dismisses, results/query/sort stay, Cancel still ends the search, no-results and error states, field tap brings keyboard back); README feature line if needed. Commit.
