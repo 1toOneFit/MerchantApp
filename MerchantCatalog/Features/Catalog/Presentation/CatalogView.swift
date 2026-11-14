@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The catalog screen: the browse grid, the search field and the sort menu (ProductSpecification
-/// § 4.1, § 4.2). It renders the view model's lists and forwards intents. It owns its view model;
-/// `AppTabView` hosts it in the Catalog tab's navigation stack and passes only whether the Catalog
-/// tab is selected.
+/// The catalog screen: the browse grid, the search field, the sort menu and the All products /
+/// Needs attention scope (ProductSpecification § 4.1, § 4.2, § 4.6). It renders the view model's
+/// lists and forwards intents. It owns its view model; `AppTabView` hosts it in the Catalog tab's
+/// navigation stack and passes only whether the Catalog tab is selected.
 ///
 /// While a search is shown, the browse list stays in the hierarchy underneath, invisible and inert,
 /// so clearing the search shows it at the same scroll position with its thumbnails loaded (D-47).
@@ -108,7 +108,7 @@ private struct CatalogListView: View {
             // A new list (sort change, new query, Retry, Reload) gets a new grid, and a new scroll
             // view starts at the top. A page 1 shows the skeleton in between, which replaces the
             // grid too; the identity makes the reset independent of that frame being drawn.
-            CatalogGrid(cards: content.cards, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel, dismissKeyboard: dismissKeyboard)
+            CatalogGrid(content: content, context: context, footer: footer, refreshError: refreshError, viewModel: viewModel, dismissKeyboard: dismissKeyboard)
                 .id(content.listID)
         case .empty:
             ContentUnavailableView {
@@ -169,8 +169,10 @@ private struct CatalogSortMenu: View {
     }
 }
 
+/// The scope bar, the cards of the scope and the footer. In Needs attention the footer says what the
+/// count is based on and loads more on request (D-85).
 private struct CatalogGrid: View {
-    let cards: [ProductCardModel]
+    let content: CatalogListContent
     let context: ListContext
     let footer: CatalogFooter
     let refreshError: AppError?
@@ -181,8 +183,14 @@ private struct CatalogGrid: View {
 
     var body: some View {
         ScrollView {
+            CatalogScopeBar(scope: content.scope, attentionCount: content.attentionCount) { viewModel.scopeSelected($0) }
+                .padding(.horizontal)
+                .padding(.bottom, 4)
+            if content.scope == .needsAttention, content.cards.isEmpty {
+                NoAttentionView()
+            }
             LazyVGrid(columns: CatalogLayout.columns(for: dynamicTypeSize), spacing: CatalogLayout.rowSpacing) {
-                ForEach(cards) { card in
+                ForEach(content.cards) { card in
                     let isSaved = viewModel.isSaved(card.id)
                     // The save button is a sibling over the thumbnail's corner, not nested in the
                     // card's button, so each takes its own taps (D-60). VoiceOver reads the pair as
@@ -202,6 +210,7 @@ private struct CatalogGrid: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(ProductCardAccessibility.label(title: card.title, price: card.price, stock: card.stock?.accessibilityText, rating: card.rating, isSaved: isSaved))
                     .accessibilityAddTraits(.isButton)
+                    .accessibilityIdentifier("catalog.productCard.\(card.id)")
                     .accessibilityAction {
                         viewModel.cardSelected(id: card.id, in: context)
                     }
@@ -213,8 +222,13 @@ private struct CatalogGrid: View {
             }
             .padding(.horizontal)
 
-            CatalogFooterView(footer: footer) { viewModel.retryPage() }
-                .padding()
+            if content.scope == .needsAttention {
+                AttentionFooterView(footer: footer, coverage: content.coverage, loadMore: viewModel.loadMoreTapped, retry: viewModel.retryPage)
+                    .padding()
+            } else {
+                CatalogFooterView(footer: footer) { viewModel.retryPage() }
+                    .padding()
+            }
         }
         // Starting to scroll (a finger drag, either direction) puts the search keyboard away,
         // animated; the search stays (D-79). The system's own dismissal is off so this is the only

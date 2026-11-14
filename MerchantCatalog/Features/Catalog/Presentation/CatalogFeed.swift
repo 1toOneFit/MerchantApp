@@ -44,8 +44,26 @@ struct CatalogFeed {
         query == nil ? .browse : .search
     }
 
-    var content: CatalogListContent {
-        CatalogListContent(phase: phase, cards: cards, listID: listID)
+    /// What the list shows in `scope`: every card, or only those needing attention (D-85).
+    func content(scope: CatalogScope) -> CatalogListContent {
+        CatalogListContent(
+            phase: phase,
+            cards: scope == .all ? cards : cards.filter(\.needsAttention),
+            listID: listID,
+            scope: scope,
+            attentionCount: attentionCount,
+            coverage: coverage
+        )
+    }
+
+    /// Loaded products that are low or out of stock.
+    var attentionCount: Int {
+        cards.count { $0.needsAttention }
+    }
+
+    /// What `attentionCount` is based on.
+    var coverage: AttentionCoverage {
+        AttentionCoverage(loaded: list.items.count, total: list.total, isComplete: !list.canLoadMore)
     }
 
     /// Products are on screen.

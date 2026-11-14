@@ -29,9 +29,15 @@ enum CatalogFooter: Equatable {
 /// browse list on screen, hidden, while search results are shown (D-47).
 struct CatalogListContent: Equatable {
     let phase: CatalogPhase
+    /// The cards of `scope`: every loaded product, or only those needing attention (D-85).
     let cards: [ProductCardModel]
     /// Changes whenever page 1 loads anew (initial load, Retry, Reload, sort change, new query), never
     /// on load-more or pull-to-refresh. The view gives each list its own grid, so a new list starts
     /// at the top (ProductSpecification § 4.2).
     let listID: Int
+    let scope: CatalogScope
+    /// Loaded products of the list that are low or out of stock, in either scope.
+    let attentionCount: Int
+    /// What `attentionCount` is based on.
+    let coverage: AttentionCoverage
 }

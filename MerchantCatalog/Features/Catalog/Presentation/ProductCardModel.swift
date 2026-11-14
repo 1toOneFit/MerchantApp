@@ -40,6 +40,11 @@ struct ProductCardModel: Identifiable, Equatable {
         self.stock = stock
     }
 
+    /// Low or out of stock: listed under Needs attention (D-85). Unknown stock never is.
+    var needsAttention: Bool {
+        stock?.status.needsAttention ?? false
+    }
+
     /// Stand-in text for the redacted skeleton grid. No rating: the row's height is reserved in
     /// both arms anyway. A stock row, so the skeleton has the card's shape.
     static func placeholder(id: Int) -> ProductCardModel {

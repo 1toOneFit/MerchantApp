@@ -14,6 +14,9 @@ import Observation
 /// - Search page 1 waits `searchDebounce` after the last change of the trimmed query, on the
 ///   injected clock. Every page-1 load stamps its feed with a new `generation`; a result whose feed
 ///   no longer has that generation, or no longer exists, is dropped (Architecture § 5).
+/// - Needs attention (D-85) is a scope of the list on screen: it shows only the loaded products that
+///   are low or out of stock, without a request of its own. In it, cards don't load pages as they
+///   appear (the filtered list's end isn't the loaded list's end); `loadMoreTapped()` does.
 /// - Cancellation is never an error: no state change, no event.
 /// - Analytics go through `AnalyticsTracking` only, never with the query text (D-18); durations
 ///   come from the injected monotonic clock (D-40).
@@ -35,12 +38,17 @@ final class CatalogViewModel {
     var listContext: ListContext { displayed.context }
     /// What the list on screen shows.
     var phase: CatalogPhase { displayed.phase }
-    /// One card per loaded product of the list on screen, in server order.
-    var cards: [ProductCardModel] { displayed.cards }
+    /// The cards of the list on screen in the current scope, in server order.
+    var cards: [ProductCardModel] { displayed.content(scope: scope).cards }
     /// The browse list, also while search results cover it (D-47).
-    var browseList: CatalogListContent { browse.content }
+    var browseList: CatalogListContent { browse.content(scope: scope) }
     /// The search results, while a query is committed.
-    var searchList: CatalogListContent? { search?.content }
+    var searchList: CatalogListContent? { search?.content(scope: scope) }
+    /// All products, or only those needing attention; applies to the list on screen (D-85).
+    private(set) var scope: CatalogScope = .all
+    /// Loaded products of the list on screen that are low or out of stock; `nil` until the list
+    /// shows products.
+    var attentionCount: Int? { displayed.hasVisibleContent ? displayed.attentionCount : nil }
     /// The page-1 load of the browse list started by a tap; tests await it.
     @ObservationIgnored private(set) var firstPageTask: Task<Void, Never>?
     /// The latest search page-1 load, including its debounce; tests await it.
@@ -222,13 +230,15 @@ final class CatalogViewModel {
 
     /// A card of the `context` list appeared on screen: it reports experiment exposure (D-70), and
     /// near the end of the list it loads the next page: one page request at a time, none past the
-    /// end, and no automatic retry after a page failure. Cards of a hidden list are ignored (D-52).
+    /// end, and no automatic retry after a page failure. Cards of a hidden list are ignored (D-52);
+    /// in Needs attention no page loads this way (D-85).
     func itemAppeared(id: Product.ID, in context: ListContext) {
         guard context == listContext, let feed = feed(for: context), feed.firstPage == .loaded else {
             return
         }
         cardExperiment.cardRendered(in: context)
         guard
+            scope == .all,
             feed.pageLoad == .idle,
             !isRefreshing,
             feed.list.canLoadMore,
@@ -275,6 +285,30 @@ final class CatalogViewModel {
         guard let change else { return }
         let surface: SaveSurface = context == .search ? .searchCard : .catalogCard
         analytics.track(change.event(surface: surface, position: position))
+    }
+
+    /// The All products / Needs attention control (D-85). Only what the grid shows changes: no
+    /// request, and the lists keep their pages.
+    func scopeSelected(_ newScope: CatalogScope) {
+        guard newScope != scope else { return }
+        scope = newScope
+    }
+
+    /// Needs attention's "Load more products": the next page of the list on screen, so the scope
+    /// can look at more products (D-85). One page request at a time, none past the end, none during
+    /// a refresh, none after a page failure (that is the footer's Retry).
+    func loadMoreTapped() {
+        let context = listContext
+        guard
+            let feed = feed(for: context),
+            feed.firstPage == .loaded,
+            feed.pageLoad == .idle,
+            !isRefreshing,
+            feed.list.canLoadMore
+        else {
+            return
+        }
+        startPageTask(in: context, isRetry: false)
     }
 
     /// The footer's Retry after a failed page. Ignored while a refresh is in flight: the refresh
